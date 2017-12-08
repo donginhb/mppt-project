@@ -1053,6 +1053,9 @@
 					<entry kind="includePath" name="C:/Ac6/SystemWorkbench/plugins/fr.ac6.mcu.externaltools.arm-none.win32_1.15.0.201708311556/tools/compiler/arm-none-eabi/include/c++/6.3.1/arm-none-eabi">
 						<flag value="BUILTIN|READONLY"/>
 					</entry>
+					<entry kind="includePath" name="/${ProjName}/#undef __ARM_ARCH_EXT_IDIV__">
+						<flag value="BUILTIN|READONLY|VALUE_WORKSPACE_PATH"/>
+					</entry>
 					<entry kind="includePath" name="C:/Ac6/SystemWorkbench/plugins/fr.ac6.mcu.externaltools.arm-none.win32_1.15.0.201708311556/tools/compiler/arm-none-eabi/include/c++/6.3.1/backward">
 						<flag value="BUILTIN|READONLY"/>
 					</entry>

@@ -1,6 +1,7 @@
 LaunchTargetManager/org.eclipse.launchbar.core.launchTargetType.local,Local/arch=x86_64
 LaunchTargetManager/org.eclipse.launchbar.core.launchTargetType.local,Local/os=win32
-configDescList=org.eclipse.launchbar.core.descriptorType.default\:mppt-nucleo2 Debug,org.eclipse.launchbar.core.descriptorType.default\:mppt-nucleo Run
+configDescList=org.eclipse.launchbar.core.descriptorType.default\:mppt-nucleo Run,org.eclipse.launchbar.core.descriptorType.default\:mppt-nucleo2 Debug
 eclipse.preferences.version=1
 org.eclipse.launchbar.core.descriptorType.default\:mppt-nucleo\ Run/activeLaunchMode=debug
 org.eclipse.launchbar.core.descriptorType.default\:mppt-nucleo\ Run/activeLaunchTarget=org.eclipse.launchbar.core.launchTargetType.local\:Local
+org.eclipse.launchbar.core.descriptorType.default\:mppt-nucleo2\ Debug/activeLaunchMode=run
