@@ -62,7 +62,7 @@ uint8_t strBuffer[64];
  */
 uint16_t adcBuffer[8];
 
-double vBattery;
+uint32_t vBattery;
 uint32_t vSolarArray;
 uint32_t iBattery;
 uint32_t iSolarArray;
@@ -90,7 +90,10 @@ static void MX_USART1_UART_Init(void);
 static void MX_WWDG_Init(void);
 static void MX_DMA_Init(void);
 
-static void changePWM(uint16_t);
+static void changePWM_TIM5(uint16_t);
+static void changePWM_TIM1(uint16_t);
+
+
 //static void getADCreadings(uint8_t);
 static uint16_t ThresholdVoltage(uint16_t);
 
@@ -272,7 +275,7 @@ static void MX_TIM1_Init(void)
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 0; //0;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 256; //32768;
+  htim1.Init.Period = 512; //256;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
@@ -311,6 +314,9 @@ static void MX_TIM1_Init(void)
     Error_Handler();
   }
 
+  changePWM_TIM1(128);
+
+  /*
   // PWM Polarity normal LIA / LIB
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
   //sConfigOC.Pulse = 16000;
@@ -330,30 +336,30 @@ static void MX_TIM1_Init(void)
   sConfigOC2.OCNIdleState = TIM_OCNIDLESTATE_RESET;
 
 
-//PA8: (LIA)
-  sConfigOC.Pulse = 64;
+//PA8: (LIA)		DUTY - 20%
+  sConfigOC.Pulse = 200;
   if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
 
- //PA9: (HIA)
+ //PA9: (HIA)		DUTY
   sConfigOC2.Pulse = 128; //16000
   if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
   }
 
-  //PA10: (LIB)
-  sConfigOC.Pulse = 16000;
+  //PA10: (LIB)		DUTY - 20%
+  sConfigOC.Pulse = 200;
   if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
   {
     Error_Handler();
   }
 
-  //PA11: (HIB)
-  sConfigOC.Pulse = 16000;
-  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  //PA11: (HIB)		DUTY
+  sConfigOC.Pulse = 128;
+  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_4) != HAL_OK)
   {
     Error_Handler();
   }
@@ -365,9 +371,10 @@ static void MX_TIM1_Init(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+ */
 }
 
-// Controles PWM to the LCD backlight
+// Controls PWM to the LCD backlight
 static void MX_TIM5_Init(void)
 {
 
@@ -403,7 +410,7 @@ static void MX_TIM5_Init(void)
     Error_Handler();
   }
 
-  changePWM(16000);
+  changePWM_TIM5(30000);
 
   HAL_TIM_MspPostInit(&htim5);
 }
@@ -418,7 +425,7 @@ static void MX_TIM9_Init(void) {
 	  htim9.Instance = TIM9;
 	  htim9.Init.Prescaler = 65535; //671;
 	  htim9.Init.CounterMode = TIM_COUNTERMODE_UP;
-	  htim9.Init.Period = 380; //32000;
+	  htim9.Init.Period = 763; // 380;
 	  htim9.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	  if (HAL_TIM_Base_Init(&htim9) != HAL_OK)
 	  {
@@ -618,7 +625,68 @@ void assert_failed(uint8_t* file, uint32_t line)
 
 #endif
 
-static void changePWM(uint16_t pulse) {
+static void changePWM_TIM1(uint16_t pulse) {
+
+	  TIM_OC_InitTypeDef sConfigOC;
+	  TIM_OC_InitTypeDef sConfigOC2;
+
+	  // PWM Polarity normal LIA / LIB
+	  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+	  //sConfigOC.Pulse = 16000;
+	  sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
+	  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_LOW;
+	  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+	  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+	  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+
+	  // PWM Polarity complementary for HIA / HIB
+	  sConfigOC2.OCMode = TIM_OCMODE_PWM1;
+	  //sConfigOC2.Pulse = 16000;
+	  sConfigOC2.OCPolarity = TIM_OCPOLARITY_HIGH;
+	  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+	  sConfigOC2.OCFastMode = TIM_OCFAST_ENABLE; //TIM_OCFAST_DISABLE;
+	  sConfigOC2.OCIdleState = TIM_OCIDLESTATE_RESET;
+	  sConfigOC2.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+
+	//PA8: (LIA)		DUTY - 20%
+	  sConfigOC.Pulse = pulse - (pulse * 0.2);
+	  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+	  {
+	    Error_Handler();
+	  }
+
+	 //PA9: (HIA)		DUTY
+	  sConfigOC2.Pulse = pulse; //16000
+	  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_2) != HAL_OK)
+	  {
+	    Error_Handler();
+	  }
+
+	  //PA10: (LIB)		DUTY - 20%
+	  sConfigOC.Pulse = pulse - (pulse * 0.2);
+	  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+	  {
+	    Error_Handler();
+	  }
+
+	  //PA11: (HIB)		DUTY
+	  sConfigOC.Pulse = pulse;
+	  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+	  {
+	    Error_Handler();
+	  }
+
+
+	  HAL_TIM_MspPostInit(&htim1);
+
+	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+
+}
+
+static void changePWM_TIM5(uint16_t pulse) {
 
 	 TIM_OC_InitTypeDef sConfigOC;
 
@@ -639,7 +707,6 @@ static void changePWM(uint16_t pulse) {
 static void getADCreadings (uint8_t howMany) {
 
 	uint8_t i;
-	double vBat;
 	uint8_t buffer2[16] = "";
 
 	vBattery = 0;
@@ -653,6 +720,7 @@ static void getADCreadings (uint8_t howMany) {
 
 //	memset(adcBuffer, 0, 8);
 
+//	ADC channel reading are accumulated in HAL_ADC_ConvCpltCallback() after each loop (i.e.each completed conversion)
 	for (i=howMany; i>0; i--) {
 		if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adcBuffer, 8) != HAL_OK)
 			Error_Handler();
@@ -661,16 +729,16 @@ static void getADCreadings (uint8_t howMany) {
 	HAL_Delay(10);
 
 	vBat = (vBattery / howMany) * adcUnit;
-	vSolarArray /= howMany;
-	iBattery /= howMany;
-	iSolarArray /= howMany;
-	vLoad /= howMany;
-	tempAmbient/= howMany;
-	tempMOSFETS /= howMany;
-	iLoad /= howMany;
+	vSolar = (vSolarArray / howMany) * adcUnit;
+	iBat = (iBattery / howMany) * adcUnit;
+	iSolar = (iSolarArray / howMany) * adcUnit;
+	loadVoltage = (vLoad / howMany) * adcUnit;
+	ambientTemp = (tempAmbient / howMany) * adcUnit;
+	mosfetTemp = (tempMOSFETS / howMany) * adcUnit;
+	loadCurrent = (iLoad / howMany) * adcUnit;
 
-	sprintf(strBuffer, "MPPT ADC Values: %2.2f %x %x %x %x %x %x %x\r\n", vBat, vSolarArray, iBattery, iSolarArray, vLoad, tempAmbient, tempMOSFETS, iLoad);
-//	sprintf(strBuffer, "MPPT ADC Values: %x %x %x %x %x %x %x %x\r\n", adcBuffer[0], adcBuffer[1], adcBuffer[2], adcBuffer[3], adcBuffer[4], adcBuffer[5], adcBuffer[6], adcBuffer[7]);
+	sprintf(strBuffer, "MPPT ADC Values: %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f\r\n", vBat, vSolar, iBat, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent);
+//	sprintf(strBuffer, "MPPT ADC Values: %x %x %x %x %x %% %x\r\n", adcBuffer[0], adcBuffer[1], adcBuffer[2], adcBuffer[3], adcBuffer[4], adcBuffer[5], adcBuffer[6], adcBuffer[7]);
 	HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
 	  sprintf(buffer2, "V: %2.2f", vBat);
@@ -699,6 +767,8 @@ int main(void)
 {
 
 	uint8_t buffer[16] = "";
+	uint16_t duty = 1000;
+	uint16_t duty2 = 10;
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
@@ -743,6 +813,19 @@ int main(void)
 //	  HAL_WWDG_Refresh(&hwwdg);
 
 	  HAL_Delay(500);
+
+	  changePWM_TIM5(duty);
+	  changePWM_TIM1(duty2);
+
+	  duty += 1000;
+	  duty2 += 10;
+
+	  if (duty >= 30000)
+		  duty = 1000;
+
+	  if (duty2 >= 500)
+		  duty2 = 10;
+
   }
 }
 
