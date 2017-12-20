@@ -650,3 +650,6 @@ Command-line arguments:  -os win32 -ws win32 -arch x86_64 -pluginCustomization c
 
 !ENTRY org.eclipse.launchbar.core 2 0 2017-12-19 14:24:40.534
 !MESSAGE Enablement expression is missing for config provider for org.eclipse.cdt.debug.core.coreBuildDescriptorType
+
+!ENTRY org.eclipse.cdt.core 1 0 2017-12-20 09:44:13.498
+!MESSAGE Indexed 'mppt-ems' (90 sources, 61 headers) in 3.78 sec: 6,740 declarations; 54,077 references; 11 unresolved inclusions; 348 syntax errors; 5,214 unresolved names (7.9%)
