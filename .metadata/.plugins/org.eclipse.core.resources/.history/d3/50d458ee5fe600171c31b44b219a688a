@@ -46,6 +46,7 @@ TIM_HandleTypeDef htim5;
 TIM_HandleTypeDef htim9;
 
 UART_HandleTypeDef huart1;
+WWDG_HandleTypeDef hwwdg;
 
 uint8_t strBuffer[64];
 
@@ -86,15 +87,11 @@ static void MX_TIM5_Init(void);
 static void MX_TIM9_Init(void);
 
 static void MX_USART1_UART_Init(void);
-//static void MX_WWDG_Init(void);
+static void MX_WWDG_Init(void);
 static void MX_DMA_Init(void);
 
 static void changePWM_TIM5(uint16_t);
 static void changePWM_TIM1(uint16_t);
-
-double calcVoltage(uint16_t ADvalue, uint8_t gain);
-double calcCurrent(uint16_t ADvalue);
-double calcTemperature(uint16_t value);
 
 
 //static void getADCreadings(uint8_t);
@@ -418,7 +415,7 @@ static void MX_TIM5_Init(void)
   HAL_TIM_MspPostInit(&htim5);
 }
 
-//Used as a 100 mS timer.
+//Used as a 1 second timer.
 static void MX_TIM9_Init(void) {
 
 	  TIM_ClockConfigTypeDef sClockSourceConfig;
@@ -428,7 +425,7 @@ static void MX_TIM9_Init(void) {
 	  htim9.Instance = TIM9;
 	  htim9.Init.Prescaler = 65535; //671;
 	  htim9.Init.CounterMode = TIM_COUNTERMODE_UP;
-	  htim9.Init.Period = 76; // 76 gives 100 mS period, 763 gives 1S period;
+	  htim9.Init.Period = 763; // 380;
 	  htim9.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	  if (HAL_TIM_Base_Init(&htim9) != HAL_OK)
 	  {
@@ -483,6 +480,21 @@ static void MX_USART1_UART_Init(void)
 	HAL_NVIC_ClearPendingIRQ(USART1_IRQn);
 }
 
+/* WWDG init function */
+static void MX_WWDG_Init(void)
+{
+
+  hwwdg.Instance = WWDG;
+  hwwdg.Init.Prescaler = WWDG_PRESCALER_8;
+  hwwdg.Init.Window = 0x40;
+  hwwdg.Init.Counter = 0x7f;
+  hwwdg.Init.EWIMode = WWDG_EWI_DISABLE;
+  if (HAL_WWDG_Init(&hwwdg) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+}
 
 /**
   * Enable DMA controller clock
@@ -506,9 +518,6 @@ static void MX_DMA_Init(void)
         * EVENT_OUT
         * EXTI
 */
-
-/* GPIOs for digital functions are configured here */
-/* GPIOs for alternate functions are configured in stm32f4xx_hal_msp.h */
 static void MX_GPIO_Init(void)
 {
 
@@ -520,14 +529,13 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
 //PORT C GPIOs
- //Pin 11 pings the external WDT, Pin 9 controls SA_SWITCH,  Pins 6 - 0 control the LCD
-  GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_9 | GPIO_PIN_6 |GPIO_PIN_5 | GPIO_PIN_4 | GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 |GPIO_PIN_0;
+ //Pin 9 controls SA_SWITCH Pins 6 - 0 control the LCD
+  GPIO_InitStruct.Pin = GPIO_PIN_9 | GPIO_PIN_6 |GPIO_PIN_5 | GPIO_PIN_4 | GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 |GPIO_PIN_0;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-//
   //Pin 7: Power Good Input, Pin 8: OverVoltage Fault (OV_FAULT) input
   GPIO_InitStruct.Pin = GPIO_PIN_7 | GPIO_PIN_8;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
@@ -536,8 +544,8 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
 //PORT B GPIOs
-  //Pin 1 controls BB_V+_Switch, Pin 2 for Fan Control, Pin 15 for the on-board Diagnostic LED
-   GPIO_InitStruct.Pin = GPIO_PIN_15 | GPIO_PIN_2 | GPIO_PIN_1;
+  //Pin 1 controls BB_V+_Switch, Pin 2 for Fan Control
+   GPIO_InitStruct.Pin = GPIO_PIN_2 | GPIO_PIN_1;
    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
    GPIO_InitStruct.Pull = GPIO_NOPULL;
    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -545,16 +553,15 @@ static void MX_GPIO_Init(void)
 
 
 
-
   /*Configure GPIO pin : LD2_Pin */
- // GPIO_InitStruct.Pin = GPIO_PIN_15;
- // GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
- // GPIO_InitStruct.Pull = GPIO_NOPULL;
- // GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
- // HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  GPIO_InitStruct.Pin = GPIO_PIN_5;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin Output Level */
- // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
 
 }
 
@@ -569,7 +576,7 @@ void Error_Handler(void)
 {
   while(1) 
   {
-	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_15);
+	  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 	  HAL_Delay(100);
   }
 }
@@ -578,8 +585,7 @@ void Error_Handler(void)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 	if (htim->Instance==TIM9) {
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_15);
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_11); // Ping the WDT
+		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 		getADC = 1;
 	}
 }
@@ -595,6 +601,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc1) {
 	tempMOSFETS += adcBuffer[6];
 	iLoad += adcBuffer[7];
 
+//	  sprintf(strBuffer, "MPPT ADC Values: %x %x %x %x %x %x %x %x\r\n", adcBuffer[0], adcBuffer[1], adcBuffer[2], adcBuffer[3], adcBuffer[4], adcBuffer[5], adcBuffer[6], adcBuffer[7]);
+//	  HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 }
 
 #ifdef USE_FULL_ASSERT
@@ -720,8 +728,6 @@ static void getADCreadings (uint8_t howMany) {
 
 	HAL_Delay(10);
 
-
-//
 	vBat = (vBattery / howMany) * adcUnit;
 	vSolar = (vSolarArray / howMany) * adcUnit;
 	iBat = (iBattery / howMany) * adcUnit;
@@ -754,43 +760,6 @@ static uint16_t ThresholdVoltage(uint16_t tempAmbient)
 		return (TV_0 - ((tempAmbient - TEMP_0) * RATE1) / 100);
 	else
 		return (TV_40 - ((tempAmbient - TEMP_40) * RATE2) / 100);
-}
-
-double calcVoltage(uint16_t ADvalue, uint8_t gain) {
-
-	const uint16_t ADunit = 1241;					// 1241 ADcounts / ADC input volt
-	const double voltageDividerOutput = 0.0992;		// Voltage Divider ratio gives 0.0992 volts out / volt in
-	double voltage;
-
-	voltage  = ADvalue / ADunit / gain / voltageDividerOutput;
-
-	return voltage;
-}
-
-double calcCurrent(uint16_t ADvalue) {
-
-	const uint16_t ADunit = 1241;					// 1241 ADcounts / ADC input volt
-	const uint8_t gain = 50;						// Gain of the INA213AIDCK current sense amplifier
-	const double Rsense	=	0.002;					// Value of current sense resistors used in design.
-	double current;
-
-	current = ADvalue / ADunit / gain / Rsense;
-
-	return current;
-
-}
-
-double calcTemperature(uint16_t ADvalue) {
-
-	const uint16_t ADunit = 1241;					// 1241 ADcounts / ADC input volt
-	const double LM335voltage = 0.010;				// The LM335 outputs 10 mV / degree Kelvin
-	const double kelvin = 273.15;					// 0 C = 273.15 K
-	double degC;
-
-	degC = (ADvalue / ADunit / LM335voltage) - kelvin;
-
-	return degC;
-
 }
 
 
@@ -829,24 +798,33 @@ int main(void)
   while (1)
   {
 
+//	  HAL_WWDG_Refresh(&hwwdg);
 
-// Get ADC readings
 	  if (getADC == 1) {
 		  getADC = 0;
 		  getADCreadings(32);
 	  }
-//	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_15);
+//	  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 //	  HAL_Delay(100);
 
 	  sprintf(buffer, "Input: %c", myChar);
 	  HD44780_WriteData(0, 3, buffer);
 //
+//	  HAL_WWDG_Refresh(&hwwdg);
 
 	  HAL_Delay(500);
 
 	  changePWM_TIM5(duty);
 	  changePWM_TIM1(duty2);
 
+	  duty += 1000;
+	  duty2 += 10;
+
+	  if (duty >= 30000)
+		  duty = 1000;
+
+	  if (duty2 >= 500)
+		  duty2 = 10;
 
   }
 }

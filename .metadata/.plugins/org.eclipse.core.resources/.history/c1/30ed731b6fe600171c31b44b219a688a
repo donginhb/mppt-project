@@ -46,6 +46,7 @@ TIM_HandleTypeDef htim5;
 TIM_HandleTypeDef htim9;
 
 UART_HandleTypeDef huart1;
+WWDG_HandleTypeDef hwwdg;
 
 uint8_t strBuffer[64];
 
@@ -86,7 +87,7 @@ static void MX_TIM5_Init(void);
 static void MX_TIM9_Init(void);
 
 static void MX_USART1_UART_Init(void);
-//static void MX_WWDG_Init(void);
+static void MX_WWDG_Init(void);
 static void MX_DMA_Init(void);
 
 static void changePWM_TIM5(uint16_t);
@@ -428,7 +429,7 @@ static void MX_TIM9_Init(void) {
 	  htim9.Instance = TIM9;
 	  htim9.Init.Prescaler = 65535; //671;
 	  htim9.Init.CounterMode = TIM_COUNTERMODE_UP;
-	  htim9.Init.Period = 76; // 76 gives 100 mS period, 763 gives 1S period;
+	  htim9.Init.Period = 76; // 763;
 	  htim9.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	  if (HAL_TIM_Base_Init(&htim9) != HAL_OK)
 	  {
@@ -483,6 +484,21 @@ static void MX_USART1_UART_Init(void)
 	HAL_NVIC_ClearPendingIRQ(USART1_IRQn);
 }
 
+/* WWDG init function */
+static void MX_WWDG_Init(void)
+{
+
+  hwwdg.Instance = WWDG;
+  hwwdg.Init.Prescaler = WWDG_PRESCALER_8;
+  hwwdg.Init.Window = 0x40;
+  hwwdg.Init.Counter = 0x7f;
+  hwwdg.Init.EWIMode = WWDG_EWI_DISABLE;
+  if (HAL_WWDG_Init(&hwwdg) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+}
 
 /**
   * Enable DMA controller clock
@@ -520,8 +536,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
 //PORT C GPIOs
- //Pin 11 pings the external WDT, Pin 9 controls SA_SWITCH,  Pins 6 - 0 control the LCD
-  GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_9 | GPIO_PIN_6 |GPIO_PIN_5 | GPIO_PIN_4 | GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 |GPIO_PIN_0;
+ //Pin 9 controls SA_SWITCH Pins 6 - 0 control the LCD
+  GPIO_InitStruct.Pin = GPIO_PIN_9 | GPIO_PIN_6 |GPIO_PIN_5 | GPIO_PIN_4 | GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 |GPIO_PIN_0;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -579,7 +595,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 	if (htim->Instance==TIM9) {
 		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_15);
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_11); // Ping the WDT
 		getADC = 1;
 	}
 }
@@ -595,6 +610,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc1) {
 	tempMOSFETS += adcBuffer[6];
 	iLoad += adcBuffer[7];
 
+//	  sprintf(strBuffer, "MPPT ADC Values: %x %x %x %x %x %x %x %x\r\n", adcBuffer[0], adcBuffer[1], adcBuffer[2], adcBuffer[3], adcBuffer[4], adcBuffer[5], adcBuffer[6], adcBuffer[7]);
+//	  HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 }
 
 #ifdef USE_FULL_ASSERT
@@ -829,6 +846,7 @@ int main(void)
   while (1)
   {
 
+//	  HAL_WWDG_Refresh(&hwwdg);
 
 // Get ADC readings
 	  if (getADC == 1) {
@@ -841,6 +859,7 @@ int main(void)
 	  sprintf(buffer, "Input: %c", myChar);
 	  HD44780_WriteData(0, 3, buffer);
 //
+//	  HAL_WWDG_Refresh(&hwwdg);
 
 	  HAL_Delay(500);
 

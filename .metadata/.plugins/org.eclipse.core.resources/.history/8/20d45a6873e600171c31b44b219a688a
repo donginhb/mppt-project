@@ -595,6 +595,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc1) {
 	tempMOSFETS += adcBuffer[6];
 	iLoad += adcBuffer[7];
 
+//	  sprintf(strBuffer, "MPPT ADC Values: %x %x %x %x %x %x %x %x\r\n", adcBuffer[0], adcBuffer[1], adcBuffer[2], adcBuffer[3], adcBuffer[4], adcBuffer[5], adcBuffer[6], adcBuffer[7]);
+//	  HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 }
 
 #ifdef USE_FULL_ASSERT

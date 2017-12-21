@@ -46,7 +46,7 @@ TIM_HandleTypeDef htim5;
 TIM_HandleTypeDef htim9;
 
 UART_HandleTypeDef huart1;
-WWDG_HandleTypeDef hwwdg;
+//WWDG_HandleTypeDef hwwdg;
 
 uint8_t strBuffer[64];
 
@@ -87,7 +87,7 @@ static void MX_TIM5_Init(void);
 static void MX_TIM9_Init(void);
 
 static void MX_USART1_UART_Init(void);
-static void MX_WWDG_Init(void);
+//static void MX_WWDG_Init(void);
 static void MX_DMA_Init(void);
 
 static void changePWM_TIM5(uint16_t);
@@ -316,62 +316,6 @@ static void MX_TIM1_Init(void)
 
   changePWM_TIM1(128);
 
-  /*
-  // PWM Polarity normal LIA / LIB
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  //sConfigOC.Pulse = 16000;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
-  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_LOW;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-
-  // PWM Polarity complementary for HIA / HIB
-  sConfigOC2.OCMode = TIM_OCMODE_PWM1;
-  //sConfigOC2.Pulse = 16000;
-  sConfigOC2.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-  sConfigOC2.OCFastMode = TIM_OCFAST_ENABLE; //TIM_OCFAST_DISABLE;
-  sConfigOC2.OCIdleState = TIM_OCIDLESTATE_RESET;
-  sConfigOC2.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-
-
-//PA8: (LIA)		DUTY - 20%
-  sConfigOC.Pulse = 200;
-  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
- //PA9: (HIA)		DUTY
-  sConfigOC2.Pulse = 128; //16000
-  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  //PA10: (LIB)		DUTY - 20%
-  sConfigOC.Pulse = 200;
-  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  //PA11: (HIB)		DUTY
-  sConfigOC.Pulse = 128;
-  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-
-  HAL_TIM_MspPostInit(&htim1);
-
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
- */
 }
 
 // Controls PWM to the LCD backlight
@@ -415,7 +359,7 @@ static void MX_TIM5_Init(void)
   HAL_TIM_MspPostInit(&htim5);
 }
 
-//Used as a 1 second timer.
+//Used as a 100 mS timer.
 static void MX_TIM9_Init(void) {
 
 	  TIM_ClockConfigTypeDef sClockSourceConfig;
@@ -425,7 +369,7 @@ static void MX_TIM9_Init(void) {
 	  htim9.Instance = TIM9;
 	  htim9.Init.Prescaler = 65535; //671;
 	  htim9.Init.CounterMode = TIM_COUNTERMODE_UP;
-	  htim9.Init.Period = 763; // 380;
+	  htim9.Init.Period = 76; // 763;
 	  htim9.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	  if (HAL_TIM_Base_Init(&htim9) != HAL_OK)
 	  {
@@ -481,20 +425,20 @@ static void MX_USART1_UART_Init(void)
 }
 
 /* WWDG init function */
-static void MX_WWDG_Init(void)
+/* static void MX_WWDG_Init(void)
 {
 
   hwwdg.Instance = WWDG;
   hwwdg.Init.Prescaler = WWDG_PRESCALER_8;
-  hwwdg.Init.Window = 0x40;
+  hwwdg.Init.Window = 0x7f;
   hwwdg.Init.Counter = 0x7f;
   hwwdg.Init.EWIMode = WWDG_EWI_DISABLE;
-  if (HAL_WWDG_Init(&hwwdg) != HAL_OK)
-  {
-    Error_Handler();
-  }
+//  if (HAL_WWDG_Init(&hwwdg) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
 
-}
+} */
 
 /**
   * Enable DMA controller clock
@@ -529,8 +473,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
 //PORT C GPIOs
- //Pin 9 controls SA_SWITCH Pins 6 - 0 control the LCD
-  GPIO_InitStruct.Pin = GPIO_PIN_9 | GPIO_PIN_6 |GPIO_PIN_5 | GPIO_PIN_4 | GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 |GPIO_PIN_0;
+ //Pin 11 pings the external WDT, Pin 9 controls SA_SWITCH, Pins 6 - 0 control the LCD
+  GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_9 | GPIO_PIN_6 |GPIO_PIN_5 | GPIO_PIN_4 | GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 |GPIO_PIN_0;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -586,6 +530,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 	if (htim->Instance==TIM9) {
 		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_11);
 		getADC = 1;
 	}
 }
@@ -784,7 +729,7 @@ int main(void)
   MX_TIM5_Init();
   MX_TIM9_Init();
   MX_USART1_UART_Init();
-//  MX_WWDG_Init();
+  //MX_WWDG_Init();
 
 
  //crc16_init();
@@ -794,6 +739,7 @@ int main(void)
 // if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adcBuffer, 8) != HAL_OK)
 //	 Error_Handler();
 
+ //	 HAL_WWDG_Init(&hwwdg);
 
   while (1)
   {

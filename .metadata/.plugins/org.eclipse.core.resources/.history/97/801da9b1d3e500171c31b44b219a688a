@@ -209,7 +209,7 @@ void USART1_IRQHandler(void) {
 //		charCount = 0;
 //		rx = inBuffer;
 //	}
-	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_15);
+	HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 
 //	HAL_UART_Receive_IT(&huart2, (uint8_t *)rxBuffer, 3);
 	__HAL_UART_FLUSH_DRREGISTER(&huart1);
