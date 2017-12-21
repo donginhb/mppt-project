@@ -31,6 +31,10 @@
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
+
+#define ON		1
+#define OFF		0
+
 #include "stm32f4xx_hal.h"
 #include "HD44780.h"
 #include "mppt.h"
@@ -71,6 +75,7 @@ uint32_t tempMOSFETS;
 uint32_t iLoad;
 
 uint8_t getADC = 0;
+uint8_t tim9Count = 9;
 
 // adcUnit = Vref / 2^12
 //Vref = 3.3v and 2^12 = 4096 for 12 bits of resolution
@@ -95,6 +100,12 @@ static void changePWM_TIM1(uint16_t);
 double calcVoltage(uint16_t ADvalue, uint8_t gain);
 double calcCurrent(uint16_t ADvalue);
 double calcTemperature(uint16_t value);
+
+void switchFan(uint8_t onOff);
+void switchSolarArray(uint8_t onOff);
+void switchLoad(uint8_t onOff);
+void switchCharger(uint8_t onOff);
+void switchChargeLED(uint8_t onOff);
 
 
 //static void getADCreadings(uint8_t);
@@ -319,62 +330,6 @@ static void MX_TIM1_Init(void)
 
   changePWM_TIM1(128);
 
-  /*
-  // PWM Polarity normal LIA / LIB
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  //sConfigOC.Pulse = 16000;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
-  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_LOW;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-
-  // PWM Polarity complementary for HIA / HIB
-  sConfigOC2.OCMode = TIM_OCMODE_PWM1;
-  //sConfigOC2.Pulse = 16000;
-  sConfigOC2.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-  sConfigOC2.OCFastMode = TIM_OCFAST_ENABLE; //TIM_OCFAST_DISABLE;
-  sConfigOC2.OCIdleState = TIM_OCIDLESTATE_RESET;
-  sConfigOC2.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-
-
-//PA8: (LIA)		DUTY - 20%
-  sConfigOC.Pulse = 200;
-  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
- //PA9: (HIA)		DUTY
-  sConfigOC2.Pulse = 128; //16000
-  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  //PA10: (LIB)		DUTY - 20%
-  sConfigOC.Pulse = 200;
-  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  //PA11: (HIB)		DUTY
-  sConfigOC.Pulse = 128;
-  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-
-  HAL_TIM_MspPostInit(&htim1);
-
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
- */
 }
 
 // Controls PWM to the LCD backlight
@@ -519,15 +474,15 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
-//PORT C GPIOs
- //Pin 11 pings the external WDT, Pin 9 controls SA_SWITCH,  Pins 6 - 0 control the LCD
-  GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_9 | GPIO_PIN_6 |GPIO_PIN_5 | GPIO_PIN_4 | GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 |GPIO_PIN_0;
+ //PORT C GPIOs
+ //Pin 11 pings the external WDT, Pin 10 is the Charge LED,  Pin 9 controls SA_SWITCH,  Pins 6 - 0 control the LCD
+  GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_10 | GPIO_PIN_9 | GPIO_PIN_6 |GPIO_PIN_5 | GPIO_PIN_4 | GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 |GPIO_PIN_0;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-//
+  // PORT B GPIOs: INPUTS
   //Pin 7: Power Good Input, Pin 8: OverVoltage Fault (OV_FAULT) input
   GPIO_InitStruct.Pin = GPIO_PIN_7 | GPIO_PIN_8;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
@@ -535,7 +490,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-//PORT B GPIOs
+  //PORT B GPIOs: OUTPUTS
   //Pin 1 controls BB_V+_Switch, Pin 2 for Fan Control, Pin 15 for the on-board Diagnostic LED
    GPIO_InitStruct.Pin = GPIO_PIN_15 | GPIO_PIN_2 | GPIO_PIN_1;
    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -574,13 +529,20 @@ void Error_Handler(void)
   }
 }
 
-
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
-	if (htim->Instance==TIM9) {
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_15);
+	if (htim->Instance==TIM9)
+	{
+		tim9Count--;
+
+		if (tim9Count == 0)
+		{
+			tim9Count = 9;
+			getADC = 1;
+			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_15);
+		}
+
 		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_11); // Ping the WDT
-		getADC = 1;
 	}
 }
 
@@ -720,16 +682,14 @@ static void getADCreadings (uint8_t howMany) {
 
 	HAL_Delay(10);
 
-
-//
-	vBat = (vBattery / howMany) * adcUnit;
-	vSolar = (vSolarArray / howMany) * adcUnit;
-	iBat = (iBattery / howMany) * adcUnit;
-	iSolar = (iSolarArray / howMany) * adcUnit;
-	loadVoltage = (vLoad / howMany) * adcUnit;
-	ambientTemp = (tempAmbient / howMany) * adcUnit;
-	mosfetTemp = (tempMOSFETS / howMany) * adcUnit;
-	loadCurrent = (iLoad / howMany) * adcUnit;
+	vBat = calcVoltage( (vBattery / howMany), 2); //(vBattery / howMany) * adcUnit;
+	vSolar = calcVoltage((vSolarArray / howMany), 2);
+	iBat = calcCurrent(iBattery / howMany);
+	iSolar = calcCurrent(iSolarArray / howMany);
+	loadVoltage = calcVoltage((vLoad / howMany), 1);
+	ambientTemp = calcTemperature(tempAmbient / howMany);
+	mosfetTemp = calcTemperature(tempMOSFETS / howMany);
+	loadCurrent = calcCurrent(iLoad / howMany);
 
 	sprintf(strBuffer, "MPPT ADC Values: %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f\r\n", vBat, vSolar, iBat, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent);
 //	sprintf(strBuffer, "MPPT ADC Values: %x %x %x %x %x %% %x\r\n", adcBuffer[0], adcBuffer[1], adcBuffer[2], adcBuffer[3], adcBuffer[4], adcBuffer[5], adcBuffer[6], adcBuffer[7]);
@@ -756,7 +716,8 @@ static uint16_t ThresholdVoltage(uint16_t tempAmbient)
 		return (TV_40 - ((tempAmbient - TEMP_40) * RATE2) / 100);
 }
 
-double calcVoltage(uint16_t ADvalue, uint8_t gain) {
+double calcVoltage(uint16_t ADvalue, uint8_t gain)
+{
 
 	const uint16_t ADunit = 1241;					// 1241 ADcounts / ADC input volt
 	const double voltageDividerOutput = 0.0992;		// Voltage Divider ratio gives 0.0992 volts out / volt in
@@ -767,7 +728,8 @@ double calcVoltage(uint16_t ADvalue, uint8_t gain) {
 	return voltage;
 }
 
-double calcCurrent(uint16_t ADvalue) {
+double calcCurrent(uint16_t ADvalue)
+{
 
 	const uint16_t ADunit = 1241;					// 1241 ADcounts / ADC input volt
 	const uint8_t gain = 50;						// Gain of the INA213AIDCK current sense amplifier
@@ -777,10 +739,10 @@ double calcCurrent(uint16_t ADvalue) {
 	current = ADvalue / ADunit / gain / Rsense;
 
 	return current;
-
 }
 
-double calcTemperature(uint16_t ADvalue) {
+double calcTemperature(uint16_t ADvalue)
+{
 
 	const uint16_t ADunit = 1241;					// 1241 ADcounts / ADC input volt
 	const double LM335voltage = 0.010;				// The LM335 outputs 10 mV / degree Kelvin
@@ -790,8 +752,53 @@ double calcTemperature(uint16_t ADvalue) {
 	degC = (ADvalue / ADunit / LM335voltage) - kelvin;
 
 	return degC;
-
 }
+
+void switchFan(uint8_t onOff)
+{
+
+	if (onOff == ON)
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);
+	else
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET);
+}
+
+void switchSolarArray(uint8_t onOff)
+{
+
+	if (onOff == ON)
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_SET);
+	else
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
+}
+
+void switchLoad(uint8_t onOff)
+{
+
+	if (onOff == ON)
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
+	else
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
+}
+
+void switchCharger(uint8_t onOff)
+{
+
+	if (onOff == ON)
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
+	else
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
+}
+
+void switchChargeLED(uint8_t onOff)
+{
+
+	if (onOff == ON)
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10, GPIO_PIN_SET);
+	else
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10, GPIO_PIN_RESET);
+}
+
 
 
 int main(void)
@@ -815,23 +822,23 @@ int main(void)
   MX_TIM5_Init();
   MX_TIM9_Init();
   MX_USART1_UART_Init();
-//  MX_WWDG_Init();
 
 
  //crc16_init();
  HD44780_Init();
 
-
-// if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adcBuffer, 8) != HAL_OK)
-//	 Error_Handler();
-
+ switchFan(OFF);
+ switchCharger(ON);
+ switchSolarArray(ON);
+ switchLoad(ON);
+ switchChargeLED(OFF);
 
   while (1)
   {
 
-
 // Get ADC readings
-	  if (getADC == 1) {
+	  if (getADC == 1)
+	  {
 		  getADC = 0;
 		  getADCreadings(32);
 	  }
@@ -846,7 +853,6 @@ int main(void)
 
 	  changePWM_TIM5(duty);
 	  changePWM_TIM1(duty2);
-
 
   }
 }

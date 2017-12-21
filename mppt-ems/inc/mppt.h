@@ -31,8 +31,9 @@
 #define TEMP_0      		0xd3c	// 3388 count corrensponding to 0 C
 #define TEMP_40	    		0xf2c	// 3884 count corrensponding to 40 C
 
-/* This is the MOSFET temperature at which the fan is switched on. Change as necessary */
-#define mosfetFanTemp		0xfaa 	// 4010 counts for 50 C
+/* This is the MOSFET temperatures at which the fan is switched on or off. Change as necessary */
+#define FAN_ON_TEMP			0xfaa 	// 4010 counts for 50 C / 122 deg F
+#define FAN_OFF_TEMP		0xf15	// 3861 counts for 38 C / 100.4 deg F
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 void HD44780_Init(void);

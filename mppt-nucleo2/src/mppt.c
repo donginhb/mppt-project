@@ -61,6 +61,7 @@ uint8_t strBuffer[64];
  * 7: Battery Load Current
  */
 uint16_t adcBuffer[8];
+uint8_t tim9Count = 9;
 
 uint32_t vBattery;
 uint32_t vSolarArray;
@@ -528,10 +529,18 @@ void Error_Handler(void)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
-	if (htim->Instance==TIM9) {
-		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+	if (htim->Instance==TIM9)
+	{
+		tim9Count--;
+
+		if (tim9Count == 0)
+		{
+			tim9Count = 9;
+			HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+			getADC = 1;
+		}
+
 		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_11);
-		getADC = 1;
 	}
 }
 
