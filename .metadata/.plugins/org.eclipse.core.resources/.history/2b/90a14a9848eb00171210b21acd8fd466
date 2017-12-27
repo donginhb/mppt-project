@@ -1,8 +1,5 @@
 /** crc16.c
  * CRC16 table generator and calculator
- * Should be useable across multiple platforms
- *
- * Uses the CCIT (XModem) Polynomial: x^16 + x^12 + x^5 + 1
  *
  * (c) 2018 Solar Technology Inc.
  * 7620 Cetronia Road
@@ -17,6 +14,8 @@
  * REVISION HISTORY
  *
  * 1.0: 12/27/2017	Created By Nicholas C. Ipri (NCI) nipri@solartechnology.com
+ * 		This initial version supplies only very basic functionality to initialize and write the display in 4 bit mode
+ * 		Can easily be expanded if necessary.
  */
 
 #include <stdio.h>

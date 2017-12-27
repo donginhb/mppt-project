@@ -19,7 +19,7 @@
  * 1.0: 12/27/2017	Created By Nicholas C. Ipri (NCI) nipri@solartechnology.com
  */
 
-#include <stdio.h>
+//#include <stdio.h>
 
 
 uint16_t crcTable[256];
