@@ -1,16 +1,28 @@
-/*
- * HD44780.c
- * Contains functions to initialize and  control an
- * HD44780 based LCD display in 4 bit mode.
+/** HD44780.c
+ * Source file for controlling HD44780 based LCD displays
  *
- * Target Processor: ST Microelectronics STM32F4xx series
- * ST Firmware Revision: STM32Cube FW_F4 V1.13.1
+ * (c) 2018 Solar Technology Inc.
+ * 7620 Cetronia Road
+ * Allentown PA, 18106
+ * 610-391-8600
+ *
+ * This code is for the exclusive use of Solar Technology Inc.
+ * and cannot be used in its present or any other modified form
+ * without prior written authorization.
+ *
+ * HOST PROCESSOR: STM32F410RBT6
+ * TARGET DISPLAY: Newhaven Display NHD-0216HZ-FSW-FBW-33V3C (should also be compatible with any HC44780 based display)
+ * Developed using STM32CubeF4 HAL and API version 1.18.0
  *
  *
- *  Created on: Mar 30, 2017
- *      v 1.0:  Nicholas C ipri
+ * REVISION HISTORY
  *
+ * 1.0: 12/27/2017	Created By Nicholas C. Ipri (NCI) nipri@solartechnology.com
+ * 		This initial version supplies only very basic functionality to initialize and write the display in 4 bit mode
+ * 		Can easily be expanded if necessary.
  */
+
+
 #include "HD44780.h"
 #include "stm32f4xx_hal.h"
 #include "mppt.h"

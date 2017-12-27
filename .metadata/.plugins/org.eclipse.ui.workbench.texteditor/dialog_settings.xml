@@ -1,23 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <section name="Workbench">
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
-		<item value="false" key="isRegEx"/>
-		<item value="vBattery" key="selection"/>
+		<item value="true" key="isRegEx"/>
+		<item value="toggle" key="selection"/>
 		<item value="false" key="casesensitive"/>
 		<item value="false" key="incremental"/>
 		<item value="true" key="wrap"/>
 		<item value="false" key="wholeword"/>
 		<list key="findhistory">
-			<item value="vBattery"/>
-			<item value="adcBuffer"/>
-			<item value="MX_DMA_Init"/>
-			<item value="hdma_adc1"/>
-			<item value="MX_ADC1_Init"/>
-			<item value="HAL_ADC_IRQHandler"/>
-			<item value="RCC_System_Clock_Source"/>
-			<item value="RCC_System_Clock_Type"/>
+			<item value="toggle"/>
+			<item value="hal_toggle"/>
+			<item value="hwwdg"/>
+			<item value="gpio"/>
+			<item value="tim9"/>
+			<item value="wwdg"/>
+			<item value="MX_WWDG_Init"/>
+			<item value="hal_wwdg_start"/>
 		</list>
 		<list key="replacehistory">
+			<item value="switch"/>
 		</list>
 	</section>
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog_dialogBounds">

@@ -674,7 +674,8 @@ static void getADCreadings (uint8_t howMany) {
 
 //	memset(adcBuffer, 0, 8);
 
-//	ADC channel reading are accumulated in HAL_ADC_ConvCpltCallback() after each loop (i.e.each completed conversion)
+//	ADC channel values are "zeroed" above and new values are accumulated in HAL_ADC_ConvCpltCallback() after each loop
+//	(i.e.each completed conversion)
 	for (i=howMany; i>0; i--) {
 		if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adcBuffer, 8) != HAL_OK)
 			Error_Handler();

@@ -1,36 +1,27 @@
-/**
-  ******************************************************************************
-  * File Name          : mppt.c
-  * Description        : Main program body
-  ******************************************************************************
-  *
-  * COPYRIGHT(c) 2017 STMicroelectronics
-  *
-  * Redistribution and use in source and binary forms, with or without modification,
-  * are permitted provided that the following conditions are met:
-  *   1. Redistributions of source code must retain the above copyright notice,
-  *      this list of conditions and the following disclaimer.
-  *   2. Redistributions in binary form must reproduce the above copyright notice,
-  *      this list of conditions and the following disclaimer in the documentation
-  *      and/or other materials provided with the distribution.
-  *   3. Neither the name of STMicroelectronics nor the names of its contributors
-  *      may be used to endorse or promote products derived from this software
-  *      without specific prior written permission.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-  *
-  ******************************************************************************
-  */
-/* Includes ------------------------------------------------------------------*/
+/** mppt.c
+ * Top level source file for MPPT EMS (STI assembly number 781-124-033 rev. 0)
+ *
+ * (c) 2018 Solar Technology Inc.
+ * 7620 Cetronia Road
+ * Allentown PA, 18106
+ * 610-391-8600
+ *
+ * This code is for the exclusive use of Solar Technology Inc.
+ * and cannot be used in its present or any other modified form
+ * without prior written authorization.
+ *
+ * HOST PROCESSOR: STM32F410RBT6
+ * Developed using STM32CubeF4 HAL and API version 1.18.0
+ *
+ * Baseline code was generated using STM32CubeMX version 4.23.0
+ *
+ *
+ * REVISION HISTORY
+ *
+ * 1.0: 12/27/2017	Created By Nicholas C. Ipri (NCI) nipri@solartechnology.com
+ * 		This initial version supplies only very basic functionality to initialize and write the display in 4 bit mode
+ * 		Can easily be expanded if necessary.
+ */
 
 #define ON		1
 #define OFF		0
@@ -498,24 +489,8 @@ static void MX_GPIO_Init(void)
    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-
-
-
-  /*Configure GPIO pin : LD2_Pin */
- // GPIO_InitStruct.Pin = GPIO_PIN_15;
- // GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
- // GPIO_InitStruct.Pull = GPIO_NOPULL;
- // GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
- // HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pin Output Level */
- // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-
 }
 
-//void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart1) {
-//	HAL_UART_IRQHandler(huart1);
-//}
 
 /**
   * This function is executed in case of error occurrence.
@@ -531,9 +506,10 @@ void Error_Handler(void)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
+	//TIM9 is the 100 mS timer
 	if (htim->Instance==TIM9)
 	{
-		tim9Count--;
+
 
 		if (tim9Count == 0)
 		{
@@ -543,6 +519,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		}
 
 		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_11); // Ping the WDT
+
+		tim9Count--;
 	}
 }
 
@@ -674,7 +652,8 @@ static void getADCreadings (uint8_t howMany) {
 
 //	memset(adcBuffer, 0, 8);
 
-//	ADC channel reading are accumulated in HAL_ADC_ConvCpltCallback() after each loop (i.e.each completed conversion)
+	//	ADC channel values are initialized above and new values are accumulated in HAL_ADC_ConvCpltCallback() after each loop
+	//	(i.e.each completed conversion)
 	for (i=howMany; i>0; i--) {
 		if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adcBuffer, 8) != HAL_OK)
 			Error_Handler();
@@ -691,8 +670,8 @@ static void getADCreadings (uint8_t howMany) {
 	mosfetTemp = calcTemperature(tempMOSFETS / howMany);
 	loadCurrent = calcCurrent(iLoad / howMany);
 
+	// This data is sent to the controller
 	sprintf(strBuffer, "MPPT ADC Values: %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f\r\n", vBat, vSolar, iBat, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent);
-//	sprintf(strBuffer, "MPPT ADC Values: %x %x %x %x %x %% %x\r\n", adcBuffer[0], adcBuffer[1], adcBuffer[2], adcBuffer[3], adcBuffer[4], adcBuffer[5], adcBuffer[6], adcBuffer[7]);
 	HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
 	  sprintf(buffer2, "V: %2.2f", vBat);

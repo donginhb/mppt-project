@@ -1,10 +1,28 @@
-/*
- * HD44780.h
+
+ /** HD44780.h
+ * Header file for HD44780 based LCD displays
  *
- *  Created on: Mar 30, 2017
- *      Author: Dell User
+ * (c) 2018 Solar Technology Inc.
+ * 7620 Cetronia Road
+ * Allentown PA, 18106
+ * 610-391-8600
+ *
+ * This code is for the exclusive use of Solar Technology Inc.
+ * and cannot be used in its present or any other modified form
+ * without prior written authorization.
+ *
+ * HOST PROCESSOR: STM32F410RBT6
+ * TARGET DISPLAY: Newhaven Display NHD-0216HZ-FSW-FBW-33V3C (should also be compatible with any HC44780 based display)
+ * Developed using STM32CubeF4 HAL and API version 1.18.0
+ *
+ * All LCD command definitions are taken from the Newhaven Display NHD-0216HZ-FSW-FBW-33V3C  datasheet rev. 1
+ *
+ * REVISION HISTORY
+ *
+ * 1.0: 12/27/2017	Created By Nicholas C. Ipri (NCI) nipri@solartechnology.com
  */
 
+// Prevent recursive inclusion
 #ifndef HD44780_H_
 #define HD44780_H_
 
