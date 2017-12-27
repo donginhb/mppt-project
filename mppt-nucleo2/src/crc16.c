@@ -7,10 +7,12 @@ uint16_t remain;
 void crc16_init(void);
 uint16_t crc16(uint8_t[]);
 
+// x^16 + x^12 + x^5 + 1
+
 void crc16_init(void) {
 
 	uint16_t poly = 0x1021;
-	uint8_t i;
+	uint16_t i;
 	uint8_t bit;
 	
 	for (i=0; i<256; i++) {

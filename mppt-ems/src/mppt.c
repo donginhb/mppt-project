@@ -100,7 +100,7 @@ void switchChargeLED(uint8_t onOff);
 
 
 //static void getADCreadings(uint8_t);
-static uint16_t ThresholdVoltage(uint16_t);
+static uint16_t FloatVoltage(uint16_t);
 
 
 /** System Clock Configuration
@@ -679,13 +679,13 @@ static void getADCreadings (uint8_t howMany) {
 }
 
 
-/** returns appropriate threshold voltage calculated as:
+/** returns appropriate float voltage calculated as:
  14.75 volts if temp < 0 degrees centigrade
  falls linearly to 13.35 volts
  (-35 mV/degree centigrade) at 40 gegrees centigrade
  falls linearly at -10 mV/degree centigrade above that
  */
-static uint16_t ThresholdVoltage(uint16_t tempAmbient)
+static uint16_t FloatVoltage(uint16_t tempAmbient)
 {
 	if (tempAmbient < TEMP_0)
 		return (TV_0);
