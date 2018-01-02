@@ -3,6 +3,7 @@
 	<name>mppt-ems</name>
 	<comment></comment>
 	<projects>
+		<project>mppt-nucleo2</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

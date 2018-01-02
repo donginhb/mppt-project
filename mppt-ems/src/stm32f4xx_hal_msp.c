@@ -202,10 +202,10 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
   }
 
   else if(htim_base->Instance==TIM9) {
-	  __HAL_RCC_TIM9_CLK_ENABLE();
+//	  __HAL_RCC_TIM9_CLK_ENABLE();
 
-	   HAL_NVIC_SetPriority(TIM1_BRK_TIM9_IRQn, 0, 0);
-	   HAL_NVIC_EnableIRQ(TIM1_BRK_TIM9_IRQn);
+//	   HAL_NVIC_SetPriority(TIM1_BRK_TIM9_IRQn, 0, 0);
+//	   HAL_NVIC_EnableIRQ(TIM1_BRK_TIM9_IRQn);
   }
 
 

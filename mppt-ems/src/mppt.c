@@ -95,6 +95,7 @@ void switchSolarArray(uint8_t onOff);
 void switchLoad(uint8_t onOff);
 void switchCharger(uint8_t onOff);
 void switchChargeLED(uint8_t onOff);
+void diagLED(uint8_t onOff);
 
 
 //static void getADCreadings(uint8_t);
@@ -118,7 +119,9 @@ void SystemClock_Config(void)
 
 
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+ // RCC_OscInitStruct.HSIState = RCC_HSI_OFF;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+//  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSICalibrationValue = 16;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON; //RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
@@ -317,6 +320,13 @@ static void MX_TIM1_Init(void)
     Error_Handler();
   }
 
+  	  HAL_TIM_MspPostInit(&htim1);
+
+  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+
   changePWM_TIM1(128);
 
 }
@@ -365,6 +375,8 @@ static void MX_TIM5_Init(void)
 //Used as a 100 mS timer.
 static void MX_TIM9_Init(void) {
 
+	  __HAL_RCC_TIM9_CLK_ENABLE();
+
 	  TIM_ClockConfigTypeDef sClockSourceConfig;
 	  TIM_MasterConfigTypeDef sMasterConfig;
 	  TIM_OC_InitTypeDef sConfigOC;
@@ -396,6 +408,9 @@ static void MX_TIM9_Init(void) {
 	  {
 	    Error_Handler();
 	  }
+
+	   HAL_NVIC_SetPriority(TIM1_BRK_TIM9_IRQn, 0, 0);
+	   HAL_NVIC_EnableIRQ(TIM1_BRK_TIM9_IRQn);
 
 	  HAL_TIM_Base_Start_IT(&htim9);
 }
@@ -481,11 +496,11 @@ static void MX_GPIO_Init(void)
 
   //PORT B GPIOs: OUTPUTS
   //Pin 1 controls BB_V+_Switch, Pin 2 for Fan Control, Pin 15 for the on-board Diagnostic LED
-   GPIO_InitStruct.Pin = GPIO_PIN_15 | GPIO_PIN_2 | GPIO_PIN_1;
+   GPIO_InitStruct.Pin = GPIO_PIN_15 |  GPIO_PIN_5 | GPIO_PIN_2 | GPIO_PIN_1;
    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
    GPIO_InitStruct.Pull = GPIO_NOPULL;
    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 }
 
@@ -513,7 +528,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		{
 			tim9Count = 9;
 			getADC = 1;
-			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_15);
+			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_15);
 		}
 
 		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_11); // Ping the WDT
@@ -563,8 +578,8 @@ static void changePWM_TIM1(uint16_t pulse) {
 	  // PWM Polarity normal LIA / LIB
 	  sConfigOC.OCMode = TIM_OCMODE_PWM1;
 	  //sConfigOC.Pulse = 16000;
-	  sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
-	  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_LOW;
+	  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+	  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
 	  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
 	  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
 	  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
@@ -572,14 +587,15 @@ static void changePWM_TIM1(uint16_t pulse) {
 	  // PWM Polarity complementary for HIA / HIB
 	  sConfigOC2.OCMode = TIM_OCMODE_PWM1;
 	  //sConfigOC2.Pulse = 16000;
-	  sConfigOC2.OCPolarity = TIM_OCPOLARITY_HIGH;
-	  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-	  sConfigOC2.OCFastMode = TIM_OCFAST_ENABLE; //TIM_OCFAST_DISABLE;
+	  sConfigOC2.OCPolarity = TIM_OCPOLARITY_LOW;
+	  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_LOW;
+	  sConfigOC2.OCFastMode = TIM_OCFAST_DISABLE;
 	  sConfigOC2.OCIdleState = TIM_OCIDLESTATE_RESET;
 	  sConfigOC2.OCNIdleState = TIM_OCNIDLESTATE_RESET;
 
 	//PA8: (LIA)		DUTY - 20%
-	  sConfigOC.Pulse = pulse - (pulse * 0.2);
+	  sConfigOC.Pulse = pulse - (pulse * 0.4);
+//	  sConfigOC.Pulse = pulse - 20;
 	  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
 	  {
 	    Error_Handler();
@@ -593,21 +609,22 @@ static void changePWM_TIM1(uint16_t pulse) {
 	  }
 
 	  //PA10: (LIB)		DUTY - 20%
-	  sConfigOC.Pulse = pulse - (pulse * 0.2);
+	  sConfigOC.Pulse = pulse - (pulse * 0.4);
+//	  sConfigOC.Pulse = pulse - 20;
 	  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
 	  {
 	    Error_Handler();
 	  }
 
 	  //PA11: (HIB)		DUTY
-	  sConfigOC.Pulse = pulse;
-	  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+	  sConfigOC2.Pulse = pulse;
+	  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_4) != HAL_OK)
 	  {
 	    Error_Handler();
 	  }
 
 
-	  HAL_TIM_MspPostInit(&htim1);
+//	  HAL_TIM_MspPostInit(&htim1);
 
 	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
@@ -776,14 +793,22 @@ void switchChargeLED(uint8_t onOff)
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10, GPIO_PIN_RESET);
 }
 
+void diagLED(uint8_t onOff)
+{
+
+	if (onOff == ON)
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
+	else
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET);
+}
+
 
 
 int main(void)
 {
 
-	uint8_t buffer[16] = "";
-	uint16_t duty = 1000;
-	uint16_t duty2 = 10;
+uint16_t duty = 1000;
+uint16_t duty2 = 10;
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
@@ -793,42 +818,53 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+
   MX_DMA_Init();
   MX_ADC1_Init();
   MX_TIM1_Init();
   MX_TIM5_Init();
-  MX_TIM9_Init();
-  MX_USART1_UART_Init();
+//  MX_TIM9_Init();
+//  MX_USART1_UART_Init();
+
+ // diagLED(ON);
 
 
  //crc16_init();
  HD44780_Init();
+ HD44780_WriteData(1, 3, "Hello");
 
- switchFan(OFF);
+// switchFan(OFF);
  switchCharger(ON);
- switchSolarArray(ON);
- switchLoad(ON);
+// switchSolarArray(ON);
+// switchLoad(ON);
  switchChargeLED(OFF);
+
+ changePWM_TIM5(1000);
+ changePWM_TIM1(100);
 
   while (1)
   {
 
 // Get ADC readings
-	  if (getADC == 1)
-	  {
-		  getADC = 0;
-		  getADCreadings(32);
-	  }
+//	  if (getADC == 1)
+//	  {
+//		  getADC = 0;
+//		  getADCreadings(32);
+//	  }
 //	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_15);
 //	  HAL_Delay(100);
 
-	  sprintf(buffer, "Input: %c", myChar);
-	  HD44780_WriteData(0, 3, buffer);
+//	  sprintf(buffer, "Input: %c", myChar);
+//	  HD44780_WriteData(0, 3, buffer);
 //
 
 	  HAL_Delay(500);
 
-	  changePWM_TIM5(duty);
+	  duty2 = duty2 + 10;
+
+	  if (duty2 >= 500)
+		  duty2 = 10;
+
 	  changePWM_TIM1(duty2);
 
   }

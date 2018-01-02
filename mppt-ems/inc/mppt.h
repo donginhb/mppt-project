@@ -1,5 +1,5 @@
 /** mppt.c
- * Top level source file for MPPT EMS (STI assembly number 781-124-033 rev. 0)
+ * Top level header file for MPPT EMS (STI assembly number 781-124-033 rev. 0)
  *
  * (c) 2018 Solar Technology Inc.
  * 7620 Cetronia Road
@@ -13,15 +13,12 @@
  * HOST PROCESSOR: STM32F410RBT6
  * Developed using STM32CubeF4 HAL and API version 1.18.0
  *
- * Baseline code was generated using STM32CubeMX version 4.23.0
  *
  *
  * REVISION HISTORY
  *
  * 1.0: 12/27/2017	Created By Nicholas C. Ipri (NCI) nipri@solartechnology.com
  *
- * 		This initial version supplies only very basic functionality to initialize and write the display in 4 bit mode
- * 		Can easily be expanded if necessary.
  */
 #ifndef MPPT_H_
 #define MPPT_H_

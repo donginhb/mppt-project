@@ -5,10 +5,11 @@
 <stringAttribute key="fr.ac6.mcu.ide.DBG_DEVICE" value="ST-Link"/>
 <stringAttribute key="fr.ac6.mcu.ide.DBG_DEVICE_SHAREABLE_ALLOWED" value="false"/>
 <stringAttribute key="fr.ac6.mcu.ide.DBG_INTERFACE" value="JTAG"/>
-<stringAttribute key="fr.ac6.mcu.ide.DBG_INTERFACE_FREQUENCY" value="4000000.0"/>
+<stringAttribute key="fr.ac6.mcu.ide.DBG_INTERFACE_FREQUENCY" value="9000000.0"/>
 <stringAttribute key="fr.ac6.mcu.ide.DBG_LOW_POWER_MODE_ALLOWED" value="true"/>
 <stringAttribute key="fr.ac6.mcu.ide.DBG_RESET_MODE" value="connect_under_reset"/>
 <stringAttribute key="fr.ac6.mcu.ide.DBG_STOP_WATCHDOG_THEN_HALTED_ALLOWED" value="true"/>
+<booleanAttribute key="fr.ac6.mcu.ide.OPENOCD_GENERATOR_OPTION" value="false"/>
 <stringAttribute key="fr.ac6.mcu.ide.OPENOCD_NAME" value="&quot;${openstm32_openocd_path}\openocd.exe&quot;"/>
 <stringAttribute key="fr.ac6.mcu.ide.OPENOCD_OTHER_OPTIONS" value=""/>
 <stringAttribute key="fr.ac6.mcu.ide.OPENOCD_SCRIPT" value="${ProjDirPath}\mppt-ems Run.cfg"/>
@@ -41,15 +42,17 @@
 <stringAttribute key="org.eclipse.cdt.dsf.gdb.DEBUG_NAME" value="${openstm32_compiler_path}\arm-none-eabi-gdb"/>
 <intAttribute key="org.eclipse.cdt.launch.ATTR_BUILD_BEFORE_LAUNCH_ATTR" value="2"/>
 <stringAttribute key="org.eclipse.cdt.launch.COREFILE_PATH" value=""/>
+<stringAttribute key="org.eclipse.cdt.launch.DEBUGGER_REGISTER_GROUPS" value=""/>
 <stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="Debug/mppt-ems.elf"/>
 <stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="mppt-ems"/>
-<booleanAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_AUTO_ATTR" value="true"/>
-<stringAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_ID_ATTR" value="fr.ac6.managedbuild.config.gnu.cross.exe.debug.2059164320"/>
+<booleanAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_AUTO_ATTR" value="false"/>
+<stringAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_ID_ATTR" value=""/>
 <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
 <listEntry value="/mppt-ems"/>
 </listAttribute>
 <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
 <listEntry value="4"/>
 </listAttribute>
+<stringAttribute key="org.eclipse.dsf.launch.MEMORY_BLOCKS" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;memoryBlockExpressionList context=&quot;reserved-for-future-use&quot;/&gt;&#13;&#10;"/>
 <stringAttribute key="process_factory_id" value="fr.ac6.mcu.debug.launching.MCUGdbProcessFactory"/>
 </launchConfiguration>
