@@ -68,7 +68,7 @@ uint8_t tim9Count = 9;
 
 // adcUnit = Vref / 2^12
 //Vref = 3.3v and 2^12 = 4096 for 12 bits of resolution
-static const double adcUnit = 0.000806;
+//static const double adcUnit = 0.000806;
 
 void SystemClock_Config(void);
 void Error_Handler(void);
@@ -375,8 +375,6 @@ static void MX_TIM5_Init(void)
 //Used as a 100 mS timer.
 static void MX_TIM9_Init(void) {
 
-	  __HAL_RCC_TIM9_CLK_ENABLE();
-
 	  TIM_ClockConfigTypeDef sClockSourceConfig;
 	  TIM_MasterConfigTypeDef sMasterConfig;
 	  TIM_OC_InitTypeDef sConfigOC;
@@ -408,9 +406,6 @@ static void MX_TIM9_Init(void) {
 	  {
 	    Error_Handler();
 	  }
-
-	   HAL_NVIC_SetPriority(TIM1_BRK_TIM9_IRQn, 0, 0);
-	   HAL_NVIC_EnableIRQ(TIM1_BRK_TIM9_IRQn);
 
 	  HAL_TIM_Base_Start_IT(&htim9);
 }
@@ -656,6 +651,8 @@ static void getADCreadings (uint8_t howMany) {
 	uint8_t i;
 	uint8_t buffer2[16] = "";
 
+	static double vBat;
+
 	vBattery = 0;
 	vSolarArray = 0;
 	iBattery = 0;
@@ -676,18 +673,19 @@ static void getADCreadings (uint8_t howMany) {
 
 	HAL_Delay(10);
 
-	vBat = calcVoltage( (vBattery / howMany), 2); //(vBattery / howMany) * adcUnit;
-	vSolar = calcVoltage((vSolarArray / howMany), 2);
+//	vBat = ( (vBattery / howMany) * adcUnit ) / 2 / 0.1;
+	vBat = calcVoltage((vBattery / howMany), 2);
+/*	vSolar = calcVoltage((vSolarArray / howMany), 2);
 	iBat = calcCurrent(iBattery / howMany);
 	iSolar = calcCurrent(iSolarArray / howMany);
 	loadVoltage = calcVoltage((vLoad / howMany), 1);
 	ambientTemp = calcTemperature(tempAmbient / howMany);
 	mosfetTemp = calcTemperature(tempMOSFETS / howMany);
-	loadCurrent = calcCurrent(iLoad / howMany);
+	loadCurrent = calcCurrent(iLoad / howMany); */
 
 	// This data is sent to the controller
-	sprintf(strBuffer, "MPPT ADC Values: %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f\r\n", vBat, vSolar, iBat, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent);
-	HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+//	sprintf(strBuffer, "MPPT ADC Values: %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f\r\n", vBat, vSolar, iBat, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent);
+//	HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
 	  sprintf(buffer2, "V: %2.2f", vBat);
 	  HD44780_WriteData(1, 3, buffer2);
@@ -713,11 +711,11 @@ static uint16_t FloatVoltage(uint16_t tempAmbient)
 double calcVoltage(uint16_t ADvalue, uint8_t gain)
 {
 
-	const uint16_t ADunit = 1241;					// 1241 ADcounts / ADC input volt
-	const double voltageDividerOutput = 0.0992;		// Voltage Divider ratio gives 0.0992 volts out / volt in
+	uint16_t ADunit = 1241;					// 1241 ADcounts / ADC input volt
+	double voltageDividerOutput = 0.0992;		// Voltage Divider ratio gives 0.0992 volts out / volt in
 	double voltage;
 
-	voltage  = ADvalue / ADunit / gain / voltageDividerOutput;
+	voltage  = ADvalue * 0.000806 / gain / 0.1;
 
 	return voltage;
 }
@@ -807,8 +805,9 @@ void diagLED(uint8_t onOff)
 int main(void)
 {
 
-uint16_t duty = 1000;
-uint16_t duty2 = 10;
+	uint8_t buffer[16] = "";
+	uint16_t duty = 1000;
+	uint16_t duty2 = 10;
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
@@ -818,13 +817,12 @@ uint16_t duty2 = 10;
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-
   MX_DMA_Init();
   MX_ADC1_Init();
   MX_TIM1_Init();
   MX_TIM5_Init();
-//  MX_TIM9_Init();
-//  MX_USART1_UART_Init();
+  MX_TIM9_Init();
+  MX_USART1_UART_Init();
 
  // diagLED(ON);
 
@@ -837,7 +835,7 @@ uint16_t duty2 = 10;
  switchCharger(ON);
 // switchSolarArray(ON);
 // switchLoad(ON);
- switchChargeLED(OFF);
+ switchChargeLED(ON);
 
  changePWM_TIM5(1000);
  changePWM_TIM1(100);
@@ -846,17 +844,17 @@ uint16_t duty2 = 10;
   {
 
 // Get ADC readings
-//	  if (getADC == 1)
-//	  {
-//		  getADC = 0;
-//		  getADCreadings(32);
-//	  }
+   if (getADC == 1)
+	  {
+		  getADC = 0;
+		  getADCreadings(32);
+	  }
 //	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_15);
 //	  HAL_Delay(100);
 
-//	  sprintf(buffer, "Input: %c", myChar);
-//	  HD44780_WriteData(0, 3, buffer);
-//
+	  sprintf(buffer, "Input: %c", myChar);
+	  HD44780_WriteData(0, 3, buffer);
+
 
 	  HAL_Delay(500);
 

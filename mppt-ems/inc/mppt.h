@@ -63,6 +63,6 @@ char inBuffer[16];
 uint8_t charCount;
 
 
-double vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp;
+//double vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp;
 
 #endif /* MPPT_H_ */
