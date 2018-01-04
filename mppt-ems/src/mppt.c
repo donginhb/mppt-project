@@ -48,11 +48,11 @@ uint8_t strBuffer[64];
  * 2: Battery Bank Current
  * 3: Solar Array Current
  * 4: Battery Load Voltage
- * 5: Ambient Temperature
- * 6: MOSFET Temperature
- * 7: Battery Load Current
+ * 6: Ambient Temperature
+ * 7: MOSFET Temperature
+ * 8: Battery Load Current
  */
-uint16_t adcBuffer[8];
+uint16_t adcBuffer[9];
 
 uint32_t vBattery;
 uint32_t vSolarArray;
@@ -68,7 +68,8 @@ uint8_t tim9Count = 9;
 
 // adcUnit = Vref / 2^12
 //Vref = 3.3v and 2^12 = 4096 for 12 bits of resolution
-//static const double adcUnit = 0.000806;
+const double adcUnit = 0.000806;
+const double voltageDividerOutput = 0.0992;		// Voltage Divider ratio gives 0.0992 volts out / volt in
 
 void SystemClock_Config(void);
 void Error_Handler(void);
@@ -226,7 +227,7 @@ static void MX_ADC1_Init(void)
    */
  sConfig.Channel = ADC_CHANNEL_4;
  sConfig.Rank = 5;
- sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -236,7 +237,7 @@ static void MX_ADC1_Init(void)
    */
  sConfig.Channel = ADC_CHANNEL_6;
  sConfig.Rank = 6;
- sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES; //ADC_SAMPLETIME_28CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -246,7 +247,7 @@ static void MX_ADC1_Init(void)
    */
  sConfig.Channel = ADC_CHANNEL_7;
  sConfig.Rank = 7;
- sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -256,7 +257,7 @@ static void MX_ADC1_Init(void)
    */
  sConfig.Channel = ADC_CHANNEL_8;
  sConfig.Rank = 8;
- sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -651,7 +652,7 @@ static void getADCreadings (uint8_t howMany) {
 	uint8_t i;
 	uint8_t buffer2[16] = "";
 
-	static double vBat;
+	static double vBat, vSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent;
 
 	vBattery = 0;
 	vSolarArray = 0;
@@ -671,24 +672,31 @@ static void getADCreadings (uint8_t howMany) {
 			Error_Handler();
 	}
 
-	HAL_Delay(10);
+	HAL_Delay(100);
 
-//	vBat = ( (vBattery / howMany) * adcUnit ) / 2 / 0.1;
 	vBat = calcVoltage((vBattery / howMany), 2);
-/*	vSolar = calcVoltage((vSolarArray / howMany), 2);
-	iBat = calcCurrent(iBattery / howMany);
-	iSolar = calcCurrent(iSolarArray / howMany);
+	vSolar = calcVoltage((vSolarArray / howMany), 2);
+//	iBat = calcCurrent(iBattery / howMany);
+//	iSolar = calcCurrent(iSolarArray / howMany);
 	loadVoltage = calcVoltage((vLoad / howMany), 1);
+
 	ambientTemp = calcTemperature(tempAmbient / howMany);
-	mosfetTemp = calcTemperature(tempMOSFETS / howMany);
-	loadCurrent = calcCurrent(iLoad / howMany); */
+//	ambientTemp = tempAmbient/howMany;
+	mosfetTemp = calcTemperature(tempAmbient / howMany);
+
+//	mosfetTemp = calcTemperature(tempMOSFETS / howMany);
+	loadCurrent = calcCurrent(iLoad / howMany);
 
 	// This data is sent to the controller
 //	sprintf(strBuffer, "MPPT ADC Values: %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f\r\n", vBat, vSolar, iBat, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent);
 //	HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
-	  sprintf(buffer2, "V: %2.2f", vBat);
-	  HD44780_WriteData(1, 3, buffer2);
+
+	  sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f\r\n", vBat, vSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp);
+	  HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+//	  sprintf(buffer2, "V: %2.2f", vBat);
+//	  HD44780_WriteData(1, 3, buffer2);
 }
 
 
@@ -710,25 +718,19 @@ static uint16_t FloatVoltage(uint16_t tempAmbient)
 
 double calcVoltage(uint16_t ADvalue, uint8_t gain)
 {
-
-	uint16_t ADunit = 1241;					// 1241 ADcounts / ADC input volt
-	double voltageDividerOutput = 0.0992;		// Voltage Divider ratio gives 0.0992 volts out / volt in
 	double voltage;
-
-	voltage  = ADvalue * 0.000806 / gain / 0.1;
-
+	voltage  = (ADvalue * adcUnit) / gain / voltageDividerOutput;
 	return voltage;
 }
 
 double calcCurrent(uint16_t ADvalue)
 {
 
-	const uint16_t ADunit = 1241;					// 1241 ADcounts / ADC input volt
 	const uint8_t gain = 50;						// Gain of the INA213AIDCK current sense amplifier
 	const double Rsense	=	0.002;					// Value of current sense resistors used in design.
 	double current;
 
-	current = ADvalue / ADunit / gain / Rsense;
+	current = (ADvalue * adcUnit) / gain / Rsense;
 
 	return current;
 }
@@ -736,12 +738,12 @@ double calcCurrent(uint16_t ADvalue)
 double calcTemperature(uint16_t ADvalue)
 {
 
-	const uint16_t ADunit = 1241;					// 1241 ADcounts / ADC input volt
+
 	const double LM335voltage = 0.010;				// The LM335 outputs 10 mV / degree Kelvin
 	const double kelvin = 273.15;					// 0 C = 273.15 K
 	double degC;
 
-	degC = (ADvalue / ADunit / LM335voltage) - kelvin;
+	degC = ((ADvalue * adcUnit) / LM335voltage) - kelvin;
 
 	return degC;
 }
@@ -834,11 +836,11 @@ int main(void)
 // switchFan(OFF);
  switchCharger(ON);
 // switchSolarArray(ON);
-// switchLoad(ON);
+ switchLoad(ON);
  switchChargeLED(ON);
 
- changePWM_TIM5(1000);
- changePWM_TIM1(100);
+ changePWM_TIM5(3000);
+ changePWM_TIM1(250);
 
   while (1)
   {
@@ -847,7 +849,7 @@ int main(void)
    if (getADC == 1)
 	  {
 		  getADC = 0;
-		  getADCreadings(32);
+		  getADCreadings(8);
 	  }
 //	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_15);
 //	  HAL_Delay(100);
@@ -856,14 +858,14 @@ int main(void)
 	  HD44780_WriteData(0, 3, buffer);
 
 
-	  HAL_Delay(500);
+//	  HAL_Delay(500);
 
-	  duty2 = duty2 + 10;
+//	  duty2 = duty2 + 10;
 
-	  if (duty2 >= 500)
-		  duty2 = 10;
+//	  if (duty2 >= 400)
+//		  duty2 = 100;
 
-	  changePWM_TIM1(duty2);
+//	  changePWM_TIM1(duty2);
 
   }
 }
