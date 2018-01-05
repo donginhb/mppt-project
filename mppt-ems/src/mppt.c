@@ -237,7 +237,7 @@ static void MX_ADC1_Init(void)
    */
  sConfig.Channel = ADC_CHANNEL_6;
  sConfig.Rank = 6;
- sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES; //ADC_SAMPLETIME_28CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_56CYCLES; //ADC_SAMPLETIME_28CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -247,7 +247,7 @@ static void MX_ADC1_Init(void)
    */
  sConfig.Channel = ADC_CHANNEL_7;
  sConfig.Rank = 7;
- sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -682,7 +682,7 @@ static void getADCreadings (uint8_t howMany) {
 
 	ambientTemp = calcTemperature(tempAmbient / howMany);
 //	ambientTemp = tempAmbient/howMany;
-	mosfetTemp = calcTemperature(tempAmbient / howMany);
+	mosfetTemp = calcTemperature(tempMOSFETS / howMany);
 
 //	mosfetTemp = calcTemperature(tempMOSFETS / howMany);
 	loadCurrent = calcCurrent(iLoad / howMany);
