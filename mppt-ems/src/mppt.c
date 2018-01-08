@@ -65,11 +65,17 @@ uint32_t iLoad;
 
 uint8_t getADC = 0;
 uint8_t tim9Count = 9;
+uint8_t lcdUpdate = 0;
+uint8_t lcdUpdateFlag = 0;
 
 // adcUnit = Vref / 2^12
 //Vref = 3.3v and 2^12 = 4096 for 12 bits of resolution
 const double adcUnit = 0.000806;
 const double voltageDividerOutput = 0.0992;		// Voltage Divider ratio gives 0.0992 volts out / volt in
+
+const char logo[] = "SOLAR TECH";
+const char version[] = "VERSION 5.0";
+
 
 void SystemClock_Config(void);
 void Error_Handler(void);
@@ -96,10 +102,12 @@ void switchSolarArray(uint8_t onOff);
 void switchLoad(uint8_t onOff);
 void switchCharger(uint8_t onOff);
 void switchChargeLED(uint8_t onOff);
-void diagLED(uint8_t onOff);
+void switchDiagLED(uint8_t onOff);
 
+void lcdBatteryInfo(void);
+void lcdSolarInfo(void);
 
-//static void getADCreadings(uint8_t);
+static void getADCreadings(uint8_t);
 static uint16_t FloatVoltage(uint16_t);
 
 
@@ -197,7 +205,7 @@ static void MX_ADC1_Init(void)
    */
  sConfig.Channel = ADC_CHANNEL_1;
  sConfig.Rank = 2;
- sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -273,8 +281,8 @@ static void MX_TIM1_Init(void)
   TIM_MasterConfigTypeDef sMasterConfig;
   TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 
-  TIM_OC_InitTypeDef sConfigOC;
-  TIM_OC_InitTypeDef sConfigOC2;
+//  TIM_OC_InitTypeDef sConfigOC;
+// TIM_OC_InitTypeDef sConfigOC2;
 
 
 
@@ -378,7 +386,7 @@ static void MX_TIM9_Init(void) {
 
 	  TIM_ClockConfigTypeDef sClockSourceConfig;
 	  TIM_MasterConfigTypeDef sMasterConfig;
-	  TIM_OC_InitTypeDef sConfigOC;
+//	  TIM_OC_InitTypeDef sConfigOC;
 
 	  htim9.Instance = TIM9;
 	  htim9.Init.Prescaler = 65535; //671;
@@ -519,17 +527,22 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance==TIM9)
 	{
 
-
 		if (tim9Count == 0)
 		{
-			tim9Count = 9;
 			getADC = 1;
 			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_15);
+			tim9Count = 9;
+			lcdUpdate++;
+
+			if ( (lcdUpdate == 4) || (lcdUpdate == 8) || (lcdUpdate == 12) )
+				lcdUpdateFlag = 1;
+
+			if (lcdUpdate > 12)
+				lcdUpdate = 0;
 		}
 
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_11); // Ping the WDT
-
 		tim9Count--;
+		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_11); // Ping the WDT
 	}
 }
 
@@ -566,7 +579,8 @@ void assert_failed(uint8_t* file, uint32_t line)
 
 #endif
 
-static void changePWM_TIM1(uint16_t pulse) {
+static void changePWM_TIM1(uint16_t pulse)
+{
 
 	  TIM_OC_InitTypeDef sConfigOC;
 	  TIM_OC_InitTypeDef sConfigOC2;
@@ -626,10 +640,11 @@ static void changePWM_TIM1(uint16_t pulse) {
 	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
 	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-
 }
 
-static void changePWM_TIM5(uint16_t pulse) {
+// Controls the brightness of the LCD backlight
+static void changePWM_TIM5(uint16_t pulse)
+{
 
 	 TIM_OC_InitTypeDef sConfigOC;
 
@@ -647,13 +662,11 @@ static void changePWM_TIM5(uint16_t pulse) {
 	 HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
 }
 
-static void getADCreadings (uint8_t howMany) {
+static void getADCreadings (uint8_t howMany)
+{
 
 	uint8_t i;
-	uint8_t buffer2[16] = "";
-
-	static double vBat, vSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent;
-
+//	uint8_t buffer2[16] = "";
 	vBattery = 0;
 	vSolarArray = 0;
 	iBattery = 0;
@@ -667,32 +680,26 @@ static void getADCreadings (uint8_t howMany) {
 
 	//	ADC channel values are initialized above and new values are accumulated in HAL_ADC_ConvCpltCallback() after each loop
 	//	(i.e.each completed conversion)
-	for (i=howMany; i>0; i--) {
+	for (i=howMany; i>0; i--)
+	{
 		if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adcBuffer, 8) != HAL_OK)
 			Error_Handler();
 	}
 
 	HAL_Delay(100);
 
-	vBat = calcVoltage((vBattery / howMany), 2);
-	vSolar = calcVoltage((vSolarArray / howMany), 2);
-//	iBat = calcCurrent(iBattery / howMany);
-//	iSolar = calcCurrent(iSolarArray / howMany);
+	vBat = calcVoltage((vBattery / howMany), 1);
+	vSolar = calcVoltage((vSolarArray / howMany), 1);
+	iBat = calcCurrent(iBattery / howMany);
+	iSolar = calcCurrent(iSolarArray / howMany);
 	loadVoltage = calcVoltage((vLoad / howMany), 1);
-
 	ambientTemp = calcTemperature(tempAmbient / howMany);
-//	ambientTemp = tempAmbient/howMany;
 	mosfetTemp = calcTemperature(tempMOSFETS / howMany);
-
-//	mosfetTemp = calcTemperature(tempMOSFETS / howMany);
 	loadCurrent = calcCurrent(iLoad / howMany);
 
 	// This data is sent to the controller
-//	sprintf(strBuffer, "MPPT ADC Values: %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f\r\n", vBat, vSolar, iBat, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent);
-//	HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
-
-	  sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f\r\n", vBat, vSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp);
+	  sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp);
 	  HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
 //	  sprintf(buffer2, "V: %2.2f", vBat);
@@ -793,7 +800,7 @@ void switchChargeLED(uint8_t onOff)
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10, GPIO_PIN_RESET);
 }
 
-void diagLED(uint8_t onOff)
+void switchDiagLED(uint8_t onOff)
 {
 
 	if (onOff == ON)
@@ -802,14 +809,31 @@ void diagLED(uint8_t onOff)
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET);
 }
 
+void lcdBatteryInfo(void)
+{
+	uint8_t tmp_buffer[16];
+
+	HD44780_WriteData(0, 4, "BATTERY:");
+	sprintf(tmp_buffer, "%2.2f V, %2.2f A", vBat, iBat);
+	HD44780_WriteData(1, 0, tmp_buffer);
+}
+
+void lcdSolarInfo(void)
+{
+	uint8_t tmp_buffer[16];
+
+	HD44780_WriteData(0, 0, "SOLAR ARRAY:");
+	sprintf(tmp_buffer, "%2.2f V, %2.2f A", vSolar, iSolar);
+	HD44780_WriteData(1, 0, tmp_buffer);
+}
 
 
 int main(void)
 {
 
-	uint8_t buffer[16] = "";
-	uint16_t duty = 1000;
-	uint16_t duty2 = 10;
+//	uint8_t buffer[16] = "";
+//	uint16_t duty = 1000;
+//	uint16_t duty2 = 10;
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
@@ -826,7 +850,7 @@ int main(void)
   MX_TIM9_Init();
   MX_USART1_UART_Init();
 
- // diagLED(ON);
+ // switchDiagLED(ON);
 
 
  //crc16_init();
@@ -842,6 +866,10 @@ int main(void)
  changePWM_TIM5(3000);
  changePWM_TIM1(250);
 
+ getADCreadings(8);
+
+ lcdBatteryInfo();
+
   while (1)
   {
 
@@ -851,11 +879,36 @@ int main(void)
 		  getADC = 0;
 		  getADCreadings(8);
 	  }
+
+ // update the LCD
+   if ((lcdUpdate == 4) && (lcdUpdateFlag == 1))
+   {
+	   HD44780_WriteCommand(CLEAR_DISPLAY);
+	   HD44780_WriteData(0, 0, logo);
+	   HD44780_WriteData(1, 0, version);
+	   lcdUpdateFlag = 0;
+   }
+
+   if ( (lcdUpdate == 8) && (lcdUpdateFlag == 1))
+   {
+	   HD44780_WriteCommand(CLEAR_DISPLAY);
+	   lcdBatteryInfo();
+	   lcdUpdateFlag = 0;
+   }
+
+   if ( (lcdUpdate == 12) && (lcdUpdateFlag == 1))
+   {
+	   HD44780_WriteCommand(CLEAR_DISPLAY);
+	   lcdSolarInfo();
+	   lcdUpdateFlag = 0;
+   }
+
+
 //	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_15);
 //	  HAL_Delay(100);
 
-	  sprintf(buffer, "Input: %c", myChar);
-	  HD44780_WriteData(0, 3, buffer);
+//	  sprintf(buffer, "Input: %c", myChar);
+//	  HD44780_WriteData(0, 3, buffer);
 
 
 //	  HAL_Delay(500);
