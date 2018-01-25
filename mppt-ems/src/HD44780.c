@@ -114,7 +114,7 @@ void HD44780_WriteCommand(uint8_t data) {
 	}
 }
 
-void HD44780_WriteData(uint8_t row, uint8_t col, char *data) {
+void HD44780_WriteData(uint8_t row, uint8_t col, uint8_t *data, uint8_t clearDisplay) {
 
 	uint8_t length;
 	uint8_t i;
@@ -122,7 +122,10 @@ void HD44780_WriteData(uint8_t row, uint8_t col, char *data) {
 	HD44780_ClearRW;
 
 // Clear any previous display data
-	HD44780_CommandMode;
+	//HD44780_CommandMode;
+
+	if (clearDisplay)
+		HD44780_WriteCommand(CLEAR_DISPLAY);
 
 	HD44780_GotoXY(0, 0);
 	HAL_Delay(10);

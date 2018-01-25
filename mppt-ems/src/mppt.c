@@ -24,6 +24,9 @@
 #define ON		1
 #define OFF		0
 
+#define YES		1
+#define NO		0
+
 #include "stm32f4xx_hal.h"
 #include "HD44780.h"
 #include "mppt.h"
@@ -225,7 +228,7 @@ static void MX_ADC1_Init(void)
    */
  sConfig.Channel = ADC_CHANNEL_3;
  sConfig.Rank = 4;
- sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -284,13 +287,10 @@ static void MX_TIM1_Init(void)
 //  TIM_OC_InitTypeDef sConfigOC;
 // TIM_OC_InitTypeDef sConfigOC2;
 
-
-
-
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 0; //0;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 512; //256;
+  htim1.Init.Period = 1024; //256;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
@@ -304,7 +304,8 @@ static void MX_TIM1_Init(void)
     Error_Handler();
   }
 
-  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
+  //if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
+  if (HAL_TIM_OnePulse_Init(&htim1, TIM_OPMODE_REPETITIVE) )
   {
     Error_Handler();
   }
@@ -317,13 +318,13 @@ static void MX_TIM1_Init(void)
     Error_Handler();
   }
 
-  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
-  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
-  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 0;
-  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_ENABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_ENABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_1;
+  sBreakDeadTimeConfig.DeadTime = 128;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_ENABLE;
   sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
-  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_ENABLE;
   if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
   {
     Error_Handler();
@@ -331,10 +332,10 @@ static void MX_TIM1_Init(void)
 
   	  HAL_TIM_MspPostInit(&htim1);
 
-  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
-  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+//  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+//  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+//  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+//  	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
 
   changePWM_TIM1(128);
 
@@ -582,6 +583,42 @@ void assert_failed(uint8_t* file, uint32_t line)
 static void changePWM_TIM1(uint16_t pulse)
 {
 
+
+		TIM1->ARR = 0x512;
+	  TIM_OnePulse_InitTypeDef sConfig;
+
+	  sConfig.OCMode       = TIM_OCMODE_PWM1;
+	    sConfig.OCPolarity   = TIM_OCPOLARITY_HIGH;
+	    sConfig.Pulse        = 128;
+	    sConfig.ICPolarity   = TIM_ICPOLARITY_RISING;
+	    sConfig.ICSelection  = TIM_ICSELECTION_DIRECTTI;
+	    sConfig.ICFilter     = 0;
+	    sConfig.OCNPolarity  = TIM_OCNPOLARITY_LOW;
+	    sConfig.OCIdleState  = TIM_OCIDLESTATE_RESET;
+	    sConfig.OCNIdleState = TIM_OCNIDLESTATE_SET;
+
+
+	    if (HAL_TIM_OnePulse_ConfigChannel(&htim1, &sConfig, TIM_CHANNEL_2, TIM_CHANNEL_1) != HAL_OK)
+	    {
+	    	Error_Handler();
+	    }
+
+//	    if (HAL_TIM_OnePulse_ConfigChannel(&htim1, &sConfig, TIM_CHANNEL_2, TIM_CHANNEL_1) != HAL_OK)
+//	    {
+//	    	Error_Handler();
+//	    }
+
+//	    if (HAL_TIM_OnePulse_ConfigChannel(&htim1, &sConfig, TIM_CHANNEL_2, TIM_CHANNEL_2) != HAL_OK)
+//	    {
+//	    	Error_Handler();
+//	    }
+
+	    HAL_TIM_OnePulse_Start(&htim1, TIM_CHANNEL_1);
+	    HAL_TIM_OnePulse_Start(&htim1, TIM_CHANNEL_2);
+//	    HAL_TIM_OnePulse_Start(&htim1, TIM_CHANNEL_3);
+//	    HAL_TIM_OnePulse_Start(&htim1, TIM_CHANNEL_4);
+
+/*
 	  TIM_OC_InitTypeDef sConfigOC;
 	  TIM_OC_InitTypeDef sConfigOC2;
 
@@ -589,23 +626,23 @@ static void changePWM_TIM1(uint16_t pulse)
 	  sConfigOC.OCMode = TIM_OCMODE_PWM1;
 	  //sConfigOC.Pulse = 16000;
 	  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-	  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+//	  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_LOW;
 	  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
 	  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-	  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+//	  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
 
 	  // PWM Polarity complementary for HIA / HIB
 	  sConfigOC2.OCMode = TIM_OCMODE_PWM1;
 	  //sConfigOC2.Pulse = 16000;
 	  sConfigOC2.OCPolarity = TIM_OCPOLARITY_LOW;
-	  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_LOW;
+//	  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_HIGH;
 	  sConfigOC2.OCFastMode = TIM_OCFAST_DISABLE;
 	  sConfigOC2.OCIdleState = TIM_OCIDLESTATE_RESET;
-	  sConfigOC2.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+//	  sConfigOC2.OCNIdleState = TIM_OCNIDLESTATE_RESET;
 
 	//PA8: (LIA)		DUTY - 20%
-	  sConfigOC.Pulse = pulse - (pulse * 0.4);
-//	  sConfigOC.Pulse = pulse - 20;
+	  sConfigOC.Pulse = pulse - (pulse * 0.2);
+//	 sConfigOC.Pulse = pulse;
 	  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
 	  {
 	    Error_Handler();
@@ -619,8 +656,8 @@ static void changePWM_TIM1(uint16_t pulse)
 	  }
 
 	  //PA10: (LIB)		DUTY - 20%
-	  sConfigOC.Pulse = pulse - (pulse * 0.4);
-//	  sConfigOC.Pulse = pulse - 20;
+	  sConfigOC.Pulse = pulse - (pulse * 0.2);
+//	  sConfigOC.Pulse = pulse;
 	  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
 	  {
 	    Error_Handler();
@@ -640,6 +677,8 @@ static void changePWM_TIM1(uint16_t pulse)
 	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
 	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+
+*/
 }
 
 // Controls the brightness of the LCD backlight
@@ -813,18 +852,18 @@ void lcdBatteryInfo(void)
 {
 	uint8_t tmp_buffer[16];
 
-	HD44780_WriteData(0, 4, "BATTERY:");
+	HD44780_WriteData(0, 4, "BATTERY:", YES);
 	sprintf(tmp_buffer, "%2.2f V, %2.2f A", vBat, iBat);
-	HD44780_WriteData(1, 0, tmp_buffer);
+	HD44780_WriteData(1, 0, tmp_buffer, NO);
 }
 
 void lcdSolarInfo(void)
 {
 	uint8_t tmp_buffer[16];
 
-	HD44780_WriteData(0, 0, "SOLAR ARRAY:");
+	HD44780_WriteData(0, 0, "SOLAR ARRAY:", YES);
 	sprintf(tmp_buffer, "%2.2f V, %2.2f A", vSolar, iSolar);
-	HD44780_WriteData(1, 0, tmp_buffer);
+	HD44780_WriteData(1, 0, tmp_buffer, NO);
 }
 
 
@@ -855,16 +894,15 @@ int main(void)
 
  //crc16_init();
  HD44780_Init();
- HD44780_WriteData(1, 3, "Hello");
 
 // switchFan(OFF);
  switchCharger(ON);
-// switchSolarArray(ON);
+ switchSolarArray(OFF); // Enable this ONLY when ready to charge, disable all other times.
  switchLoad(ON);
  switchChargeLED(ON);
 
- changePWM_TIM5(3000);
- changePWM_TIM1(250);
+ changePWM_TIM5(15000);
+ changePWM_TIM1(512);
 
  getADCreadings(8);
 
@@ -883,22 +921,19 @@ int main(void)
  // update the LCD
    if ((lcdUpdate == 4) && (lcdUpdateFlag == 1))
    {
-	   HD44780_WriteCommand(CLEAR_DISPLAY);
-	   HD44780_WriteData(0, 0, logo);
-	   HD44780_WriteData(1, 0, version);
+	   HD44780_WriteData(0, 0, logo, YES);
+	   HD44780_WriteData(1, 0, version, NO);
 	   lcdUpdateFlag = 0;
    }
 
    if ( (lcdUpdate == 8) && (lcdUpdateFlag == 1))
    {
-	   HD44780_WriteCommand(CLEAR_DISPLAY);
 	   lcdBatteryInfo();
 	   lcdUpdateFlag = 0;
    }
 
    if ( (lcdUpdate == 12) && (lcdUpdateFlag == 1))
    {
-	   HD44780_WriteCommand(CLEAR_DISPLAY);
 	   lcdSolarInfo();
 	   lcdUpdateFlag = 0;
    }

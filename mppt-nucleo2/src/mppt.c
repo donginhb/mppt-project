@@ -268,12 +268,10 @@ static void MX_TIM1_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig;
   TIM_MasterConfigTypeDef sMasterConfig;
+  TIM_SlaveConfigTypeDef sSlaveConfig;
   TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 
   TIM_OC_InitTypeDef sConfigOC;
-  TIM_OC_InitTypeDef sConfigOC2;
-
-
 
 
   htim1.Instance = TIM1;
@@ -299,17 +297,23 @@ static void MX_TIM1_Init(void)
   }
 
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
 
-  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+    sSlaveConfig.SlaveMode = TIM_SLAVEMODE_DISABLE;
+    sSlaveConfig.InputTrigger = TIM_TS_ITR0;
+    if (HAL_TIM_SlaveConfigSynchronization(&htim1, &sSlaveConfig) != HAL_OK)
+    {
+    	Error_Handler();
+    }
+
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_ENABLE;
   sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
   sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.DeadTime = 16;
   sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
   sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
   sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
@@ -318,7 +322,9 @@ static void MX_TIM1_Init(void)
     Error_Handler();
   }
 
-  changePWM_TIM1(128);
+ HAL_TIM_MspPostInit(&htim5);
+
+ changePWM_TIM1(128);
 
 }
 
@@ -582,69 +588,35 @@ void assert_failed(uint8_t* file, uint32_t line)
 
 #endif
 
-static void changePWM_TIM1(uint16_t pulse) {
+static void changePWM_TIM1(uint16_t pulse)
+{
 
 
 	  TIM_OC_InitTypeDef sConfigOC;
-	  TIM_OC_InitTypeDef sConfigOC2;
-
-	  // PWM Polarity normal LIA / LIB
 	  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-	  //sConfigOC.Pulse = 16000;
+	  sConfigOC.Pulse = pulse;
 	  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
 	  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-	  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+	  sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
 	  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
 	  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-
-	  // PWM Polarity complementary for HIA / HIB
-	  sConfigOC2.OCMode = TIM_OCMODE_PWM1;
-	  //sConfigOC2.Pulse = 16000;
-	  sConfigOC2.OCPolarity = TIM_OCPOLARITY_LOW;
-	  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_LOW;
-	  sConfigOC2.OCFastMode = TIM_OCFAST_DISABLE;
-	  sConfigOC2.OCIdleState = TIM_OCIDLESTATE_RESET;
-	  sConfigOC2.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-
-	//PA8: (LIA)		DUTY - 20%
-	  sConfigOC.Pulse = pulse - (pulse * 0.4);
-//	  sConfigOC.Pulse = pulse - 20;
-	  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+	  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
 	  {
-	    Error_Handler();
+		  Error_Handler();
 	  }
 
-	 //PA9: (HIA)		DUTY
-	  sConfigOC2.Pulse = pulse; //16000
-	  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_2) != HAL_OK)
+	  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
 	  {
-	    Error_Handler();
+		  Error_Handler();
 	  }
-
-	  //PA10: (LIB)		DUTY - 20%
-	  sConfigOC.Pulse = pulse - (pulse * 0.4);
-//	  sConfigOC.Pulse = pulse - 20;
-	  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
-	  {
-	    Error_Handler();
-	  }
-
-	  //PA11: (HIB)		DUTY
-	  sConfigOC2.Pulse = pulse;
-	  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_4) != HAL_OK)
-	  {
-	    Error_Handler();
-	  }
-
 
 	  HAL_TIM_MspPostInit(&htim1);
 
 	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+	  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
+
 	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
-	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-
-
+	  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);
 }
 
 static void changePWM_TIM5(uint16_t pulse) {
@@ -660,7 +632,7 @@ static void changePWM_TIM5(uint16_t pulse) {
 	   Error_Handler();
 	 }
 
-	 HAL_TIM_MspPostInit(&htim5);
+//	 HAL_TIM_MspPostInit(&htim5);
 
 	 HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
 }
@@ -758,6 +730,8 @@ int main(void)
 
  //	 HAL_WWDG_Init(&hwwdg);
 
+ changePWM_TIM1(256);
+
   while (1)
   {
 
@@ -777,6 +751,7 @@ int main(void)
 
 	  HAL_Delay(500);
 
+/*
 	  changePWM_TIM5(duty);
 	  changePWM_TIM1(duty2);
 
@@ -788,7 +763,7 @@ int main(void)
 
 	  if (duty2 >= 500)
 		  duty2 = 10;
-
+*/
   }
 }
 

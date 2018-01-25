@@ -2,20 +2,20 @@
 <section name="Workbench">
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
 		<item value="true" key="isRegEx"/>
-		<item value="adcUnit" key="selection"/>
+		<item value="HD44780" key="selection"/>
 		<item value="false" key="casesensitive"/>
 		<item value="false" key="incremental"/>
 		<item value="true" key="wrap"/>
 		<item value="false" key="wholeword"/>
 		<list key="findhistory">
+			<item value="hd44780"/>
+			<item value="ARR"/>
+			<item value="TIM1_ARR"/>
+			<item value="lcdBattery"/>
 			<item value="adcunit"/>
 			<item value="changepwm"/>
 			<item value="changePWM_TIM5"/>
 			<item value="tim5"/>
-			<item value="period"/>
-			<item value="expired"/>
-			<item value="_IT"/>
-			<item value="MX_ADC1_Init"/>
 		</list>
 		<list key="replacehistory">
 			<item value="switch"/>

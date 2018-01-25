@@ -52,7 +52,8 @@
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 void HD44780_Init(void);
-void HD44780_WriteData(uint8_t row, uint8_t col, char *data);
+//void HD44780_WriteData(uint8_t row, uint8_t col, char *data);
+void HD44780_WriteData(uint8_t, uint8_t, uint8_t *, uint8_t);
 void HD44780_WriteCommand(uint8_t);
 void HD44780_GotoXY(uint8_t, uint8_t);
 
