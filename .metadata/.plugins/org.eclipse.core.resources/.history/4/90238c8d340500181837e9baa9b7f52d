@@ -48,7 +48,7 @@ TIM_HandleTypeDef htim9;
 
 UART_HandleTypeDef huart1;
 
-uint8_t strBuffer[64];
+char strBuffer[64];
 
 /** adcBuffer Description
  * 0: Battery Bank Voltage

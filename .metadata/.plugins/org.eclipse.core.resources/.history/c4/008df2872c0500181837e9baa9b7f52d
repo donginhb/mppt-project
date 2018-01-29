@@ -83,7 +83,7 @@ const double adcUnit = 0.000806;
 const double voltageDividerOutput = 0.0992;		// Voltage Divider ratio gives 0.0992 volts out / volt in
 
 char logo[] = "SOLAR TECH";
-char version[] = "MPPT EMS VER 5.0";
+char version[] = "VERSION 5.0";
 char battery[] = "BATTERY BANK:";
 char battHi[] = "HIGH VOLTAGE!";
 char battLo[] = "LOW VOLTAGE!";
@@ -115,7 +115,6 @@ void switchSolarArray(uint8_t onOff);
 void switchLoad(uint8_t onOff);
 void switchCharger(uint8_t onOff);
 void switchChargeLED(uint8_t onOff);
-void toggleChargeLED(void);
 void switchDiagLED(uint8_t onOff);
 
 void lcdBatteryInfo(void);
@@ -550,15 +549,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 			if ( (lcdUpdate == 4) || (lcdUpdate == 8) || (lcdUpdate == 12) )
 				lcdUpdateFlag = 1;
+//				updateLCD(lcdUpdate, warning);
 
 			if (lcdUpdate > 12)
 				lcdUpdate = 0;
-		}
-
-		if (warning != NORMALBATTV)
-		{
-			if ((tim9Count % 2) != 0)
-				toggleChargeLED();
 		}
 
 		tim9Count--;
@@ -788,7 +782,7 @@ static void getADCreadings (uint8_t howMany)
 	loadCurrent = calcCurrent(iLoad);
 
 	// This data is sent to the controller
-	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp);
+	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp);
 	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
 }
@@ -885,11 +879,6 @@ void switchChargeLED(uint8_t onOff)
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10, GPIO_PIN_SET);
 	else
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10, GPIO_PIN_RESET);
-}
-
-void toggleChargeLED(void)
-{
-	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_10);
 }
 
 void switchDiagLED(uint8_t onOff)
