@@ -1,4 +1,4 @@
-/** mppt.c
+                                                                                                                                                                                                                    /** mppt.c
  * Top level header file for MPPT EMS (STI assembly number 781-124-033 rev. 0)
  *
  * (c) 2018 Solar Technology Inc.
@@ -24,15 +24,16 @@
 #define MPPT_H_
 
 // voltage related constants
+// The ones that are commented out are not used in rev 4.3
 #define HALF_VOLT      		0x7b	// 123 counts corresponding to 0.5 V
 #define TWO_VOLT       		0x1ec	// 492 counts corresponding to 2.0 Volts
-#define ONE_AND_HALF_VOLT 	0x171	// 369 counts corresponding to 1.5 Volts
+//#define ONE_AND_HALF_VOLT 	0x171	// 369 counts corresponding to 1.5 Volts
 #define LOW_BATTERY2   		0xa7c	// 2684 counts corresponding to 10.9 Volts
-#define LOW_BATTERY1   		0xa94	// 2708 counts corresponding to 11.0 Volts
-#define LOAD_ON1       		0xb8b	// 2955 counts corresponding to 12 Volts
-#define LOAD_ON2       		0xeb7	// 3767 counts corresponding to 15.3 Volts
-#define LOAD_OFF1      		0xa4a	// 2634 counts corresponding to 10.7 Volts
-#define LOAD_OFF2      		0xee8	// 3816 counts corresponding to 15.5 Volts
+//#define LOW_BATTERY1   		0xa94	// 2708 counts corresponding to 11.0 Volts
+#define V_MIN_LOAD_ON       0xb8b	// 2955 counts corresponding to 12 Volts
+#define V_MAX_LOAD_ON       0xeb7	// 3767 counts corresponding to 15.3 Volts
+#define V_MIN_LOAD_OFF 		0xa4a	// 2634 counts corresponding to 10.7 Volts
+#define V_MAX_LOAD_OFF 		0xee8	// 3816 counts corresponding to 15.5 Volts
 #define MAX_START_VOLT 		0xc81	// 3201 counts corresponding to 13.0 Volts
 
 // Threshold voltage calculations
@@ -53,7 +54,7 @@
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 void HD44780_Init(void);
 //void HD44780_WriteData(uint8_t row, uint8_t col, char *data);
-void HD44780_WriteData(uint8_t, uint8_t, uint8_t *, uint8_t);
+void HD44780_WriteData(uint8_t, uint8_t, char *, uint8_t);
 void HD44780_WriteCommand(uint8_t);
 void HD44780_GotoXY(uint8_t, uint8_t);
 

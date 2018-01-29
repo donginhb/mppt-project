@@ -27,6 +27,11 @@
 #define YES		1
 #define NO		0
 
+#define NORMALBATTV	0
+#define HIBATTV 	1
+#define LOBATTV		2
+
+
 #include "stm32f4xx_hal.h"
 #include "HD44780.h"
 #include "mppt.h"
@@ -70,14 +75,19 @@ uint8_t getADC = 0;
 uint8_t tim9Count = 9;
 uint8_t lcdUpdate = 0;
 uint8_t lcdUpdateFlag = 0;
+static uint8_t warning = 0;
 
 // adcUnit = Vref / 2^12
 //Vref = 3.3v and 2^12 = 4096 for 12 bits of resolution
 const double adcUnit = 0.000806;
 const double voltageDividerOutput = 0.0992;		// Voltage Divider ratio gives 0.0992 volts out / volt in
 
-const char logo[] = "SOLAR TECH";
-const char version[] = "VERSION 5.0";
+char logo[] = "SOLAR TECH";
+char version[] = "VERSION 5.0";
+char battery[] = "BATTERY BANK:";
+char battHi[] = "HIGH VOLTAGE!";
+char battLo[] = "LOW VOLTAGE!";
+char solarArray[] = "SOLAR ARRAY:";
 
 
 void SystemClock_Config(void);
@@ -112,6 +122,8 @@ void lcdSolarInfo(void);
 
 static void getADCreadings(uint8_t);
 static uint16_t FloatVoltage(uint16_t);
+
+static void updateLCD(uint8_t dataIndex, uint8_t warning);
 
 
 /** System Clock Configuration
@@ -537,6 +549,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 			if ( (lcdUpdate == 4) || (lcdUpdate == 8) || (lcdUpdate == 12) )
 				lcdUpdateFlag = 1;
+//				updateLCD(lcdUpdate, warning);
 
 			if (lcdUpdate > 12)
 				lcdUpdate = 0;
@@ -727,22 +740,51 @@ static void getADCreadings (uint8_t howMany)
 
 	HAL_Delay(100);
 
-	vBat = calcVoltage((vBattery / howMany), 1);
-	vSolar = calcVoltage((vSolarArray / howMany), 1);
-	iBat = calcCurrent(iBattery / howMany);
-	iSolar = calcCurrent(iSolarArray / howMany);
-	loadVoltage = calcVoltage((vLoad / howMany), 1);
-	ambientTemp = calcTemperature(tempAmbient / howMany);
-	mosfetTemp = calcTemperature(tempMOSFETS / howMany);
-	loadCurrent = calcCurrent(iLoad / howMany);
+// Averaging the readings
+	vBattery /= howMany;
+	vSolarArray /= howMany;
+	iBattery /= howMany;
+	iSolarArray /= howMany;
+	vLoad /= howMany;
+	tempAmbient /= howMany;
+	tempMOSFETS /= howMany;
+	iLoad /= howMany;
+
+// Check for any problems
+	if (vBattery >= V_MAX_LOAD_OFF )
+	{
+		warning = HIBATTV;
+	}
+
+	if ((warning == 1) && (vBattery <= V_MAX_LOAD_ON) )
+	{
+		warning = NORMALBATTV;
+	}
+
+	if (vBattery <= V_MIN_LOAD_OFF)
+	{
+		warning = LOBATTV;
+	}
+
+	if ((warning == 2) && (vBattery >= V_MIN_LOAD_ON))
+	{
+		warning = NORMALBATTV;
+	}
+
+// Calculate the values and send them to the host controller
+	vBat = calcVoltage(vBattery, 2);
+	vSolar = calcVoltage(vSolarArray, 2);
+	iBat = calcCurrent(iBattery);
+	iSolar = calcCurrent(iSolarArray);
+	loadVoltage = calcVoltage(vLoad, 2);
+	ambientTemp = calcTemperature(tempAmbient);
+	mosfetTemp = calcTemperature(tempMOSFETS);
+	loadCurrent = calcCurrent(iLoad);
 
 	// This data is sent to the controller
+	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp);
+	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
-	  sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp);
-	  HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
-
-//	  sprintf(buffer2, "V: %2.2f", vBat);
-//	  HD44780_WriteData(1, 3, buffer2);
 }
 
 
@@ -852,7 +894,7 @@ void lcdBatteryInfo(void)
 {
 	uint8_t tmp_buffer[16];
 
-	HD44780_WriteData(0, 4, "BATTERY:", YES);
+	HD44780_WriteData(0, 0, battery, YES);
 	sprintf(tmp_buffer, "%2.2f V, %2.2f A", vBat, iBat);
 	HD44780_WriteData(1, 0, tmp_buffer, NO);
 }
@@ -861,9 +903,52 @@ void lcdSolarInfo(void)
 {
 	uint8_t tmp_buffer[16];
 
-	HD44780_WriteData(0, 0, "SOLAR ARRAY:", YES);
+	HD44780_WriteData(0, 0, solarArray, YES);
 	sprintf(tmp_buffer, "%2.2f V, %2.2f A", vSolar, iSolar);
 	HD44780_WriteData(1, 0, tmp_buffer, NO);
+}
+
+static void updateLCD(uint8_t dataIndex, uint8_t warning)
+{
+
+	   if (lcdUpdate == 4)
+	   {
+
+		   if (warning == 1)
+		   {
+			   HD44780_WriteData(0, 0, battery, YES);
+			   HD44780_WriteData(1, 0, battHi, NO);
+		   }
+		   else if (warning == 2)
+		   {
+			   HD44780_WriteData(0, 0, battery, YES);
+			   HD44780_WriteData(1, 0, battLo, NO);
+		   }
+
+		   else
+		   {
+			   HD44780_WriteData(0, 0, logo, YES);
+			   HD44780_WriteData(1, 0, version, NO);
+			   lcdUpdateFlag = 0;
+		   }
+
+	   }
+
+	   else if (lcdUpdate == 8)
+	   {
+		   lcdBatteryInfo();
+		   lcdUpdateFlag = 0;
+	   }
+
+	   else if (lcdUpdate == 12)
+	   {
+		   lcdSolarInfo();
+		   lcdUpdateFlag = 0;
+	   }
+
+	   else {
+
+	   }
 }
 
 
@@ -910,6 +995,12 @@ int main(void)
 
   while (1)
   {
+// Update the LCD
+	  if (lcdUpdateFlag == 1)
+	  {
+		  lcdUpdateFlag = 0;
+		  updateLCD(lcdUpdate, warning);
+	  }
 
 // Get ADC readings
    if (getADC == 1)
@@ -917,26 +1008,12 @@ int main(void)
 		  getADC = 0;
 		  getADCreadings(8);
 	  }
+// Switch load according to battery condition
+   if ((warning == LOBATTV) || (warning == HIBATTV))
+	   switchLoad(OFF);
+   else
+	   switchLoad(ON);
 
- // update the LCD
-   if ((lcdUpdate == 4) && (lcdUpdateFlag == 1))
-   {
-	   HD44780_WriteData(0, 0, logo, YES);
-	   HD44780_WriteData(1, 0, version, NO);
-	   lcdUpdateFlag = 0;
-   }
-
-   if ( (lcdUpdate == 8) && (lcdUpdateFlag == 1))
-   {
-	   lcdBatteryInfo();
-	   lcdUpdateFlag = 0;
-   }
-
-   if ( (lcdUpdate == 12) && (lcdUpdateFlag == 1))
-   {
-	   lcdSolarInfo();
-	   lcdUpdateFlag = 0;
-   }
 
 
 //	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_15);
