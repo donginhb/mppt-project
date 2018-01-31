@@ -48,7 +48,7 @@ TIM_HandleTypeDef htim9;
 
 UART_HandleTypeDef huart1;
 
-uint8_t strBuffer[64];
+uint8_t strBuffer[128];
 
 /** adcBuffer Description
  * 0: Battery Bank Voltage
@@ -72,10 +72,13 @@ uint32_t tempMOSFETS;
 uint32_t iLoad;
 
 uint8_t getADC = 0;
+uint8_t adcConvComplete = 0;
 uint8_t tim9Count = 9;
 uint8_t lcdUpdate = 0;
 uint8_t lcdUpdateFlag = 0;
 static uint8_t warning = 0;
+static uint8_t canCharge = 0;
+static uint8_t isCharging = 0;
 
 // adcUnit = Vref / 2^12
 //Vref = 3.3v and 2^12 = 4096 for 12 bits of resolution
@@ -83,7 +86,7 @@ const double adcUnit = 0.000806;
 const double voltageDividerOutput = 0.0992;		// Voltage Divider ratio gives 0.0992 volts out / volt in
 
 char logo[] = "SOLAR TECH";
-char version[] = "MPPT EMS VER 5.0";
+char version[] = "MPPT EMS VER 1.0";
 char battery[] = "BATTERY BANK:";
 char battHi[] = "HIGH VOLTAGE!";
 char battLo[] = "LOW VOLTAGE!";
@@ -194,7 +197,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.ScanConvMode = ENABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE; //DISABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
@@ -211,7 +214,7 @@ static void MX_ADC1_Init(void)
    */
  sConfig.Channel = ADC_CHANNEL_0;
  sConfig.Rank = 1;
- sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -221,7 +224,7 @@ static void MX_ADC1_Init(void)
    */
  sConfig.Channel = ADC_CHANNEL_1;
  sConfig.Rank = 2;
- sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -231,7 +234,7 @@ static void MX_ADC1_Init(void)
    */
  sConfig.Channel = ADC_CHANNEL_2;
  sConfig.Rank = 3;
- sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -241,7 +244,7 @@ static void MX_ADC1_Init(void)
    */
  sConfig.Channel = ADC_CHANNEL_3;
  sConfig.Rank = 4;
- sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -251,7 +254,7 @@ static void MX_ADC1_Init(void)
    */
  sConfig.Channel = ADC_CHANNEL_4;
  sConfig.Rank = 5;
- sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -261,7 +264,7 @@ static void MX_ADC1_Init(void)
    */
  sConfig.Channel = ADC_CHANNEL_6;
  sConfig.Rank = 6;
- sConfig.SamplingTime = ADC_SAMPLETIME_56CYCLES; //ADC_SAMPLETIME_28CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES; //ADC_SAMPLETIME_28CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -271,7 +274,7 @@ static void MX_ADC1_Init(void)
    */
  sConfig.Channel = ADC_CHANNEL_7;
  sConfig.Rank = 7;
- sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -281,7 +284,7 @@ static void MX_ADC1_Init(void)
    */
  sConfig.Channel = ADC_CHANNEL_8;
  sConfig.Rank = 8;
- sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -577,6 +580,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc1) {
 	tempMOSFETS += adcBuffer[6];
 	iLoad += adcBuffer[7];
 
+	adcConvComplete = 1;
+
 }
 
 #ifdef USE_FULL_ASSERT
@@ -740,11 +745,15 @@ static void getADCreadings (uint8_t howMany)
 	//	(i.e.each completed conversion)
 	for (i=howMany; i>0; i--)
 	{
+		adcConvComplete = 0;
+
 		if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adcBuffer, 8) != HAL_OK)
 			Error_Handler();
+
+		while(!adcConvComplete);
 	}
 
-	HAL_Delay(100);
+//	HAL_Delay(100);
 
 // Averaging the readings
 	vBattery /= howMany;
@@ -782,7 +791,7 @@ static void getADCreadings (uint8_t howMany)
 	vSolar = calcVoltage(vSolarArray, 2);
 	iBat = calcCurrent(iBattery);
 	iSolar = calcCurrent(iSolarArray);
-	loadVoltage = calcVoltage(vLoad, 2);
+	loadVoltage = calcVoltage(vLoad, 1);
 	ambientTemp = calcTemperature(tempAmbient);
 	mosfetTemp = calcTemperature(tempMOSFETS);
 	loadCurrent = calcCurrent(iLoad);
@@ -903,7 +912,7 @@ void switchDiagLED(uint8_t onOff)
 
 void lcdBatteryInfo(void)
 {
-	uint8_t tmp_buffer[16];
+	char tmp_buffer[16];
 
 	HD44780_WriteData(0, 0, battery, YES);
 	sprintf(tmp_buffer, "%2.2f V, %2.2f A", vBat, iBat);
@@ -912,7 +921,7 @@ void lcdBatteryInfo(void)
 
 void lcdSolarInfo(void)
 {
-	uint8_t tmp_buffer[16];
+	char tmp_buffer[16];
 
 	HD44780_WriteData(0, 0, solarArray, YES);
 	sprintf(tmp_buffer, "%2.2f V, %2.2f A", vSolar, iSolar);
@@ -966,10 +975,6 @@ static void updateLCD(uint8_t dataIndex, uint8_t warning)
 int main(void)
 {
 
-//	uint8_t buffer[16] = "";
-//	uint16_t duty = 1000;
-//	uint16_t duty2 = 10;
-
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
@@ -1000,7 +1005,7 @@ int main(void)
  changePWM_TIM5(15000);
  changePWM_TIM1(512);
 
- getADCreadings(8);
+ getADCreadings(1);
 
  lcdBatteryInfo();
 
@@ -1017,31 +1022,13 @@ int main(void)
    if (getADC == 1)
 	  {
 		  getADC = 0;
-		  getADCreadings(8);
+		  getADCreadings(32);
 	  }
-// Switch load according to battery condition
+// Switch load according to battery voltage condition
    if ((warning == LOBATTV) || (warning == HIBATTV))
 	   switchLoad(OFF);
    else
 	   switchLoad(ON);
-
-
-
-//	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_15);
-//	  HAL_Delay(100);
-
-//	  sprintf(buffer, "Input: %c", myChar);
-//	  HD44780_WriteData(0, 3, buffer);
-
-
-//	  HAL_Delay(500);
-
-//	  duty2 = duty2 + 10;
-
-//	  if (duty2 >= 400)
-//		  duty2 = 100;
-
-//	  changePWM_TIM1(duty2);
 
   }
 }
