@@ -194,7 +194,7 @@ static void MX_ADC1_Init(void)
     /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
     */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.ScanConvMode = ENABLE;
   hadc1.Init.ContinuousConvMode = DISABLE; //DISABLE;
@@ -210,8 +210,9 @@ static void MX_ADC1_Init(void)
     Error_Handler();
   }
 
-  /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-   */
+  /**Configure the selected ADC regular channels and their corresponding rank in the sequencer and also their sample time. */
+
+  // Battery Bank Voltage
  sConfig.Channel = ADC_CHANNEL_0;
  sConfig.Rank = 1;
  sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
@@ -220,8 +221,7 @@ static void MX_ADC1_Init(void)
    Error_Handler();
  }
 
-   /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-   */
+ //Solar Array Voltage
  sConfig.Channel = ADC_CHANNEL_1;
  sConfig.Rank = 2;
  sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
@@ -230,8 +230,7 @@ static void MX_ADC1_Init(void)
    Error_Handler();
  }
 
-   /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-   */
+ //Battery Bank Current
  sConfig.Channel = ADC_CHANNEL_2;
  sConfig.Rank = 3;
  sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
@@ -240,8 +239,7 @@ static void MX_ADC1_Init(void)
    Error_Handler();
  }
 
-   /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-   */
+ //Solar Array Current
  sConfig.Channel = ADC_CHANNEL_3;
  sConfig.Rank = 4;
  sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
@@ -250,8 +248,7 @@ static void MX_ADC1_Init(void)
    Error_Handler();
  }
 
-   /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-   */
+ // Load Voltage
  sConfig.Channel = ADC_CHANNEL_4;
  sConfig.Rank = 5;
  sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
@@ -260,8 +257,7 @@ static void MX_ADC1_Init(void)
    Error_Handler();
  }
 
-   /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-   */
+ //Ambient Temperature
  sConfig.Channel = ADC_CHANNEL_6;
  sConfig.Rank = 6;
  sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES; //ADC_SAMPLETIME_28CYCLES;
@@ -270,8 +266,7 @@ static void MX_ADC1_Init(void)
    Error_Handler();
  }
 
-   /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-   */
+ //MOSFET Temperature
  sConfig.Channel = ADC_CHANNEL_7;
  sConfig.Rank = 7;
  sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
@@ -280,8 +275,7 @@ static void MX_ADC1_Init(void)
    Error_Handler();
  }
 
-   /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-   */
+ //Load Current
  sConfig.Channel = ADC_CHANNEL_8;
  sConfig.Rank = 8;
  sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
@@ -547,7 +541,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		if (tim9Count == 0)
 		{
 			getADC = 1;
-			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_15);
+//			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_15);
 			tim9Count = 9;
 			lcdUpdate++;
 
@@ -558,6 +552,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 				lcdUpdate = 0;
 		}
 
+		// Flash the charge LED quickly: alerts user to battery voltage problem
 		if (warning != NORMALBATTV)
 		{
 			if ((tim9Count % 2) != 0)
@@ -607,11 +602,11 @@ void assert_failed(uint8_t* file, uint32_t line)
 static void changePWM_TIM1(uint16_t pulse)
 {
 
-
+/*
 		TIM1->ARR = 0x512;
 	  TIM_OnePulse_InitTypeDef sConfig;
 
-	  sConfig.OCMode       = TIM_OCMODE_PWM1;
+	  	sConfig.OCMode       = TIM_OCMODE_PWM1;
 	    sConfig.OCPolarity   = TIM_OCPOLARITY_HIGH;
 	    sConfig.Pulse        = 128;
 	    sConfig.ICPolarity   = TIM_ICPOLARITY_RISING;
@@ -641,39 +636,41 @@ static void changePWM_TIM1(uint16_t pulse)
 	    HAL_TIM_OnePulse_Start(&htim1, TIM_CHANNEL_2);
 //	    HAL_TIM_OnePulse_Start(&htim1, TIM_CHANNEL_3);
 //	    HAL_TIM_OnePulse_Start(&htim1, TIM_CHANNEL_4);
+ */
 
-/*
 	  TIM_OC_InitTypeDef sConfigOC;
 	  TIM_OC_InitTypeDef sConfigOC2;
+
+	  TIM1->ARR = 0x5555;
 
 	  // PWM Polarity normal LIA / LIB
 	  sConfigOC.OCMode = TIM_OCMODE_PWM1;
 	  //sConfigOC.Pulse = 16000;
 	  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-//	  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_LOW;
+	  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_LOW;
 	  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
 	  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-//	  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+	  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
 
 	  // PWM Polarity complementary for HIA / HIB
 	  sConfigOC2.OCMode = TIM_OCMODE_PWM1;
 	  //sConfigOC2.Pulse = 16000;
 	  sConfigOC2.OCPolarity = TIM_OCPOLARITY_LOW;
-//	  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-	  sConfigOC2.OCFastMode = TIM_OCFAST_DISABLE;
-	  sConfigOC2.OCIdleState = TIM_OCIDLESTATE_RESET;
-//	  sConfigOC2.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+	  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+	  sConfigOC2.OCFastMode = TIM_OCFAST_ENABLE;
+	  sConfigOC2.OCIdleState = TIM_OCIDLESTATE_SET;
+	  sConfigOC2.OCNIdleState = TIM_OCNIDLESTATE_RESET;
 
 	//PA8: (LIA)		DUTY - 20%
-	  sConfigOC.Pulse = pulse - (pulse * 0.2);
-//	 sConfigOC.Pulse = pulse;
+//	  sConfigOC.Pulse = pulse - (pulse * 0.2);
+	 sConfigOC.Pulse = 64;
 	  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
 	  {
 	    Error_Handler();
 	  }
 
 	 //PA9: (HIA)		DUTY
-	  sConfigOC2.Pulse = pulse; //16000
+	  sConfigOC2.Pulse = 128; //16000
 	  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_2) != HAL_OK)
 	  {
 	    Error_Handler();
@@ -701,8 +698,6 @@ static void changePWM_TIM1(uint16_t pulse)
 	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
 	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-
-*/
 }
 
 // Controls the brightness of the LCD backlight
@@ -729,7 +724,6 @@ static void getADCreadings (uint8_t howMany)
 {
 
 	uint8_t i;
-//	uint8_t buffer2[16] = "";
 	vBattery = 0;
 	vSolarArray = 0;
 	iBattery = 0;
@@ -738,8 +732,6 @@ static void getADCreadings (uint8_t howMany)
 	tempAmbient = 0;
 	tempMOSFETS = 0;
 	iLoad = 0;
-
-//	memset(adcBuffer, 0, 8);
 
 	//	ADC channel values are initialized above and new values are accumulated in HAL_ADC_ConvCpltCallback() after each loop
 	//	(i.e.each completed conversion)
@@ -752,8 +744,6 @@ static void getADCreadings (uint8_t howMany)
 
 		while(!adcConvComplete);
 	}
-
-//	HAL_Delay(100);
 
 // Averaging the readings
 	vBattery /= howMany;
@@ -828,7 +818,6 @@ double calcVoltage(uint16_t ADvalue, uint8_t gain)
 
 double calcCurrent(uint16_t ADvalue)
 {
-
 	const uint8_t gain = 50;						// Gain of the INA213AIDCK current sense amplifier
 	const double Rsense	=	0.002;					// Value of current sense resistors used in design.
 	double current;
@@ -840,8 +829,6 @@ double calcCurrent(uint16_t ADvalue)
 
 double calcTemperature(uint16_t ADvalue)
 {
-
-
 	const double LM335voltage = 0.010;				// The LM335 outputs 10 mV / degree Kelvin
 	const double kelvin = 273.15;					// 0 C = 273.15 K
 	double degC;
@@ -853,7 +840,6 @@ double calcTemperature(uint16_t ADvalue)
 
 void switchFan(uint8_t onOff)
 {
-
 	if (onOff == ON)
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);
 	else
@@ -862,7 +848,6 @@ void switchFan(uint8_t onOff)
 
 void switchSolarArray(uint8_t onOff)
 {
-
 	if (onOff == ON)
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_SET);
 	else
@@ -871,7 +856,6 @@ void switchSolarArray(uint8_t onOff)
 
 void switchLoad(uint8_t onOff)
 {
-
 	if (onOff == ON)
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
 	else
@@ -880,7 +864,6 @@ void switchLoad(uint8_t onOff)
 
 void switchCharger(uint8_t onOff)
 {
-
 	if (onOff == ON)
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
 	else
@@ -889,7 +872,6 @@ void switchCharger(uint8_t onOff)
 
 void switchChargeLED(uint8_t onOff)
 {
-
 	if (onOff == ON)
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10, GPIO_PIN_SET);
 	else
@@ -903,7 +885,6 @@ void toggleChargeLED(void)
 
 void switchDiagLED(uint8_t onOff)
 {
-
 	if (onOff == ON)
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
 	else
@@ -931,44 +912,42 @@ void lcdSolarInfo(void)
 static void updateLCD(uint8_t dataIndex, uint8_t warning)
 {
 
-	   if (lcdUpdate == 4)
-	   {
+	lcdUpdateFlag = 0;
 
-		   if (warning == 1)
-		   {
-			   HD44780_WriteData(0, 0, battery, YES);
-			   HD44780_WriteData(1, 0, battHi, NO);
-		   }
-		   else if (warning == 2)
-		   {
-			   HD44780_WriteData(0, 0, battery, YES);
-			   HD44780_WriteData(1, 0, battLo, NO);
-		   }
+	switch (dataIndex)
+	{
 
-		   else
-		   {
-			   HD44780_WriteData(0, 0, logo, YES);
-			   HD44780_WriteData(1, 0, version, NO);
-			   lcdUpdateFlag = 0;
-		   }
+		case 4:
 
-	   }
+			if (warning == HIBATTV)
+			{
+				HD44780_WriteData(0, 0, battery, YES);
+				HD44780_WriteData(1, 0, battHi, NO);
+			}
+			else if (warning == LOBATTV)
+			{
+				HD44780_WriteData(0, 0, battery, YES);
+				HD44780_WriteData(1, 0, battLo, NO);
+			}
 
-	   else if (lcdUpdate == 8)
-	   {
-		   lcdBatteryInfo();
-		   lcdUpdateFlag = 0;
-	   }
+			else
+			{
+				HD44780_WriteData(0, 0, logo, YES);
+				HD44780_WriteData(1, 0, version, NO);
+			}
+			break;
 
-	   else if (lcdUpdate == 12)
-	   {
-		   lcdSolarInfo();
-		   lcdUpdateFlag = 0;
-	   }
+		case 8:
+			lcdBatteryInfo();
+			break;
 
-	   else {
+		case 12:
+			lcdSolarInfo();
+			break;
 
-	   }
+		default:
+			break;
+	}
 }
 
 
@@ -997,7 +976,7 @@ int main(void)
  HD44780_Init();
 
 // switchFan(OFF);
- switchCharger(ON);
+ switchCharger(OFF);
  switchSolarArray(OFF); // Enable this ONLY when ready to charge, disable all other times.
  switchLoad(ON);
  switchChargeLED(ON);
