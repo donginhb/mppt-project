@@ -44,6 +44,7 @@ DMA_HandleTypeDef hdma_adc1;
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim5;
 TIM_HandleTypeDef htim9;
+TIM_HandleTypeDef htim11;
 
 UART_HandleTypeDef huart1;
 //WWDG_HandleTypeDef hwwdg;
@@ -84,8 +85,9 @@ static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM5_Init(void);
-
 static void MX_TIM9_Init(void);
+
+static void MX_TIM11_Init(void);
 
 static void MX_USART1_UART_Init(void);
 //static void MX_WWDG_Init(void);
@@ -97,6 +99,9 @@ static void changePWM_TIM1(uint16_t);
 
 //static void getADCreadings(uint8_t);
 static uint16_t FloatVoltage(uint16_t);
+
+static void pulse();
+void delay_nus(uint32_t usDelay);
 
 extern void crc16_init(void);
 extern uint16_t crc16(uint8_t[]);
@@ -377,9 +382,9 @@ static void MX_TIM9_Init(void) {
 	  TIM_OC_InitTypeDef sConfigOC;
 
 	  htim9.Instance = TIM9;
-	  htim9.Init.Prescaler = 65535; //671;
+	  htim9.Init.Prescaler = 65535; //100 mS;
 	  htim9.Init.CounterMode = TIM_COUNTERMODE_UP;
-	  htim9.Init.Period = 76; // 763;
+	  htim9.Init.Period = 76; //10 mS;
 	  htim9.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	  if (HAL_TIM_Base_Init(&htim9) != HAL_OK)
 	  {
@@ -399,13 +404,52 @@ static void MX_TIM9_Init(void) {
 
 	  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
 	  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-	  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
+	  if (HAL_TIMEx_MasterConfigSynchronization(&htim9, &sMasterConfig) != HAL_OK)
 	  {
 	    Error_Handler();
 	  }
 
 	  HAL_TIM_Base_Start_IT(&htim9);
 }
+
+//Used as a 1uS timer.
+static void MX_TIM11_Init(void) {
+
+	  TIM_ClockConfigTypeDef sClockSourceConfig;
+	  TIM_MasterConfigTypeDef sMasterConfig;
+	  TIM_OC_InitTypeDef sConfigOC;
+
+	  htim11.Instance = TIM11;
+	  htim11.Init.Prescaler = 50;
+	  htim11.Init.CounterMode = TIM_COUNTERMODE_UP;
+	  htim11.Init.Period = 100;
+	  htim11.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+	  if (HAL_TIM_Base_Init(&htim11) != HAL_OK)
+	  {
+	    Error_Handler();
+	  }
+
+	  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+	  if (HAL_TIM_ConfigClockSource(&htim11, &sClockSourceConfig) != HAL_OK)
+	  {
+	    Error_Handler();
+	  }
+
+//	  if (HAL_TIM_OC_Init(&htim11) != HAL_OK)
+//	  {
+//	    Error_Handler();
+//	  }
+
+	  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+	  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+	  if (HAL_TIMEx_MasterConfigSynchronization(&htim11, &sMasterConfig) != HAL_OK)
+	  {
+	    Error_Handler();
+	  }
+
+	  HAL_TIM_Base_Start_IT(&htim11);
+}
+
 
 
 
@@ -498,8 +542,8 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
 //PORT B GPIOs
-  //Pin 1 controls BB_V+_Switch, Pin 2 for Fan Control, Pin 15 for the on-board diagnostic LED and Pin 5 controls the SHDN to the 12v reg.
-   GPIO_InitStruct.Pin = GPIO_PIN_15 | GPIO_PIN_5 | GPIO_PIN_2 | GPIO_PIN_1;
+  //Pin 1 controls BB_V+_Switch, Pin 2 for Fan Control, Pin 15 for the on-board diagnostic LED and Pin 5 controls the SHDN to the 12v reg., pin 11 for desulfate
+   GPIO_InitStruct.Pin = GPIO_PIN_15 | GPIO_PIN_11 | GPIO_PIN_5 | GPIO_PIN_2 | GPIO_PIN_1;
    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
    GPIO_InitStruct.Pull = GPIO_NOPULL;
    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -549,7 +593,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			getADC = 1;
 		}
 
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_11);
+//		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_11);
+//		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+	}
+
+	else if (htim->Instance == TIM11)
+	{
+		if (usCounter != 0)
+		usCounter--;
 	}
 }
 
@@ -696,6 +747,24 @@ static uint16_t FloatVoltage(uint16_t tempAmbient)
 		return (TV_40 - ((tempAmbient - TEMP_40) * RATE2) / 100);
 }
 
+static void pulse()
+{
+
+	uint8_t i;
+
+	for (i=0; i<=9; i++)
+	{
+		delay_nus(1);
+		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_11);
+	}
+}
+
+void delay_nus(uint32_t usDelay)
+{
+	usCounter = usDelay;
+	while (usCounter != 0);
+
+}
 
 int main(void)
 {
@@ -717,11 +786,12 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM5_Init();
   MX_TIM9_Init();
+  MX_TIM11_Init();
   MX_USART1_UART_Init();
   //MX_WWDG_Init();
 
 
- crc16_init();
+// crc16_init();
  HD44780_Init();
 
 
@@ -750,7 +820,7 @@ int main(void)
 //	  HAL_WWDG_Refresh(&hwwdg);
 
 	  HAL_Delay(500);
-
+	  pulse();
 /*
 	  changePWM_TIM5(duty);
 	  changePWM_TIM1(duty2);

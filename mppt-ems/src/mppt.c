@@ -529,6 +529,7 @@ void Error_Handler(void)
   {
 	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_15);
 	  HAL_Delay(100);
+
   }
 }
 

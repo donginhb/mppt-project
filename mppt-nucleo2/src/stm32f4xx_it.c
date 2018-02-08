@@ -40,6 +40,7 @@ extern UART_HandleTypeDef huart1;
 extern DMA_HandleTypeDef hdma_adc1;
 extern ADC_HandleTypeDef hadc1;
 extern TIM_HandleTypeDef htim9;
+extern TIM_HandleTypeDef htim11;
 
 
 static void getADCreadings(uint8_t);
@@ -182,6 +183,9 @@ void SysTick_Handler(void)
   HAL_SYSTICK_IRQHandler();
   /* USER CODE BEGIN SysTick_IRQn 1 */
 
+//  if (sysTickCounter != 0)
+//	  sysTickCounter--;
+
   /* USER CODE END SysTick_IRQn 1 */
 }
 
@@ -195,6 +199,12 @@ void SysTick_Handler(void)
 
 void TIM1_BRK_TIM9_IRQHandler(void) {
 	HAL_TIM_IRQHandler(&htim9);
+//	HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+}
+
+
+void TIM1_TRG_COM_TIM11_IRQHandler(void) {
+	HAL_TIM_IRQHandler(&htim11);
 //	HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 }
 
