@@ -62,7 +62,7 @@ uint8_t strBuffer[64];
  * 7: Battery Load Current
  */
 uint16_t adcBuffer[8];
-uint8_t tim9Count = 9;
+uint16_t tim9Count;
 
 uint32_t vBattery;
 uint32_t vSolarArray;
@@ -101,7 +101,7 @@ static void changePWM_TIM1(uint16_t);
 static uint16_t FloatVoltage(uint16_t);
 
 static void pulse();
-void delay_nus(uint32_t usDelay);
+void delay_nus(uint32_t);
 
 extern void crc16_init(void);
 extern uint16_t crc16(uint8_t[]);
@@ -129,7 +129,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON; //RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = 8;
-  RCC_OscInitStruct.PLL.PLLN = 50;
+  RCC_OscInitStruct.PLL.PLLN = 100; //100;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 4;
   RCC_OscInitStruct.PLL.PLLR = 2;
@@ -142,10 +142,10 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK|RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;    //RCC_SYSCLKSOURCE_HSI;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1; //RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_7) != HAL_OK)
    {
      Error_Handler();
    }
@@ -318,7 +318,7 @@ static void MX_TIM1_Init(void)
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_ENABLE;
   sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
   sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 16;
+  sBreakDeadTimeConfig.DeadTime = 64;
   sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
   sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
   sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
@@ -374,7 +374,7 @@ static void MX_TIM5_Init(void)
   HAL_TIM_MspPostInit(&htim5);
 }
 
-//Used as a 100 mS timer.
+//Used as a 1 mS timer.
 static void MX_TIM9_Init(void) {
 
 	  TIM_ClockConfigTypeDef sClockSourceConfig;
@@ -382,9 +382,9 @@ static void MX_TIM9_Init(void) {
 	  TIM_OC_InitTypeDef sConfigOC;
 
 	  htim9.Instance = TIM9;
-	  htim9.Init.Prescaler = 65535; //100 mS;
+	  htim9.Init.Prescaler = 50000; //1 mS @ 50 MHz input clock;
 	  htim9.Init.CounterMode = TIM_COUNTERMODE_UP;
-	  htim9.Init.Period = 76; //10 mS;
+	  htim9.Init.Period = 1; //10 mS;
 	  htim9.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	  if (HAL_TIM_Base_Init(&htim9) != HAL_OK)
 	  {
@@ -412,33 +412,27 @@ static void MX_TIM9_Init(void) {
 	  HAL_TIM_Base_Start_IT(&htim9);
 }
 
-//Used as a 1uS timer.
+//Used as a 5uS timer.
 static void MX_TIM11_Init(void) {
 
 	  TIM_ClockConfigTypeDef sClockSourceConfig;
 	  TIM_MasterConfigTypeDef sMasterConfig;
-	  TIM_OC_InitTypeDef sConfigOC;
 
 	  htim11.Instance = TIM11;
-	  htim11.Init.Prescaler = 50;
+	  htim11.Init.Prescaler = 1;
 	  htim11.Init.CounterMode = TIM_COUNTERMODE_UP;
-	  htim11.Init.Period = 100;
-	  htim11.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+	  htim11.Init.Period = 250;
+	  htim11.Init.ClockDivision = TIM_CLOCKDIVISION_DIV2;
 	  if (HAL_TIM_Base_Init(&htim11) != HAL_OK)
 	  {
 	    Error_Handler();
 	  }
 
-	  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+	  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_ITR0; //TIM_CLOCKSOURCE_INTERNAL;
 	  if (HAL_TIM_ConfigClockSource(&htim11, &sClockSourceConfig) != HAL_OK)
 	  {
 	    Error_Handler();
 	  }
-
-//	  if (HAL_TIM_OC_Init(&htim11) != HAL_OK)
-//	  {
-//	    Error_Handler();
-//	  }
 
 	  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
 	  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
@@ -584,12 +578,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 	if (htim->Instance==TIM9)
 	{
-		tim9Count--;
+		tim9Count++;
 
-		if (tim9Count == 0)
+		if (tim9Count == 1000)
 		{
-			tim9Count = 4;
-			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_15);
+			tim9Count = 0;
+			HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 			getADC = 1;
 		}
 
@@ -800,7 +794,7 @@ int main(void)
 
  //	 HAL_WWDG_Init(&hwwdg);
 
- changePWM_TIM1(256);
+ changePWM_TIM1(128);
 
   while (1)
   {

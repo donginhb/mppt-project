@@ -1,6 +1,6 @@
-16:52:40 **** Clean-only build of configuration Debug for project mppt-ems ****
+14:48:17 **** Clean-only build of configuration Debug for project mppt-ems ****
 make clean 
 make: *** No rule to make target 'clean'.  Stop.
 
-16:52:40 Build Finished (took 495ms)
+14:48:18 Build Finished (took 463ms)
 

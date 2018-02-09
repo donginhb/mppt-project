@@ -37,7 +37,7 @@ void HD44780_WriteData(uint8_t row, uint8_t col, char *data);
 void HD44780_WriteCommand(uint8_t);
 void HD44780_GotoXY(uint8_t, uint8_t);
 static void getADCreadings(uint8_t);
-void delay_nus(uint32_t usDelay);
+void delay_nus(uint32_t);
 
 char *rx;
 uint8_t myChar;
