@@ -64,7 +64,6 @@ char *rx;
 uint8_t myChar;
 char inBuffer[16];
 uint8_t charCount;
-uint32_t usCounter;
 
 
 //double vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp;

@@ -105,6 +105,7 @@ static uint16_t FloatVoltage(uint16_t);
 
 static void pulse();
 void delay_nus(uint32_t);
+
 void writeFlash(uint16_t data);
 
 extern void crc16_init(void);
