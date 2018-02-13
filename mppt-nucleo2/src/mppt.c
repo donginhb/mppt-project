@@ -47,6 +47,7 @@ TIM_HandleTypeDef htim9;
 TIM_HandleTypeDef htim11;
 
 UART_HandleTypeDef huart1;
+
 //WWDG_HandleTypeDef hwwdg;
 
 uint8_t strBuffer[64];
@@ -74,6 +75,8 @@ uint32_t tempMOSFETS;
 uint32_t iLoad;
 
 uint8_t getADC = 0;
+
+uint16_t flashData;
 
 // adcUnit = Vref / 2^12
 //Vref = 3.3v and 2^12 = 4096 for 12 bits of resolution
@@ -103,9 +106,10 @@ static uint16_t FloatVoltage(uint16_t);
 static void pulse();
 void delay_nus(uint32_t);
 
+void writeFlash(uint16_t data);
+
 extern void crc16_init(void);
 extern uint16_t crc16(uint8_t[]);
-
 
 /** System Clock Configuration
 */
@@ -716,7 +720,7 @@ static void getADCreadings (uint8_t howMany) {
 	mosfetTemp = (tempMOSFETS / howMany) * adcUnit;
 	loadCurrent = (iLoad / howMany) * adcUnit;
 
-	sprintf(strBuffer, "MPPT ADC Values: %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f\r\n", vBat, vSolar, iBat, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent);
+	sprintf(strBuffer, "MPPT ADC Values: %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f %2.2f, %x\r\n", vBat, vSolar, iBat, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent, flashData);
 //	sprintf(strBuffer, "MPPT ADC Values: %x %x %x %x %x %% %x\r\n", adcBuffer[0], adcBuffer[1], adcBuffer[2], adcBuffer[3], adcBuffer[4], adcBuffer[5], adcBuffer[6], adcBuffer[7]);
 	HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
@@ -760,6 +764,23 @@ void delay_nus(uint32_t usDelay)
 
 }
 
+void writeFlash(uint16_t data)
+{
+	if (HAL_FLASH_Unlock() != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | FLASH_FLAG_PGSERR );
+      FLASH_Erase_Sector(FLASH_SECTOR_4, VOLTAGE_RANGE_3);
+
+    if (HAL_FLASH_Program(TYPEPROGRAM_HALFWORD, 0x08010000, data)!= HAL_OK) {
+      	Error_Handler();
+      }
+
+    HAL_FLASH_Lock();
+}
+
 int main(void)
 {
 
@@ -787,6 +808,7 @@ int main(void)
 
 // crc16_init();
  HD44780_Init();
+ writeFlash(0x1234);
 
 
 // if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adcBuffer, 8) != HAL_OK)
@@ -795,6 +817,10 @@ int main(void)
  //	 HAL_WWDG_Init(&hwwdg);
 
  changePWM_TIM1(128);
+
+// flashData = userConfig[0];
+ flashData = *(__IO uint16_t *)0x08010000;
+
 
   while (1)
   {

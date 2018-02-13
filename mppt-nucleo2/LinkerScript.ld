@@ -61,8 +61,8 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 /* Memories definition */
 MEMORY
 {
-  RAM (xrw)		: ORIGIN = 0x20000000, LENGTH = 32K
-  ROM (rx)		: ORIGIN = 0x8000000, LENGTH = 128K
+  RAM (xrw)		: ORIGIN = 0x20000000, LENGTH = 32K 
+  ROM (rx)		: ORIGIN = 0x8000000, LENGTH = 128K 
 }
 
 /* Sections */
@@ -187,9 +187,8 @@ SECTIONS
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
   } >RAM
-
   
-
+  
   /* Remove information from the compiler libraries */
   /DISCARD/ :
   {
