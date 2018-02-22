@@ -35,6 +35,7 @@
 #include "stm32f4xx.h"
 #include "stm32f4xx_it.h"
 #include "mppt.h"
+#include "string.h"
 
 extern UART_HandleTypeDef huart1;
 extern DMA_HandleTypeDef hdma_adc1;
@@ -207,7 +208,14 @@ void USART1_IRQHandler(void) {
 
 	HAL_UART_Receive(&huart1, &myChar, 1, 0);
 //	rx++;
-//	charCount++;
+//	inBuffer[charCount] = myChar;
+	if (myChar != ' ')
+		//strcat(inBuffer, myChar);
+		inBuffer[charCount] = myChar;
+
+	charCount++;
+//   VV   	else
+//		memset(inBuffer, ' ', sizeof(inBuffer));
 
 //	if (charCount >= 15) {
 //		charCount = 0;

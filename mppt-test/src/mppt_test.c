@@ -37,6 +37,7 @@
 #include "mppt.h"
 
 #include <string.h>
+#include <stdlib.h>
 
 
 ADC_HandleTypeDef hadc1;
@@ -63,7 +64,7 @@ uint8_t strBuffer[128];
 uint16_t adcBuffer[9];
 
 uint32_t vBattery;
-uint32_t vSolarArray;
+static uint32_t vSolarArray;
 uint32_t iBattery;
 uint32_t iSolarArray;
 uint32_t vLoad;
@@ -134,7 +135,7 @@ static void updateLCD(uint8_t dataIndex, uint8_t warning);
 
 static void pulse();
 void delay_5us(uint32_t);
-void writeFlash(uint32_t address, uint16_t data);
+void writeFlash(uint32_t address, uint16_t data, uint8_t erase);
 
 
 /** System Clock Configuration
@@ -945,7 +946,7 @@ void delay_5us(uint32_t usDelay)
 
 }
 
-void writeFlash(uint32_t address, uint16_t data)
+void writeFlash(uint32_t address, uint16_t data, uint8_t erase)
 {
 	if (HAL_FLASH_Unlock() != HAL_OK)
 	{
@@ -953,6 +954,8 @@ void writeFlash(uint32_t address, uint16_t data)
 	}
 
     __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | FLASH_FLAG_PGSERR );
+
+    if (erase == YES)
       FLASH_Erase_Sector(FLASH_SECTOR_4, VOLTAGE_RANGE_3);
 
     if (HAL_FLASH_Program(TYPEPROGRAM_HALFWORD, address, data)!= HAL_OK) {
@@ -965,6 +968,9 @@ void writeFlash(uint32_t address, uint16_t data)
 
 int main(void)
 {
+
+ double SA_MeasuredVoltage;
+ uint16_t SA_OffsetVoltage, SA_CalcVoltage;
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
@@ -1021,26 +1027,80 @@ int main(void)
 
  if (vBattery >= 0x3e) //62d: ADcounts corresponding to 50 mV
  {
-	 sprintf(strBuffer, "Battery offset exceeds 50 mV!\r\n");
+	 sprintf(strBuffer, "Battery offset exceeds 50 mV!\r\n\r\n");
 	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
  }
 
  else
  {
-	 writeFlash(0x08010000, vBattery);
-	 sprintf(strBuffer, "Battery offset OK!\r\n");
+	 writeFlash(0x08010000, (uint16_t)vBattery, YES);
+	 sprintf(strBuffer, "Battery offset OK!\r\n\r\n");
 	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
  }
 
  flashData = *(__IO uint16_t *)0x08010000;
- memset (strBuffer, ' ', sizeof(strBuffer));
- sprintf(strBuffer, "Measured Battery Offset: %x\r\n", vBattery);
+ sprintf(strBuffer, "Measured Battery Offset: %x\r\n", flashData);
  HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
- //lcdBatteryInfo();
+ //Solar Array Voltage Offset
+ HD44780_WriteData(0, 0, "SA OFFSET", YES);
 
-// writeFlash(0x08010000, 0xaa55);
-//flashData = *(__IO uint16_t *)0x08010000;
+ sprintf(strBuffer, "Solar Array Voltage Offset\r\n");
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+ sprintf(strBuffer, "Measure the voltage between J1-1 and J1-3 and\r\n");
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+ sprintf(strBuffer, "enter it below\r\n");
+  HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+ sprintf(strBuffer, "Press SPACEBAR to continue\r\n\r\n");
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+ strcpy(inBuffer, "");
+ charCount = 0;
+ myChar = "z";
+ while (myChar != ' ');
+
+ sprintf(strBuffer, "You Entered: %.2f\r\n", atof(inBuffer));
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+ SA_MeasuredVoltage = atof(inBuffer);
+ SA_CalcVoltage = (uint32_t)(((SA_MeasuredVoltage * 0.0994) * 2) / adcUnit);
+
+ getADCreadings(32);
+
+ if (vSolarArray >= SA_CalcVoltage)
+	 SA_OffsetVoltage = (uint16_t)vSolarArray - (uint16_t)SA_CalcVoltage;
+ else
+	 SA_OffsetVoltage = (uint16_t)SA_CalcVoltage - (uint16_t)vSolarArray;
+
+ sprintf(strBuffer, "SA_CalcVoltage: %x		SA_OffsetVoltage: %x	vSolarArray %x\r\n", SA_CalcVoltage, SA_OffsetVoltage, vSolarArray);
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+ if ( (vSolarArray > (SA_CalcVoltage + 0x3e)) || (vSolarArray < (SA_CalcVoltage = 0x3e)) )
+ {
+		 sprintf(strBuffer, "Solar Array Offset Voltage exceeds 50 mV!\r\n\r\n");
+		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+ }
+ else
+ {
+	 writeFlash(0x08010004, SA_OffsetVoltage, NO);
+
+	 if (vSolarArray > SA_CalcVoltage)
+		 writeFlash(0x08010002, (uint16_t)0x0001, NO);
+	 else
+		 writeFlash(0x08010002, (uint16_t)0x0000, NO);
+ }
+
+ flashData = *(__IO uint16_t *)0x08010004;
+ sprintf(strBuffer, "Measured Solar Array Offset: %x\r\n", flashData);
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+ flashData = *(__IO uint16_t *)0x08010002;
+ sprintf(strBuffer, "Sign Bit: %x\r\n", flashData);
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
 
   while (1)
   {
