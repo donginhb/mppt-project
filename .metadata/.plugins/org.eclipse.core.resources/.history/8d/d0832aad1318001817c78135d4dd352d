@@ -1076,6 +1076,9 @@ int main(void)
  else
 	 SA_OffsetVoltage = (uint16_t)SA_CalcVoltage - (uint16_t)vSolarArray;
 
+ sprintf(strBuffer, "SA_CalcVoltage: %x		SA_OffsetVoltage: %x	vSolarArray %x\r\n", SA_CalcVoltage, SA_OffsetVoltage, vSolarArray);
+ HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+
  if ( (vSolarArray > (SA_CalcVoltage + 0x3e)) || (vSolarArray < (SA_CalcVoltage = 0x3e)) )
  {
 		 sprintf(strBuffer, "Solar Array Offset Voltage exceeds 50 mV!\r\n\r\n");

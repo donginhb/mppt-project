@@ -50,7 +50,7 @@ TIM_HandleTypeDef htim11;
 UART_HandleTypeDef huart1;
 
 //uint8_t strBuffer[128];
-char strBuffer[128];
+uint8_t strBuffer[128];
 
 /** adcBuffer Description
  * 0: Battery Bank Voltage
@@ -998,7 +998,7 @@ int main(void)
  HD44780_WriteData(1, 0, logo2, NO);
 
  sprintf(strBuffer, "MPPT EMS Production Test\r\n\r\n");
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
  HAL_Delay(2000);
 
 // switchFan(OFF);
@@ -1013,14 +1013,14 @@ int main(void)
  // Battery Measurement Offset
  HD44780_WriteData(0, 0, "BATT OFFSET", YES);
 
- sprintf(strBuffer, "Battery Voltage Offset\r\n");
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ sprintf(strBuffer, (char *)"Battery Voltage Offset\r\n");
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
  sprintf(strBuffer, "Connect J2-2 and J2-3 together\r\n");
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
  sprintf(strBuffer, "Press SPACEBAR to continue\r\n");
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
  while (myChar != ' ');
 
@@ -1029,34 +1029,34 @@ int main(void)
  if (vBattery >= 0x3e) //62d: ADcounts corresponding to 50 mV
  {
 	 sprintf(strBuffer, "Battery offset exceeds 50 mV!\r\n\r\n");
-	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
  }
 
  else
  {
 	 writeFlash(0x08010000, (uint16_t)vBattery, YES);
 	 sprintf(strBuffer, "Battery offset OK!\r\n\r\n");
-	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
  }
 
  flashData = *(__IO uint16_t *)0x08010000;
  sprintf(strBuffer, "Measured Battery Offset: %x\r\n", flashData);
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
  //Solar Array Voltage Offset
  HD44780_WriteData(0, 0, "SA OFFSET", YES);
 
  sprintf(strBuffer, "Solar Array Voltage Offset\r\n");
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
  sprintf(strBuffer, "Measure the voltage between J1-1 and J1-3 and\r\n");
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
  sprintf(strBuffer, "enter it below\r\n");
-  HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+  HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
  sprintf(strBuffer, "Press SPACEBAR to continue\r\n\r\n");
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
  strcpy(inBuffer, "");
  charCount = 0;
@@ -1064,7 +1064,7 @@ int main(void)
  while (myChar != ' ');
 
  sprintf(strBuffer, "You Entered: %.2f\r\n", atof(inBuffer));
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
  SA_MeasuredVoltage = atof(inBuffer);
  SA_CalcVoltage = (uint32_t)(((SA_MeasuredVoltage * 0.0994) * 2) / adcUnit);
@@ -1076,10 +1076,13 @@ int main(void)
  else
 	 SA_OffsetVoltage = (uint16_t)SA_CalcVoltage - (uint16_t)vSolarArray;
 
+ sprintf(strBuffer, "SA_CalcVoltage: %x		SA_OffsetVoltage: %x	vSolarArray %x\r\n", SA_CalcVoltage, SA_OffsetVoltage, vSolarArray);
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
  if ( (vSolarArray > (SA_CalcVoltage + 0x3e)) || (vSolarArray < (SA_CalcVoltage = 0x3e)) )
  {
 		 sprintf(strBuffer, "Solar Array Offset Voltage exceeds 50 mV!\r\n\r\n");
-		 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
  }
  else
  {
@@ -1093,11 +1096,11 @@ int main(void)
 
  flashData = *(__IO uint16_t *)0x08010004;
  sprintf(strBuffer, "Measured Solar Array Offset: %x\r\n", flashData);
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
  flashData = *(__IO uint16_t *)0x08010002;
  sprintf(strBuffer, "Sign Bit: %x\r\n", flashData);
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
 
   while (1)
