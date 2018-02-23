@@ -64,6 +64,7 @@ char *rx;
 char myChar;
 char inBuffer[32];
 uint8_t charCount;
+uint8_t echoChar;
 uint32_t usCounter;
 
 

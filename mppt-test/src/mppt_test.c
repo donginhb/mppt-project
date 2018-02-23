@@ -49,8 +49,7 @@ TIM_HandleTypeDef htim9;
 TIM_HandleTypeDef htim11;
 UART_HandleTypeDef huart1;
 
-//uint8_t strBuffer[128];
-char strBuffer[128];
+uint8_t strBuffer[128];
 
 /** adcBuffer Description
  * 0: Battery Bank Voltage
@@ -972,6 +971,7 @@ int main(void)
 
  double SA_MeasuredVoltage;
  uint16_t SA_OffsetVoltage, SA_CalcVoltage;
+ uint8_t tempStr1[16];
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
@@ -997,8 +997,9 @@ int main(void)
  HD44780_WriteData(0, 0, logo1, YES);
  HD44780_WriteData(1, 0, logo2, NO);
 
- sprintf(strBuffer, "MPPT EMS Production Test\r\n\r\n");
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ memset(strBuffer, NULL, sizeof(strBuffer));
+ sprintf((char *)strBuffer, "MPPT EMS Production Test\r\n\r\n");
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
  HAL_Delay(2000);
 
 // switchFan(OFF);
@@ -1013,58 +1014,59 @@ int main(void)
  // Battery Measurement Offset
  HD44780_WriteData(0, 0, "BATT OFFSET", YES);
 
- sprintf(strBuffer, "Battery Voltage Offset\r\n");
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ memset(strBuffer, NULL, 128);
+ sprintf((char *)strBuffer, "BATTERY OFFSET VOLTAGE\r\n");
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
- sprintf(strBuffer, "Connect J2-2 and J2-3 together\r\n");
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ sprintf((char *)strBuffer, "Connect J2-2 and J2-3 together\r\n");
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
- sprintf(strBuffer, "Press SPACEBAR to continue\r\n");
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ memset(strBuffer, NULL, 128);
+ sprintf((char *)strBuffer, "Press SPACEBAR to continue\r\n");
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
  while (myChar != ' ');
 
  getADCreadings(32);
 
+ memset(strBuffer, NULL, 128);
+
  if (vBattery >= 0x3e) //62d: ADcounts corresponding to 50 mV
  {
-	 sprintf(strBuffer, "Battery offset exceeds 50 mV!\r\n\r\n");
+	 sprintf((char *)strBuffer, "Battery offset exceeds 50 mV!\r\n\r\n");
 	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
  }
 
  else
  {
 	 writeFlash(0x08010000, (uint16_t)vBattery, YES);
-	 sprintf(strBuffer, "Battery offset OK!\r\n\r\n");
+	 sprintf((char *)strBuffer, "Battery offset OK!\r\n\r\n");
 	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
  }
 
- flashData = *(__IO uint16_t *)0x08010000;
- sprintf(strBuffer, "Measured Battery Offset: %x\r\n", flashData);
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+// flashData = *(__IO uint16_t *)0x08010000;
+// sprintf((char *)strBuffer, "Measured Battery Offset: %x\r\n", flashData);
+// HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
 
  //Solar Array Voltage Offset
  HD44780_WriteData(0, 0, "SA OFFSET", YES);
 
- sprintf(strBuffer, "Solar Array Voltage Offset\r\n");
+ sprintf((char *)strBuffer, "SOLAR ARRAY VOLTAGE OFFSET\r\n");
  HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
 
- sprintf(strBuffer, "Measure the voltage between J1-1 and J1-3 and\r\n");
+ sprintf((char *)strBuffer, "Measure the voltage between J1-1 and J1-3 and enter it below\r\n");
  HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
 
- sprintf(strBuffer, "enter it below\r\n");
-  HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
-
- sprintf(strBuffer, "Press SPACEBAR to continue\r\n\r\n");
+ sprintf((char *)strBuffer, "After entering the measured voltage, press SPACEBAR to continue\r\n\r\n");
  HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
 
  strcpy(inBuffer, "");
  charCount = 0;
- myChar = "z";
+ myChar = 'z';
  while (myChar != ' ');
 
- sprintf(strBuffer, "You Entered: %.2f\r\n", atof(inBuffer));
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+// sprintf((char *)strBuffer, "\r\n\r\nYou Entered: %.2f\r\n\r\n", atof(inBuffer));
+// HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
 
  SA_MeasuredVoltage = atof(inBuffer);
  SA_CalcVoltage = (uint32_t)(((SA_MeasuredVoltage * 0.0994) * 2) / adcUnit);
@@ -1076,9 +1078,14 @@ int main(void)
  else
 	 SA_OffsetVoltage = (uint16_t)SA_CalcVoltage - (uint16_t)vSolarArray;
 
- if ( (vSolarArray > (SA_CalcVoltage + 0x3e)) || (vSolarArray < (SA_CalcVoltage = 0x3e)) )
+ memset(strBuffer, NULL, sizeof(strBuffer));
+
+ sprintf((char *)strBuffer, "\r\n\r\n");
+ HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+
+ if ( (vSolarArray > (SA_CalcVoltage + 0x3e)) || (vSolarArray < (SA_CalcVoltage - 0x3e)) )
  {
-		 sprintf(strBuffer, "Solar Array Offset Voltage exceeds 50 mV!\r\n\r\n");
+		 sprintf((char *)strBuffer, "Solar Array Offset Voltage exceeds 50 mV!\r\n\r\n");
 		 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
  }
  else
@@ -1089,15 +1096,141 @@ int main(void)
 		 writeFlash(0x08010002, (uint16_t)0x0001, NO);
 	 else
 		 writeFlash(0x08010002, (uint16_t)0x0000, NO);
+
+	 sprintf((char *)strBuffer, "Solar Array Offset Voltage OK!\r\n\r\n");
+	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
  }
 
- flashData = *(__IO uint16_t *)0x08010004;
- sprintf(strBuffer, "Measured Solar Array Offset: %x\r\n", flashData);
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+// flashData = *(__IO uint16_t *)0x08010004;
+// sprintf((char *)strBuffer, "\r\nMeasured Solar Array Offset: %x\r\n", flashData);
+// HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
 
- flashData = *(__IO uint16_t *)0x08010002;
- sprintf(strBuffer, "Sign Bit: %x\r\n", flashData);
- HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+// flashData = *(__IO uint16_t *)0x08010002;
+// sprintf((char *)strBuffer, "\r\nSign Bit: %x\r\n", flashData);
+// HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+
+
+ //Soalr Array Current Offset
+ HD44780_WriteData(0, 0, " SOLAR  ARRAY", YES);
+ HD44780_WriteData(1, 0, "CURRENT OFFSET", NO);
+
+ memset(strBuffer, NULL, 128);
+ sprintf((char *)strBuffer, "MEASURING SOLAR ARRAY CURRENT SENSE OFFSET VOLTAGE\r\n");
+ HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+ getADCreadings(32);
+
+ memset(strBuffer, NULL, 128);
+ if (iSolarArray >= 0x3e) //62d: ADcounts corresponding to 50 mV
+ {
+	 sprintf((char *)strBuffer, "Solar Array Current Offset Voltage exceeds 50 mV!\r\n\r\n");
+	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ }
+
+ else
+ {
+	 writeFlash(0x08010008, (uint16_t)iSolarArray, NO);
+	 sprintf((char *)strBuffer, "Solar Array Current Offset Voltage OK!\r\n\r\n");
+	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ }
+
+//  flashData = *(__IO uint16_t *)0x08010008;
+//  sprintf((char *)strBuffer, "Measured Solar Array Current Offset: %x\r\n", flashData);
+//  HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+
+
+ //Battery Current Offset
+  HD44780_WriteData(0, 3, "BATTERY", YES);
+  HD44780_WriteData(1, 0, "CURRENT OFFSET", NO);
+
+  memset(strBuffer, NULL, 128);
+  sprintf((char *)strBuffer, "MEASURING BATTERY CURRENT SENSE OFFSET VOLTAGE\r\n");
+  HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+  getADCreadings(32);
+
+  memset(strBuffer, NULL, 128);
+  if (iBattery >= 0x3e) //62d: ADcounts corresponding to 50 mV
+  {
+ 	 sprintf((char *)strBuffer, "Solar Array Current Offset Voltage exceeds 50 mV!\r\n\r\n");
+ 	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+  }
+
+  else
+  {
+ 	 writeFlash(0x08010006, (uint16_t)iBattery, NO);
+ 	 sprintf((char *)strBuffer, "Battery Current Offset Voltage OK!\r\n\r\n");
+ 	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+  }
+
+//   flashData = *(__IO uint16_t *)0x08010006;
+//   sprintf((char *)strBuffer, "Measured Battery Current Offset: %x\r\n", flashData);
+//   HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+
+  //Load Current Offset
+   HD44780_WriteData(0, 0, "LOAD CURRENT", YES);
+   HD44780_WriteData(1, 3, "OFFSET", NO);
+
+   memset(strBuffer, NULL, 128);
+   sprintf((char *)strBuffer, "MEASURING LOAD CURRENT SENSE OFFSET VOLTAGE\r\n");
+   HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+   getADCreadings(32);
+
+   memset(strBuffer, NULL, 128);
+   if (iLoad >= 0x3e) //62d: ADcounts corresponding to 50 mV
+   {
+  	 sprintf((char *)strBuffer, "Load Current Offset Voltage exceeds 50 mV!\r\n\r\n");
+  	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+   }
+
+   else
+   {
+  	 writeFlash(0x0801000a, (uint16_t)iLoad, NO);
+  	 sprintf((char *)strBuffer, "Load Current Offset Voltage OK!\r\n\r\n");
+  	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+   }
+
+//    flashData = *(__IO uint16_t *)0x0801000a;
+//    sprintf((char *)strBuffer, "Measured Load Current Offset: %x\r\n", flashData);
+//    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+
+   //Temperature Sensor Checket
+//    HD44780_WriteData(0, 0, "LOAD CURRENT", YES);
+//    HD44780_WriteData(1, 3, "OFFSET", NO);
+
+    memset(strBuffer, NULL, 128);
+    sprintf((char *)strBuffer, "READING TEMPERATURE SENSORS\r\n");
+    HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+    sprintf((char *)strBuffer, "Verify that both temperature readings are within 1 degree of room temperature \r\n");
+    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+
+    memset(strBuffer, NULL, 128);
+    sprintf((char *)strBuffer, "After verifying, press SPACEBAR to continue\r\n\r\n");
+    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+
+    getADCreadings(32);
+
+    memset(strBuffer, NULL, 128);
+    sprintf((char *)strBuffer, "Ambient Temp: %.2f deg. C	MOSFET Temp: %.2f deg. C\r\n\r\n", ambientTemp, mosfetTemp);
+    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+
+    sprintf((char *)tempStr1, "Ambient: %.2f C", ambientTemp);
+    HD44780_WriteData(0, 0, (char *)tempStr1, YES);
+
+    sprintf((char *)tempStr1, "MOSFET: %.2f C", mosfetTemp);
+    HD44780_WriteData(1, 0, (char *)tempStr1, NO);
+
+    myChar = 'z';
+    while (myChar != ' ');
+
+    memset(strBuffer, NULL, 128);
+    sprintf((char *)strBuffer, "DONE!! Please reprogram the EMS with the correct version of Production firmware and perform the functional test \r\n");
+    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+
+    HD44780_WriteData(0, 0, "PRODUCTION TEST", YES);
+    HD44780_WriteData(1, 0, "COMPLETED!", NO);
 
 
   while (1)

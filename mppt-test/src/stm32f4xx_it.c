@@ -43,6 +43,8 @@ extern ADC_HandleTypeDef hadc1;
 extern TIM_HandleTypeDef htim9;
 extern TIM_HandleTypeDef htim11;
 
+uint8_t xBuff[1];
+
 static void getADCreadings(uint8_t);
 
 /* USER CODE BEGIN 0 */
@@ -207,28 +209,18 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void) {
 void USART1_IRQHandler(void) {
 
 	HAL_UART_Receive(&huart1, &myChar, 1, 0);
-//	rx++;
-//	inBuffer[charCount] = myChar;
-	if (myChar != ' ')
-		//strcat(inBuffer, myChar);
+
+	if (myChar != ' ') {
 		inBuffer[charCount] = myChar;
+		sprintf(xBuff, "%c", inBuffer[charCount]);
+		HAL_UART_Transmit(&huart1, xBuff, sizeof(xBuff), 0xffff);
+	}
 
 	charCount++;
-//   VV   	else
-//		memset(inBuffer, ' ', sizeof(inBuffer));
 
-//	if (charCount >= 15) {
-//		charCount = 0;
-//		rx = inBuffer;
-//	}
 	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_15);
-
-//	HAL_UART_Receive_IT(&huart2, (uint8_t *)rxBuffer, 3);
 	__HAL_UART_FLUSH_DRREGISTER(&huart1);
 	HAL_NVIC_ClearPendingIRQ(USART1_IRQn);
-//	sprintf(txBuffer, "Received: %c\r\n", rxBuffer[0]);
-//	sprintf(txBuffer, "Received: %s\r\n", rxBuffer);
-
 }
 
 void ADC_IRQHandler(void)
