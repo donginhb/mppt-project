@@ -641,6 +641,9 @@ static void changePWM_TIM1(uint16_t pulse)
 
 
 	  TIM_OC_InitTypeDef sConfigOC;
+	  TIM_OC_InitTypeDef sConfigOC2;
+
+
 	  sConfigOC.OCMode = TIM_OCMODE_PWM1;
 	  sConfigOC.Pulse = pulse;
 	  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
@@ -648,12 +651,23 @@ static void changePWM_TIM1(uint16_t pulse)
 	  sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
 	  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
 	  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+
+	  sConfigOC2.OCMode = TIM_OCMODE_PWM2;
+	  sConfigOC2.Pulse = pulse;
+	  sConfigOC2.OCPolarity = TIM_OCPOLARITY_HIGH;
+	  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+	  sConfigOC2.OCFastMode = TIM_OCFAST_ENABLE;
+	  sConfigOC2.OCIdleState = TIM_OCIDLESTATE_RESET;
+	  sConfigOC2.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+
+
+
 	  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
 	  {
 		  Error_Handler();
 	  }
 
-	  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+	  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_2) != HAL_OK)
 	  {
 		  Error_Handler();
 	  }

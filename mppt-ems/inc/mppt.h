@@ -25,16 +25,16 @@
 
 // voltage related constants
 // The ones that are commented out are not used in rev 4.3
-#define HALF_VOLT      		0x7b	// 123 counts corresponding to 0.5 V
-#define TWO_VOLT       		0x1ec	// 492 counts corresponding to 2.0 Volts
-//#define ONE_AND_HALF_VOLT 	0x171	// 369 counts corresponding to 1.5 Volts
-#define LOW_BATTERY2   		0xa7c	// 2684 counts corresponding to 10.9 Volts
-//#define LOW_BATTERY1   		0xa94	// 2708 counts corresponding to 11.0 Volts
-#define V_MIN_LOAD_ON       0xb8b	// 2955 counts corresponding to 12 Volts
-#define V_MAX_LOAD_ON       0xeb7	// 3767 counts corresponding to 15.3 Volts
-#define V_MIN_LOAD_OFF 		0xa4a	// 2634 counts corresponding to 10.7 Volts
-#define V_MAX_LOAD_OFF 		0xee8	// 3816 counts corresponding to 15.5 Volts
-#define MAX_START_VOLT 		0xc81	// 3201 counts corresponding to 13.0 Volts
+#define HALF_VOLT      		0x4d	// 77 counts corresponding to 0.5 V
+#define TWO_VOLT       		0x135	// 232 counts corresponding to 2.0 Volts
+//#define ONE_AND_HALF_VOLT 	0xe8	// 369 counts corresponding to 1.5 Volts
+#define LOW_BATTERY2   		0x695	// 1685 counts corresponding to 10.9 Volts
+//#define LOW_BATTERY1   		0x6a5	// 1701 counts corresponding to 11.0 Volts
+#define V_MIN_LOAD_ON       0x740	// 1856 counts corresponding to 12 Volts
+#define V_MAX_LOAD_ON       0x93e	// 2366 counts corresponding to 15.3 Volts
+#define V_MIN_LOAD_OFF 		0x677	// 1655 counts corresponding to 10.7 Volts
+#define V_MAX_LOAD_OFF 		0x95d	// 2397 counts corresponding to 15.5 Volts
+#define MAX_START_VOLT 		0x7da	// 2010 counts corresponding to 13.0 Volts
 
 // Threshold voltage calculations
 #define TV_0        		0xe30	// 3632 thresh. volt count at  0C (14.75V)
