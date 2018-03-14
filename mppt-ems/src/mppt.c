@@ -345,7 +345,7 @@ static void MX_TIM1_Init(void)
 	  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_ENABLE;
 	  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
 	  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-	  sBreakDeadTimeConfig.DeadTime = 16;
+	  sBreakDeadTimeConfig.DeadTime = 100;
 	  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
 	  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
 	  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
@@ -591,6 +591,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			if (lcdUpdate > 12)
 				lcdUpdate = 0;
 		}
+
+		// Flash the charge LED to indicate charging is active
+		if (isCharging)
+			toggleChargeLED();
 
 		// Flash the charge LED quickly: alerts user to battery voltage problem
 		if (warning != NORMALBATTV)
@@ -1035,7 +1039,7 @@ int main(void)
  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 
  changePWM_TIM5(15000);
- changePWM_TIM1(256, ON);   //358 = 30%, 154 = 70%
+ changePWM_TIM1(256, ON);   //154 = 30%, 359 = 70%
 
  getADCreadings(1);
  lcdBatteryInfo();
@@ -1056,26 +1060,51 @@ int main(void)
 	  }
 
 // Get ADC readings
-   if (getADC == 1)
+	  if (getADC == 1)
 	  {
 		  getADC = 0;
 		  getADCreadings(8);
 	  }
 // Switch load according to battery voltage condition
-   if ((warning == LOBATTV) || (warning == HIBATTV))
-	   switchLoad(OFF);
-   else
-	   switchLoad(ON);
+	  if ((warning == LOBATTV) || (warning == HIBATTV))
+		  switchLoad(OFF);
+	  else
+		  switchLoad(ON);
+/*
+ //Compare SA and Battery voltages and determine if we can charge
+	  if (vSolarArray > (vBattery + TWO_VOLT))
+	  {
+		  changePWM_TIM1(256, ON); // Start with 50% DC
+		  switchCharger(ON);
+		  canCharge = 1;
 
-  }
+	  	  switchSolarArray(ON);
+	  	  isCharging = 1;
+
+		  do {
+
+		  } while (vSolarArray > (vBattery + TWO_VOLT));
+
+//	  	// Monitor charge current
+//	  		if (iSolarArray > THRESHOLD_CURRENT)
+//	  		{
+
+//	  		}
+//	  		else
+//	 		{
+//		  		switchSolarArray(OFF);
+//		  		isCharging = 0;
+//	  		}
+	  }
+	  else
+	  {
+		  changePWM_TIM1(256, OFF);
+		  switchCharger(OFF);
+		  switchSolarArray(OFF);
+		  isCharging = 0;
+		  canCharge = 0;
+	  }
+
+*/
+  } //end while
 }
-
-/**
-  * @}
-  */ 
-
-/**
-  * @}
-*/ 
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
