@@ -1081,6 +1081,9 @@ int main(void)
 	  	  while(canCharge)
 	  	  {
 
+		  	  switchSolarArray(ON);
+		  	  isCharging = 1;
+
 	  		  if (getADC == 1)
 	  		  {
 	  			  getADC = 0;
@@ -1093,40 +1096,26 @@ int main(void)
 	  			  updateLCD(lcdUpdate, warning);
 	  		  }
 
-	  		  if (vSolarArray <= (vBattery + TWO_VOLT))
-	  		  {
-	  			  canCharge = 0;
-	  			  changePWM_TIM1(410, OFF);
-	  			  switchCharger(OFF);
-	  			  isCharging = 0;
-	  		  }
-
-	  		  else
-	  		  {
-
-	  			  if ( (isCharging == 0) && (iSolarArray > THRESHOLD_CURRENT) )
-	  			  {
-	  				  switchSolarArray(ON);
-	  				  isCharging = 1;
-	  			  }
-
-	  			  if ((isCharging == 1 ) && (iSolarArray <= THRESHOLD_CURRENT))
-	  			  {
-	  				  switchSolarArray(OFF);
-	  				  changePWM_TIM1(410, OFF);
-	  				  isCharging = 0;
-	  				  switchChargeLED(ON);
-	  			  }
-	  		  } //end else
 	  	  } //end while (canCharge)
+
+//	  	// Monitor charge current
+//	  		if (iSolarArray > THRESHOLD_CURRENT)
+//	  		{
+
+//	  		}
+//	  		else
+//	 		{
+//		  		switchSolarArray(OFF);
+//		  		isCharging = 0;
+//	  		}
 	  }
 	  else
 	  {
-		  changePWM_TIM1(410, OFF);
-		  switchCharger(OFF);
-		  canCharge = 0;
+//		  changePWM_TIM1(256, OFF);
+//		  switchCharger(OFF);
+//		  switchSolarArray(OFF);
 		  isCharging = 0;
-		  switchChargeLED(ON);
+//		  canCharge = 0;
 	  }
 
   } //end while

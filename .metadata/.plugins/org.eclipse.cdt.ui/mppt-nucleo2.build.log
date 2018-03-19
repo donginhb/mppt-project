@@ -1,7 +1,6 @@
-11:57:02 **** Clean-only build of configuration Debug for project mppt-nucleo2 ****
+15:42:36 **** Clean-only build of configuration Debug for project mppt-nucleo2 ****
 make clean 
-rm -rf *
- 
+make: *** No rule to make target 'clean'.  Stop.
 
-11:57:03 Build Finished (took 698ms)
+15:42:36 Build Finished (took 407ms)
 

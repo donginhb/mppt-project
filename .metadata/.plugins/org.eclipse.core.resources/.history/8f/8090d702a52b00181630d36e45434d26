@@ -36,9 +36,7 @@
 #define V_MAX_LOAD_OFF 		0x95d	// 2397 counts corresponding to 15.5 Volts
 #define MAX_START_VOLT 		0x7da	// 2010 counts corresponding to 13.0 Volts
 
-//#define THRESHOLD_CURRENT	0x1F	// 31 counts corresponding t0 250 mA
-#define THRESHOLD_CURRENT	0x31	// 49 counts corresponding t0 394 mA
-
+#define THRESHOLD_CURRENT	0x18	// 24 counts corresponding t0 200 mA
 
 // Threshold voltage calculations
 #define TV_0        		0xe30	// 3632 thresh. volt count at  0C (14.75V)
