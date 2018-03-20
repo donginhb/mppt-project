@@ -72,6 +72,8 @@ uint32_t tempMOSFETS;
 uint32_t iLoad;
 
 uint16_t flashData;
+uint16_t duty = 410;
+
 uint8_t getADC = 0;
 uint8_t adcConvComplete = 0;
 uint16_t tim9Count = 9;
@@ -80,6 +82,8 @@ uint8_t lcdUpdateFlag = 0;
 uint8_t warning = 0;
 uint8_t canCharge;
 uint8_t isCharging;
+uint16_t canPulse;
+uint8_t pulseInterval = 120;		// 120 second (2 minute) intervals between pulsing the battery bank
 
 uint16_t flashData, flashData2, flashData3;
 
@@ -133,7 +137,7 @@ static uint16_t FloatVoltage(uint16_t);
 
 static void updateLCD(uint8_t dataIndex, uint8_t warning);
 
-static void pulse();
+static void pulse(void);
 void delay_5us(uint32_t);
 void writeFlash(uint16_t data);
 
@@ -580,10 +584,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 		if (tim9Count == 1000)
 		{
+
 			getADC = 1;
 //			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_15);
 			tim9Count = 0;
 			lcdUpdate++;
+			canPulse++;
 
 			if ( (lcdUpdate == 4) || (lcdUpdate == 8) || (lcdUpdate == 12) )
 				lcdUpdateFlag = 1;
@@ -686,11 +692,11 @@ static void changePWM_TIM1(uint16_t pulse, uint8_t onOff)
 
 		  HAL_TIM_MspPostInit(&htim1);
 
-	  	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-	  	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
+		  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+		  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
 
-	  	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-	  	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);
+		  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+		  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);
 	  }
 
 	  else
@@ -963,16 +969,21 @@ static void updateLCD(uint8_t dataIndex, uint8_t warning)
 	}
 }
 
-static void pulse()
+static void pulse(void)
 {
 
 	uint8_t i;
 
+	switchCapacitors(OFF);
+
 	for (i=0; i<=9; i++)
 	{
-		delay_5us(1);
 		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_11);
+		delay_5us(20);
 	}
+
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
+	switchCapacitors(ON);
 }
 
 void delay_5us(uint32_t usDelay)
@@ -1039,10 +1050,11 @@ int main(void)
  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 
  changePWM_TIM5(15000);
- changePWM_TIM1(410, OFF);
+ changePWM_TIM1(duty, OFF);
 
  getADCreadings(1);
  lcdBatteryInfo();
+
 
 // writeFlash(0xaa55);
 // flashData = *(__IO uint16_t *)0x08010000;
@@ -1074,9 +1086,10 @@ int main(void)
  //Compare SA and Battery voltages and determine if we can charge
 	  if (vSolarArray > (vBattery + TWO_VOLT))
 	  {
-		  changePWM_TIM1(410, ON);
+		  changePWM_TIM1(duty, ON);
 		  switchCharger(ON);
 		  canCharge = 1;
+		  canPulse = 0;
 
 	  	  while(canCharge)
 	  	  {
@@ -1096,7 +1109,7 @@ int main(void)
 	  		  if (vSolarArray <= (vBattery + TWO_VOLT))
 	  		  {
 	  			  canCharge = 0;
-	  			  changePWM_TIM1(410, OFF);
+	  			  changePWM_TIM1(duty, OFF);
 	  			  switchCharger(OFF);
 	  			  isCharging = 0;
 	  		  }
@@ -1113,20 +1126,37 @@ int main(void)
 	  			  if ((isCharging == 1 ) && (iSolarArray <= THRESHOLD_CURRENT))
 	  			  {
 	  				  switchSolarArray(OFF);
-	  				  changePWM_TIM1(410, OFF);
+	  				  changePWM_TIM1(duty, OFF);
 	  				  isCharging = 0;
 	  				  switchChargeLED(ON);
 	  			  }
 	  		  } //end else
 	  	  } //end while (canCharge)
 	  }
+
+	  else if ( (vSolarArray > vBattery) && (vSolarArray < (vBattery + TWO_VOLT)))
+	  {
+		  changePWM_TIM1(duty, OFF);
+		  switchCharger(OFF);
+		  canCharge = 0;
+		  isCharging = 0;
+		  switchChargeLED(OFF);
+
+		  if (canPulse == pulseInterval)
+		  {
+			  pulse();
+			  canPulse = 0;
+		  }
+	  }
+
 	  else
 	  {
-		  changePWM_TIM1(410, OFF);
+		  changePWM_TIM1(duty, OFF);
 		  switchCharger(OFF);
 		  canCharge = 0;
 		  isCharging = 0;
 		  switchChargeLED(ON);
+		  canPulse = 0;
 	  }
 
   } //end while
