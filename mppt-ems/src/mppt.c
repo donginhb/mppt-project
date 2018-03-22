@@ -30,11 +30,16 @@
 #define NORMALBATTV	0
 #define HIBATTV 	1
 #define LOBATTV		2
+#define MIN_DUTY_CYCLE	256		//50% of the TIM1 period
+#define MAX_DUTY_CYCLE  410 	//80% of the TIM1 period
+
+#define min(a,b) 	((a) < (b)) ? (a) : (b);
 
 
 #include "stm32f4xx_hal.h"
 #include "HD44780.h"
 #include "mppt.h"
+#include <stdlib.h>
 
 #include <string.h>
 
@@ -73,6 +78,7 @@ uint32_t iLoad;
 
 uint16_t flashData;
 uint16_t duty = 410;
+uint16_t start_volt;
 
 uint8_t getADC = 0;
 uint8_t adcConvComplete = 0;
@@ -86,6 +92,7 @@ uint16_t canPulse;
 uint8_t pulseInterval = 120;		// 120 second (2 minute) intervals between pulsing the battery bank
 
 uint16_t flashData, flashData2, flashData3;
+double currentPower, lastPower;
 
 // adcUnit = Vref / 2^12
 //Vref = 3.3v and 2^12 = 4096 for 12 bits of resolution
@@ -140,6 +147,8 @@ static void updateLCD(uint8_t dataIndex, uint8_t warning);
 static void pulse(void);
 void delay_5us(uint32_t);
 void writeFlash(uint16_t data);
+
+void calcMPPT(void);
 
 
 /** System Clock Configuration
@@ -809,14 +818,14 @@ static void getADCreadings (uint8_t howMany)
  (-35 mV/degree centigrade) at 40 gegrees centigrade
  falls linearly at -10 mV/degree centigrade above that
  */
-static uint16_t FloatVoltage(uint16_t tempAmbient)
+static uint16_t FloatVoltage(uint16_t ambTemp)
 {
-	if (tempAmbient < TEMP_0)
+	if (ambTemp < TEMP_0)
 		return (TV_0);
-	else if (tempAmbient < TEMP_40)
-		return (TV_0 - ((tempAmbient - TEMP_0) * RATE1) / 100);
+	else if (ambTemp < TEMP_40)
+		return (TV_0 - ((ambTemp - TEMP_0) * RATE1) / 100);
 	else
-		return (TV_40 - ((tempAmbient - TEMP_40) * RATE2) / 100);
+		return (TV_40 - ((ambTemp - TEMP_40) * RATE2) / 100);
 }
 
 double calcVoltage(uint16_t ADvalue, uint8_t gain)
@@ -846,6 +855,30 @@ double calcTemperature(uint16_t ADvalue)
 	degC = ((ADvalue * adcUnit) / LM335voltage) - kelvin;
 
 	return degC;
+}
+
+void calcMPPT(void)
+{
+	currentPower = vSolar * iSolar;
+
+	if (currentPower >= lastPower)
+	{
+		duty--;
+
+		if (duty <= MIN_DUTY_CYCLE)
+			duty = MIN_DUTY_CYCLE;
+
+	}
+	else
+	{
+		duty++;
+
+		if (duty >= MAX_DUTY_CYCLE)
+			duty = MAX_DUTY_CYCLE;
+	}
+
+	lastPower = currentPower;
+	changePWM_TIM1(duty, ON);
 }
 
 void switchFan(uint8_t onOff)
@@ -1083,13 +1116,19 @@ int main(void)
 //	  else
 //		  switchLoad(ON);
 
- //Compare SA and Battery voltages and determine if we can charge
+	  // We can charge the batteries
 	  if (vSolarArray > (vBattery + TWO_VOLT))
 	  {
-		  changePWM_TIM1(duty, ON);
+		  changePWM_TIM1(410, ON);
 		  switchCharger(ON);
-		  canCharge = 1;
 		  canPulse = 0;
+
+		  start_volt = min( (FloatVoltage(tempAmbient) - HALF_VOLT), MAX_START_VOLT);
+
+		  if (vBattery < start_volt)
+			  canCharge = 1;
+		  else
+			  canCharge = 0;
 
 	  	  while(canCharge)
 	  	  {
@@ -1106,6 +1145,7 @@ int main(void)
 	  			  updateLCD(lcdUpdate, warning);
 	  		  }
 
+	  		  // Get out of this loop if we can't charge
 	  		  if (vSolarArray <= (vBattery + TWO_VOLT))
 	  		  {
 	  			  canCharge = 0;
@@ -1116,31 +1156,63 @@ int main(void)
 
 	  		  else
 	  		  {
-
+	  			  // Start charging if we have enough current from the solar panel
 	  			  if ( (isCharging == 0) && (iSolarArray > THRESHOLD_CURRENT) )
 	  			  {
 	  				  switchSolarArray(ON);
 	  				  isCharging = 1;
+	  				  currentPower = 0;
+	  				  lastPower = 0;
 	  			  }
 
-	  			  if ((isCharging == 1 ) && (iSolarArray <= THRESHOLD_CURRENT))
+	  			  while (isCharging)
 	  			  {
-	  				  switchSolarArray(OFF);
-	  				  changePWM_TIM1(duty, OFF);
-	  				  isCharging = 0;
-	  				  switchChargeLED(ON);
+
+	  		  		  if (getADC == 1)
+	  		  		  {
+	  		  			  getADC = 0;
+	  		  			  getADCreadings(8);
+	  		  		  }
+
+	  		  		  if (lcdUpdateFlag == 1)
+	  		  		  {
+	  		  			  lcdUpdateFlag = 0;
+	  		  			  updateLCD(lcdUpdate, warning);
+	  		  		  }
+
+	  		  		  if (iSolarArray <= THRESHOLD_CURRENT)
+	  		  		  {
+	  		  			  switchSolarArray(OFF);
+	  		  			  changePWM_TIM1(duty, OFF);
+	  		  			  isCharging = 0;
+	  		  			  switchChargeLED(ON);
+	  		  		  }
+	  		  		  else
+	  		  		  {
+	  		  			  calcMPPT();
+	  		  		  }
+
 	  			  }
+
+	  			  //Stop charging if current drops off
+//	  			  if ((isCharging == 1 ) && (iSolarArray <= THRESHOLD_CURRENT))
+//	  			  {
+//	  				  switchSolarArray(OFF);
+//	  				  changePWM_TIM1(duty, OFF);
+//	  				  isCharging = 0;
+//	  				  switchChargeLED(ON);
+//	  			  }
 	  		  } //end else
 	  	  } //end while (canCharge)
 	  }
 
+	  // Solar array voltage is high enough to de-sulfate the batteries but not high enough to charge them
 	  else if ( (vSolarArray > vBattery) && (vSolarArray < (vBattery + TWO_VOLT)))
 	  {
 		  changePWM_TIM1(duty, OFF);
 		  switchCharger(OFF);
 		  canCharge = 0;
 		  isCharging = 0;
-		  switchChargeLED(OFF);
 
 		  if (canPulse == pulseInterval)
 		  {
@@ -1149,6 +1221,7 @@ int main(void)
 		  }
 	  }
 
+	  // Don't do anything if the solar array voltage is below battery voltage.
 	  else
 	  {
 		  changePWM_TIM1(duty, OFF);

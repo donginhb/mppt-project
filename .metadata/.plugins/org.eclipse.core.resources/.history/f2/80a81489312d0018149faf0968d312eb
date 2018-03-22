@@ -72,7 +72,6 @@ uint32_t tempAmbient;
 uint32_t tempMOSFETS;
 uint32_t iLoad;
 
-uint16_t duty = 410;
 uint16_t flashData;
 uint8_t getADC = 0;
 uint8_t adcConvComplete = 0;
@@ -112,7 +111,7 @@ static void MX_USART1_UART_Init(void);
 static void MX_DMA_Init(void);
 
 static void changePWM_TIM5(uint16_t);
-static void changePWM_TIM1(uint16_t, uint8_t);
+static void changePWM_TIM1(uint16_t);
 
 double calcVoltage(uint16_t ADvalue, uint8_t gain);
 double calcCurrent(uint16_t ADvalue);
@@ -346,7 +345,7 @@ static void MX_TIM1_Init(void)
 	  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_ENABLE;
 	  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
 	  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-	  sBreakDeadTimeConfig.DeadTime = 8;
+	  sBreakDeadTimeConfig.DeadTime = 64;
 	  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
 	  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
 	  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
@@ -356,6 +355,8 @@ static void MX_TIM1_Init(void)
 	  }
 
 	 HAL_TIM_MspPostInit(&htim1);
+
+	 changePWM_TIM1(128);
 
 }
 
@@ -644,59 +645,34 @@ void assert_failed(uint8_t* file, uint32_t line)
 
 #endif
 
-static void changePWM_TIM1(uint16_t pulse, uint8_t onOff)
+static void changePWM_TIM1(uint16_t pulse)
 {
 
 	  TIM_OC_InitTypeDef sConfigOC;
-	  TIM_OC_InitTypeDef sConfigOC2;
-
-
-	  if (onOff)
+	  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+	  sConfigOC.Pulse = pulse;
+	  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+	  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+	  sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
+	  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+	  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+	  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
 	  {
-		  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-		  sConfigOC.Pulse = pulse;
-		  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-		  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-		  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-		  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-		  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-
-		  sConfigOC2.OCMode = TIM_OCMODE_PWM2;
-		  sConfigOC2.Pulse = 512 - pulse;
-		  sConfigOC2.OCPolarity = TIM_OCPOLARITY_HIGH;
-		  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-		  sConfigOC2.OCFastMode = TIM_OCFAST_DISABLE;
-		  sConfigOC2.OCIdleState = TIM_OCIDLESTATE_RESET;
-		  sConfigOC2.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-
-
-		  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-		  {
-			  Error_Handler();
-		  }
-
-		  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_2) != HAL_OK)
-		  {
-			  Error_Handler();
-		  }
-
-		  HAL_TIM_MspPostInit(&htim1);
-
-		  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-		  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
-
-		  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-		  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);
+		  Error_Handler();
 	  }
 
-	  else
+	  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
 	  {
-		  HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
-		  HAL_TIMEx_PWMN_Stop(&htim1, TIM_CHANNEL_1);
-
-		  HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
-		  HAL_TIMEx_PWMN_Stop(&htim1, TIM_CHANNEL_2);
+		  Error_Handler();
 	  }
+
+	  HAL_TIM_MspPostInit(&htim1);
+
+	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+	  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
+
+	  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+	  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);
 }
 
 // Controls the brightness of the LCD backlight
@@ -1037,7 +1013,7 @@ int main(void)
  switchChargeLED(ON);
 
  changePWM_TIM5(15000);
- changePWM_TIM1(duty, OFF);
+ changePWM_TIM1(0);
 
  // Battery Measurement Offset
  HD44780_WriteData(0, 0, "BATT OFFSET", YES);
