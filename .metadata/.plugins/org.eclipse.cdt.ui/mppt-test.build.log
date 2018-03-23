@@ -1,7 +1,6 @@
-16:14:00 **** Clean-only build of configuration Debug for project mppt-test ****
+13:05:10 **** Clean-only build of configuration Debug for project mppt-test ****
 make clean 
-rm -rf *
- 
+make: *** No rule to make target 'clean'.  Stop.
 
-16:14:00 Build Finished (took 730ms)
+13:05:10 Build Finished (took 487ms)
 

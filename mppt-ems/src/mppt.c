@@ -89,7 +89,7 @@ uint8_t warning = 0;
 uint8_t canCharge;
 uint8_t isCharging;
 uint16_t canPulse;
-uint8_t pulseInterval = 120;		// 120 second (2 minute) intervals between pulsing the battery bank
+uint8_t pulseInterval = 5;		// 120 second (2 minute) intervals between pulsing the battery bank
 
 uint16_t flashData, flashData2, flashData3;
 double currentPower, lastPower;
@@ -145,7 +145,7 @@ static uint16_t FloatVoltage(uint16_t);
 static void updateLCD(uint8_t dataIndex, uint8_t warning);
 
 static void pulse(void);
-void delay_5us(uint32_t);
+void delay_us(uint32_t);
 void writeFlash(uint16_t data);
 
 void calcMPPT(void);
@@ -414,7 +414,7 @@ static void MX_TIM5_Init(void)
   HAL_TIM_MspPostInit(&htim5);
 }
 
-//Used as a 100 mS timer.
+//Used as a 1 mS timer.
 static void MX_TIM9_Init(void) {
 
 	  TIM_ClockConfigTypeDef sClockSourceConfig;
@@ -422,9 +422,9 @@ static void MX_TIM9_Init(void) {
 //	  TIM_OC_InitTypeDef sConfigOC;
 
 	  htim9.Instance = TIM9;
-	  htim9.Init.Prescaler = 50000; //671;
+	  htim9.Init.Prescaler = 50000; // 50 MHz / 50000 = 1 kHz
 	  htim9.Init.CounterMode = TIM_COUNTERMODE_UP;
-	  htim9.Init.Period = 1; // 76 gives 100 mS period, 763 gives 1S period;
+	  htim9.Init.Period = 1; // period of 1 gives 1 mS with the prescaler @ 50000
 	  htim9.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	  if (HAL_TIM_Base_Init(&htim9) != HAL_OK)
 	  {
@@ -452,16 +452,16 @@ static void MX_TIM9_Init(void) {
 	  HAL_TIM_Base_Start_IT(&htim9);
 }
 
-//Used as a 5uS timer.
+//Used as free running counter delay_us() .
 static void MX_TIM11_Init(void) {
 
 	  TIM_ClockConfigTypeDef sClockSourceConfig;
 	  TIM_MasterConfigTypeDef sMasterConfig;
 
 	  htim11.Instance = TIM11;
-	  htim11.Init.Prescaler = 1;
+	  htim11.Init.Prescaler = 50; // 50 MHz / 50 = 1 MHz clock... 1 uS count interval
 	  htim11.Init.CounterMode = TIM_COUNTERMODE_UP;
-	  htim11.Init.Period = 250;
+	  htim11.Init.Period = 0xffff; // Full 16 bit counter
 	  htim11.Init.ClockDivision = TIM_CLOCKDIVISION_DIV2;
 	  if (HAL_TIM_Base_Init(&htim11) != HAL_OK)
 	  {
@@ -481,7 +481,7 @@ static void MX_TIM11_Init(void) {
 	    Error_Handler();
 	  }
 
-	  HAL_TIM_Base_Start_IT(&htim11);
+	  HAL_TIM_Base_Start(&htim11);
 }
 
 /* USART1 init function */
@@ -620,12 +620,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 		tim9Count++;
 		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_11); // Ping the WDT
-	}
-
-	else if (htim->Instance == TIM11)
-	{
-		if (usCounter != 0)
-		usCounter--;
 	}
 }
 
@@ -1012,18 +1006,19 @@ static void pulse(void)
 	for (i=0; i<=9; i++)
 	{
 		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_11);
-		delay_5us(20);
+		delay_us(100);
 	}
 
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 	switchCapacitors(ON);
 }
 
-void delay_5us(uint32_t usDelay)
+void delay_us(uint32_t usDelay)
 {
-	usCounter = usDelay;
-	while (usCounter != 0);
+	uint32_t initTime;
 
+	initTime = __HAL_TIM_GET_COUNTER(&htim11);
+	while ( (__HAL_TIM_GET_COUNTER(&htim11) - initTime < usDelay));
 }
 
 void writeFlash(uint16_t data)
