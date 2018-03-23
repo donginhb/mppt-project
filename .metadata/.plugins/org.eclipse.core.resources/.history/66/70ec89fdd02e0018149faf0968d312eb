@@ -77,7 +77,7 @@ uint32_t tempMOSFETS;
 uint32_t iLoad;
 
 uint16_t flashData;
-uint16_t duty = MAX_DUTY_CYCLE;
+uint16_t duty = 128;
 uint16_t start_volt;
 
 uint8_t getADC = 0;
