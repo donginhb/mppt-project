@@ -45,12 +45,12 @@
 
 
 // Threshold voltage calculations
-#define TV_0        		0x8e8	// 2280 thresh. volt count at  0C (14.75V)
-#define TV_40      			0x810	// 2064 thresh. volt count at 40C (13.35V)
+#define TV_0        		0xe30	// 3632 thresh. volt count at  0C (14.75V)
+#define TV_40      			0xcd7	// 3287 thresh. volt count at 40C (13.35V)
 
 //the two rates given below are in counts, and are 10 times larger than actual.
-#define RATE1       		54		// TV rate between 0C and 40C (-35 mV/degree)
-#define RATE2       		15		// TV rate above 40C (-10 mV/degree)
+#define RATE1       		434		// TV rate between 0C and 40C (-35 mV/degree)
+#define RATE2       		124		// TV rate above 40C (-10 mV/degree)
 
 #define TEMP_0      		0xd3c	// 3388 count corrensponding to 0 C
 #define TEMP_40	    		0xf2c	// 3884 count corrensponding to 40 C

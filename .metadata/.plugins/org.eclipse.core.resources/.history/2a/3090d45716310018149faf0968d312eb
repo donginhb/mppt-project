@@ -89,7 +89,6 @@ uint8_t canCharge;
 uint8_t isCharging;
 uint16_t canPulse;
 uint8_t pulseInterval = 5;		// 120 second (2 minute) intervals between pulsing the battery bank
-static uint16_t duty;
 
 uint16_t flashData, flashData2, flashData3;
 double currentPower, lastPower;
@@ -855,6 +854,8 @@ double calcTemperature(uint16_t ADvalue)
 void calcMPPT(void)
 {
 
+	static uint16_t duty;
+
 	currentPower = vSolar * iSolar;
 
 	if (currentPower > lastPower)
@@ -1145,8 +1146,8 @@ int main(void)
 	  // We can charge the batteries
 	  if (vSolarArray > (vBattery + TWO_VOLT))
 	  {
-//		  changePWM_TIM1(MAX_DUTY_CYCLE, ON);
-//		  switchCharger(ON);
+		  changePWM_TIM1(MAX_DUTY_CYCLE, ON);
+		  switchCharger(ON);
 		  canPulse = 0;
 
 		  start_volt = min( (FloatVoltage(tempAmbient) - HALF_VOLT), MAX_START_VOLT);
@@ -1182,28 +1183,13 @@ int main(void)
 
 	  		  else
 	  		  {
-	  			  start_volt = min( (FloatVoltage(tempAmbient) - HALF_VOLT), MAX_START_VOLT);
-
-	  			  if (vBattery < start_volt)
+	  			  // Start charging if we have enough current from the solar panel
+	  			  if ( (isCharging == 0) && (iSolarArray > THRESHOLD_CURRENT) )
 	  			  {
-	  				  changePWM_TIM1(MAX_DUTY_CYCLE, ON);
-	  				  switchCharger(ON);
-
-	  				  if (iSolarArray > THRESHOLD_CURRENT)
-	  				  {
-	  					  switchSolarArray(ON);
-	  					  isCharging = 1;
-	  					  currentPower = vSolar * iSolar;
-	  					  last_vSolarArray = vSolarArray;
-	  					  duty = MAX_DUTY_CYCLE;
-	  					  lastPower = 0;
-	  				  }
-//	  				  else
-//	  				  {
-//		  				  changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
-//		  				  switchCharger(OFF);
-//	  				  }
-
+	  				  switchSolarArray(ON);
+	  				  isCharging = 1;
+	  				  currentPower = 0;
+	  				  lastPower = 0;
 	  			  }
 
 	  			  while (isCharging)
@@ -1213,7 +1199,7 @@ int main(void)
 	  		  		  {
 	  		  			  getADC = 0;
 	  		  			  getADCreadings(8);
-//	  		  			  calcMPPT();
+	  		  			  calcMPPT();
 	  		  		  }
 
 	  		  		  if (lcdUpdateFlag == 1)
@@ -1227,7 +1213,7 @@ int main(void)
 	  		  			  switchSolarArray(OFF);
 	  		  			  changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
 	  		  			  isCharging = 0;
-//	  		  			  canCharge = 0;
+	  		  			  canCharge = 0;
 	  		  			  switchChargeLED(ON);
 	  		  		  }
 	  			  }

@@ -1198,11 +1198,11 @@ int main(void)
 	  					  duty = MAX_DUTY_CYCLE;
 	  					  lastPower = 0;
 	  				  }
-//	  				  else
-//	  				  {
-//		  				  changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
-//		  				  switchCharger(OFF);
-//	  				  }
+	  				  else
+	  				  {
+		  				  changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+		  				  switchCharger(OFF);
+	  				  }
 
 	  			  }
 
@@ -1213,7 +1213,7 @@ int main(void)
 	  		  		  {
 	  		  			  getADC = 0;
 	  		  			  getADCreadings(8);
-//	  		  			  calcMPPT();
+	  		  			  calcMPPT();
 	  		  		  }
 
 	  		  		  if (lcdUpdateFlag == 1)

@@ -1213,7 +1213,7 @@ int main(void)
 	  		  		  {
 	  		  			  getADC = 0;
 	  		  			  getADCreadings(8);
-//	  		  			  calcMPPT();
+	  		  			  calcMPPT();
 	  		  		  }
 
 	  		  		  if (lcdUpdateFlag == 1)
@@ -1222,7 +1222,8 @@ int main(void)
 	  		  			  updateLCD(lcdUpdate, warning);
 	  		  		  }
 
-	  		  		  if ( (iSolarArray <= THRESHOLD_CURRENT) || (vBattery >= FloatVoltage(tempAmbient) || (vSolarArray > MAX_PV_VOLT) ) )
+//	  		  		  if ( (iSolarArray <= THRESHOLD_CURRENT) || (vBattery >= FloatVoltage(tempAmbient) || (vSolarArray > MAX_PV_VOLT) ) )
+		  		  	  if ( (iSolarArray <= THRESHOLD_CURRENT) || (vSolarArray > MAX_PV_VOLT) )
 	  		  		  {
 	  		  			  switchSolarArray(OFF);
 	  		  			  changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
