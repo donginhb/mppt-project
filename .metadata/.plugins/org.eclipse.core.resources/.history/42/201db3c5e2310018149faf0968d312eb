@@ -1188,7 +1188,7 @@ int main(void)
 //	  			  changePWM_TIM1(MAX_DUTY_CYCLE, ON);
 //	  			  switchCharger(ON);
 
-//	  			  getADCreadings(8);
+	  			  getADCreadings(8);
 
 	  			  if (iSolarArray > THRESHOLD_CURRENT)
 	  			  {

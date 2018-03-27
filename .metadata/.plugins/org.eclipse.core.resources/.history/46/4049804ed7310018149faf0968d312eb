@@ -27,7 +27,7 @@
 // The ones that are commented out are not used in rev 4.3
 #define HALF_VOLT      		0x4d	// 77 counts corresponding to 0.5 V
 #define TWO_VOLT       		0x135	// 232 counts corresponding to 2.0 Volts
-#define ONE_AND_HALF_VOLT 	0xe8	// 369 counts corresponding to 1.5 Volts
+//#define ONE_AND_HALF_VOLT 	0xe8	// 369 counts corresponding to 1.5 Volts
 #define LOW_BATTERY2   		0x695	// 1685 counts corresponding to 10.9 Volts
 //#define LOW_BATTERY1   		0x6a5	// 1701 counts corresponding to 11.0 Volts
 #define V_MIN_LOAD_ON       0x740	// 1856 counts corresponding to 12 Volts

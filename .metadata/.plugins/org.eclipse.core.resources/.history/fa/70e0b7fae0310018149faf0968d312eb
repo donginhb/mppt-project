@@ -801,7 +801,7 @@ static void getADCreadings (uint8_t howMany)
 
 	// This data is sent to the controller
 //	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %x, %x, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, flashData, flashData2, flashData3);
-	 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, isCharging);
+	 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, currentPower);
 	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
 }
@@ -1165,8 +1165,6 @@ int main(void)
 	  		  {
 	  			  getADC = 0;
 	  			  getADCreadings(8);
-	  			  changePWM_TIM1(MAX_DUTY_CYCLE, ON);
-	  			  switchCharger(ON);
 	  		  }
 
 	  		  if (lcdUpdateFlag == 1)
@@ -1176,7 +1174,7 @@ int main(void)
 	  		  }
 
 	  		  // Get out of this loop if we can't charge
-	  		  if (vSolarArray <= (vBattery + ONE_AND_HALF_VOLT))
+	  		  if (vSolarArray <= (vBattery + TWO_VOLT))
 	  		  {
 	  			  canCharge = 0;
 	  			  changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
@@ -1185,10 +1183,10 @@ int main(void)
 
 	  		  else
 	  		  {
-//	  			  changePWM_TIM1(MAX_DUTY_CYCLE, ON);
-//	  			  switchCharger(ON);
+	  			  changePWM_TIM1(MAX_DUTY_CYCLE, ON);
+	  			  switchCharger(ON);
 
-//	  			  getADCreadings(8);
+	  			  getADCreadings(8);
 
 	  			  if (iSolarArray > THRESHOLD_CURRENT)
 	  			  {
