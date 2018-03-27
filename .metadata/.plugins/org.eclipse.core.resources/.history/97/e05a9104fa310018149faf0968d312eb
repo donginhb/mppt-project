@@ -1112,7 +1112,7 @@ int main(void)
  // Ensure that Desulphate MOSFETS are OFF
  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 
- changePWM_TIM5(1000);
+ changePWM_TIM5(15000);
 
  changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
 

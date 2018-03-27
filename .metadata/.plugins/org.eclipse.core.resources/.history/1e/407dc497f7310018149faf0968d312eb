@@ -120,7 +120,7 @@ static void MX_USART1_UART_Init(void);
 //static void MX_WWDG_Init(void);
 static void MX_DMA_Init(void);
 
-static void changePWM_TIM5(uint16_t);
+static void changePWM_TIM5(uint16_t, uint8_t);
 static void changePWM_TIM1(uint16_t, uint8_t);
 
 double calcVoltage(uint16_t ADvalue, uint8_t gain);
@@ -397,10 +397,10 @@ static void MX_TIM5_Init(void)
     Error_Handler();
   }
 
-//  if (HAL_TIM_OC_Init(&htim5) != HAL_OK)
-//  {
-//    Error_Handler();
-//  }
+  if (HAL_TIM_OC_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
@@ -409,7 +409,7 @@ static void MX_TIM5_Init(void)
     Error_Handler();
   }
 
-//  changePWM_TIM5(30000);
+  changePWM_TIM5(30000);
 }
 
 //Used as a 1 mS timer.
@@ -712,20 +712,18 @@ static void changePWM_TIM1(uint16_t pulse, uint8_t onOff)
 }
 
 // Controls the brightness of the LCD backlight
-static void changePWM_TIM5(uint16_t pulse)
+static void changePWM_TIM5(uint16_t pulse, uint8_t onOff)
 {
 
 	 TIM_OC_InitTypeDef sConfigOC;
 
-	 sConfigOC.OCMode = TIM_OCMODE_PWM1;
+	 if (onOff)
+	 {
+
+		 sConfigOC.OCMode = TIM_OCMODE_PWM1;
 		 sConfigOC.Pulse = pulse;
 		 sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
 		 sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-
-		 if (HAL_TIM_OC_Init(&htim5) != HAL_OK)
-		 {
-		    Error_Handler();
-		 }
 		 if (HAL_TIM_OC_ConfigChannel(&htim5, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
 		 {
 			 Error_Handler();
@@ -733,6 +731,11 @@ static void changePWM_TIM5(uint16_t pulse)
 
 		 HAL_TIM_MspPostInit(&htim5);
 		 HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
+	 }
+	 else
+	 {
+		 HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
+	 }
 }
 
 static void getADCreadings (uint8_t howMany)
@@ -1082,6 +1085,7 @@ void writeFlash(uint16_t data)
 int main(void)
 {
 
+  uint32_t bl = 1000;
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
@@ -1112,9 +1116,10 @@ int main(void)
  // Ensure that Desulphate MOSFETS are OFF
  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 
- changePWM_TIM5(1000);
-
+// changePWM_TIM5(15000);
  changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+
+ changePWM_TIM5(15000, OFF);
 
  getADCreadings(1);
  lcdBatteryInfo();
