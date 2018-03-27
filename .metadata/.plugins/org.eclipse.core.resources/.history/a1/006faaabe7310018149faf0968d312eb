@@ -26,17 +26,17 @@
 // voltage related constants
 // The ones that are commented out are not used in rev 4.3
 #define HALF_VOLT      		0x4d	// 77 counts corresponding to 0.5 V
-#define TWO_VOLT       		0x135	// 309 counts corresponding to 2.0 Volts
-#define ONE_AND_HALF_VOLT 	0xe8	// 232 counts corresponding to 1.5 Volts
+#define TWO_VOLT       		0x135	// 232 counts corresponding to 2.0 Volts
+#define ONE_AND_HALF_VOLT 	0xe8	// 369 counts corresponding to 1.5 Volts
 #define LOW_BATTERY2   		0x695	// 1685 counts corresponding to 10.9 Volts
 //#define LOW_BATTERY1   		0x6a5	// 1701 counts corresponding to 11.0 Volts
-#define V_MIN_LOAD_ON       0x73f	// 1855 counts corresponding to 12 Volts
-#define V_MAX_LOAD_ON       0x93d	// 2365 counts corresponding to 15.3 Volts
-#define V_MIN_LOAD_OFF 		0x676	// 1654 counts corresponding to 10.7 Volts
-#define V_MAX_LOAD_OFF 		0x95c	// 2396 counts corresponding to 15.5 Volts
+#define V_MIN_LOAD_ON       0x740	// 1856 counts corresponding to 12 Volts
+#define V_MAX_LOAD_ON       0x93e	// 2366 counts corresponding to 15.3 Volts
+#define V_MIN_LOAD_OFF 		0x677	// 1655 counts corresponding to 10.7 Volts
+#define V_MAX_LOAD_OFF 		0x95d	// 2397 counts corresponding to 15.5 Volts
 #define MAX_START_VOLT 		0x7da	// 2010 counts corresponding to 13.0 Volts
 
-// this is the range of voltages that we want across the solar array and are a function of duty cycle and battery voltage
+// this is the range of voltages that we want across the solar array
 #define MAX_PV_VOLT			0xc14	// 3092 counts corresponding to 20.0 Volts
 #define MIN_PV_VOLT			0x90f	// 2319 counts corresponding to 15.0 Volts
 
@@ -52,12 +52,12 @@
 #define RATE1       		54		// TV rate between 0C and 40C (-35 mV/degree)
 #define RATE2       		15		// TV rate above 40C (-10 mV/degree)
 
-#define TEMP_0      		0xd3d	// 3389 count corrensponding to 0 C
-#define TEMP_40	    		0xf2d	// 3885 count corrensponding to 40 C
+#define TEMP_0      		0xd3c	// 3388 count corrensponding to 0 C
+#define TEMP_40	    		0xf2c	// 3884 count corrensponding to 40 C
 
 /* This is the MOSFET temperatures at which the fan is switched on or off. Change as necessary */
-#define FAN_ON_TEMP			0xfa9 	// 4009 counts for 50 C / 122 deg F
-#define FAN_OFF_TEMP		0xf14	// 3860 counts for 38 C / 100.4 deg F
+#define FAN_ON_TEMP			0xfaa 	// 4010 counts for 50 C / 122 deg F
+#define FAN_OFF_TEMP		0xf15	// 3861 counts for 38 C / 100.4 deg F
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 void HD44780_Init(void);

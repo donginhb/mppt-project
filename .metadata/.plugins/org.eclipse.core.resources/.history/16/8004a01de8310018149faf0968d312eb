@@ -36,7 +36,7 @@
 #define V_MAX_LOAD_OFF 		0x95c	// 2396 counts corresponding to 15.5 Volts
 #define MAX_START_VOLT 		0x7da	// 2010 counts corresponding to 13.0 Volts
 
-// this is the range of voltages that we want across the solar array and are a function of duty cycle and battery voltage
+// this is the range of voltages that we want across the solar array
 #define MAX_PV_VOLT			0xc14	// 3092 counts corresponding to 20.0 Volts
 #define MIN_PV_VOLT			0x90f	// 2319 counts corresponding to 15.0 Volts
 
@@ -52,12 +52,12 @@
 #define RATE1       		54		// TV rate between 0C and 40C (-35 mV/degree)
 #define RATE2       		15		// TV rate above 40C (-10 mV/degree)
 
-#define TEMP_0      		0xd3d	// 3389 count corrensponding to 0 C
-#define TEMP_40	    		0xf2d	// 3885 count corrensponding to 40 C
+#define TEMP_0      		0xd3c	// 3388 count corrensponding to 0 C
+#define TEMP_40	    		0xf2c	// 3884 count corrensponding to 40 C
 
 /* This is the MOSFET temperatures at which the fan is switched on or off. Change as necessary */
-#define FAN_ON_TEMP			0xfa9 	// 4009 counts for 50 C / 122 deg F
-#define FAN_OFF_TEMP		0xf14	// 3860 counts for 38 C / 100.4 deg F
+#define FAN_ON_TEMP			0xfaa 	// 4010 counts for 50 C / 122 deg F
+#define FAN_OFF_TEMP		0xf15	// 3861 counts for 38 C / 100.4 deg F
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 void HD44780_Init(void);
