@@ -1209,7 +1209,7 @@ int main(void)
 				}
 
 				// Get out of this loop if we can't charge
-				if (vSolarArray <= (vBattery + TWO_VOLT))
+				if (vSolarArray <= (vBattery + ONE_AND_HALF_VOLT))
 				{
 					canCharge = 0;
 					changePWM_TIM1(MAX_DUTY_CYCLE, OFF);

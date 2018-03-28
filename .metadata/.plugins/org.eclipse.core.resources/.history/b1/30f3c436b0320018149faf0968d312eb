@@ -1209,7 +1209,7 @@ int main(void)
 				}
 
 				// Get out of this loop if we can't charge
-				if (vSolarArray <= (vBattery + TWO_VOLT))
+				if (vSolarArray <= (vBattery + ONE_AND_HALF_VOLT))
 				{
 					canCharge = 0;
 					changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
@@ -1301,7 +1301,7 @@ int main(void)
 	  				} // end while (isCharging)
 				} //end else
 			} //end while (canCharge)
-		} // end if (vSolarArray > (vBattery + TWO_VOLT))
+		}
 
 		// Solar array voltage is high enough to de-sulfate the batteries but not high enough to charge them
 		else if ( (vSolarArray > vBattery) && (vSolarArray <= (vBattery + ONE_AND_HALF_VOLT)))

@@ -77,6 +77,10 @@ uint32_t vLoad;
 uint32_t tempAmbient;
 uint32_t tempMOSFETS;
 uint32_t iLoad;
+
+uint16_t lowChargeCurrentTimeout;
+uint8_t lowChargeCurrentFlag;
+
 uint16_t flashData;
 uint16_t start_volt;
 
@@ -615,6 +619,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 				if ((tim9Count % 2) != 0)
 					toggleChargeLED();
 			}
+
+			if (lowChargeCurrentFlag == 1)
+				lowChargeCurrentTimeout++;
+			else
+				lowChargeCurrentTimeout = 0;
 		}
 
 		tim9Count++;
@@ -789,25 +798,21 @@ static void getADCreadings (uint8_t howMany)
 	if (vBattery >= V_MAX_LOAD_OFF )
 	{
 		warning = HIBATTV;
-		switchLoad(OFF);
 	}
 
 	if ((warning == 1) && (vBattery <= V_MAX_LOAD_ON) )
 	{
 		warning = NORMALBATTV;
-		switchLoad(ON);
 	}
 
 	if (vBattery <= V_MIN_LOAD_OFF)
 	{
 		warning = LOBATTV;
-		switchLoad(OFF);
 	}
 
 	if ((warning == 2) && (vBattery >= V_MIN_LOAD_ON))
 	{
 		warning = NORMALBATTV;
-		switchLoad(ON);
 	}
 
 // Calculate the values and send them to the host controller
@@ -1112,224 +1117,246 @@ void writeFlash(uint16_t data)
 int main(void)
 {
 
-	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-	HAL_Init();
 
-	/* Configure the system clock */
-	SystemClock_Config();
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
 
-	/* Initialize all configured peripherals */
-	MX_GPIO_Init();
-	MX_DMA_Init();
-	MX_ADC1_Init();
-	MX_TIM1_Init();
-	MX_TIM5_Init();
-	MX_TIM9_Init();
-	MX_TIM11_Init();
-	MX_USART1_UART_Init();
+  /* Configure the system clock */
+  SystemClock_Config();
 
-	//crc16_init();
-	HD44780_Init();
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_DMA_Init();
+  MX_ADC1_Init();
+  MX_TIM1_Init();
+  MX_TIM5_Init();
+  MX_TIM9_Init();
+  MX_TIM11_Init();
+  MX_USART1_UART_Init();
 
-	// switchFan(OFF);
-	switchCharger(OFF);
-	switchSolarArray(OFF); // Enable this only when ready to charge, disable all other times.
-	switchLoad(OFF);
-	switchChargeLED(ON);
-	switchCapacitors(ON);
+ //crc16_init();
+ HD44780_Init();
 
-	// Ensure that Desulphate MOSFETS are OFF
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
+// switchFan(OFF);
+ switchCharger(OFF);
+ switchSolarArray(OFF); // Enable this only when ready to charge, disable all other times.
+ switchLoad(OFF);
+ switchChargeLED(ON);
+ switchCapacitors(ON);
 
-	changePWM_TIM5(15000, ON);
-	changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+ // Ensure that Desulphate MOSFETS are OFF
+ HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 
-	getADCreadings(1);
-	lcdBatteryInfo();
+ changePWM_TIM5(15000, ON);
+ changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+
+ getADCreadings(1);
+ lcdBatteryInfo();
+
+ // Switch load according to battery voltage condition
+ 	  if ((warning == LOBATTV) || (warning == HIBATTV))
+ 		  switchLoad(OFF);
+ 	  else
+ 		  switchLoad(ON);
+
 
 // writeFlash(0xaa55);
 // flashData = *(__IO uint16_t *)0x08010000;
 // flashData2 = *(__IO uint16_t *)0x08010002;
 // flashData3 = *(__IO uint16_t *)0x08010004;
 
-	while (1)
-	{
 
-		// Get ADC readings
-		if (getADC == 1)
-		{
-			getADC = 0;
-			getADCreadings(8);
-		}
+  while (1)
+  {
 
-		// Update the LCD
-		if (lcdUpdateFlag == 1)
-		{
-			lcdUpdateFlag = 0;
-			updateLCD(lcdUpdate, warning);
-		}
+// Get ADC readings
+	 if (getADC == 1)
+	 {
+	  	getADC = 0;
+	  	getADCreadings(8);
+	 }
 
-		// Switch load according to battery voltage condition
-		if ((warning == LOBATTV) || (warning == HIBATTV))
-			switchLoad(OFF);
-		else
-			switchLoad(ON);
+// Update the LCD
+	  if (lcdUpdateFlag == 1)
+	  {
+		  lcdUpdateFlag = 0;
+		  updateLCD(lcdUpdate, warning);
+	  }
 
-		// We can charge the batteries
-		if (vSolarArray > (vBattery + TWO_VOLT))
-		{
-			start_volt = min( (FloatVoltage(tempAmbient) - HALF_VOLT), MAX_START_VOLT);
+// Switch load according to battery voltage condition
+	  if ((warning == LOBATTV) || (warning == HIBATTV))
+		  switchLoad(OFF);
+	  else
+		  switchLoad(ON);
 
-			if (vBattery < start_volt)
-			{
-				canCharge = 1;
-				changePWM_TIM1(MAX_DUTY_CYCLE, ON);
-				switchCharger(ON);
-			}
-			else
-			{
-				canCharge = 0;
-			 	changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
-			 	switchCharger(OFF);
-			}
+	  // We can charge the batteries
+	  if (vSolarArray > (vBattery + TWO_VOLT))
+	  {
 
-			while(canCharge)
-			{
+		  start_volt = min( (FloatVoltage(tempAmbient) - HALF_VOLT), MAX_START_VOLT);
 
-				if (getADC == 1)
-				{
-					getADC = 0;
-					getADCreadings(8);
-				}
+		  if (vBattery < start_volt)
+		  {
+			  canCharge = 1;
+  			  changePWM_TIM1(MAX_DUTY_CYCLE, ON);
+  			  switchCharger(ON);
+		  }
+		  else
+		  {
+			  canCharge = 0;
+  			  changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+  			  switchCharger(OFF);
+		  }
 
-				if (lcdUpdateFlag == 1)
-				{
-					lcdUpdateFlag = 0;
-					updateLCD(lcdUpdate, warning);
-				}
+	  	  while(canCharge)
+	  	  {
 
-				// Get out of this loop if we can't charge
-				if (vSolarArray <= (vBattery + TWO_VOLT))
-				{
-					canCharge = 0;
-					changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
-					switchCharger(OFF);
-				}
+	  		  if (getADC == 1)
+	  		  {
+	  			  getADC = 0;
+	  			  getADCreadings(8);
+	  		  }
 
-				else
-				{
-					if (iSolarArray > THRESHOLD_CURRENT)
-					{
-						switchSolarArray(ON);
-						HAL_Delay(10);
-						isCharging = 1;
-						currentPower = vSolar * iSolar;
-						last_vSolarArray = vSolarArray;
-						duty = MAX_DUTY_CYCLE;
-						lastPower = currentPower;
-					}
-					else
-					{
-						isCharging = 0;
-						switchSolarArray(OFF);
+	  		  if (lcdUpdateFlag == 1)
+	  		  {
+	  			  lcdUpdateFlag = 0;
+	  			  updateLCD(lcdUpdate, warning);
+	  		  }
 
-						if (vBattery >= FloatVoltage(tempAmbient) )
-						{
-							canCharge = 0;
-						}
-						else
-						{
-							canCharge = 1;
-						}
-					}
+	  		  // Get out of this loop if we can't charge
+	  		  if (vSolarArray <= (vBattery + ONE_AND_HALF_VOLT))
+	  		  {
+	  			  canCharge = 0;
+	  			  changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+	  			  switchCharger(OFF);
+	  		  }
 
-					while (isCharging)
-	  				{
+	  		  else
+	  		  {
 
-	  					if (getADC == 1)
-	  		  			{
-	  						getADC = 0;
-	  		  				getADCreadings(8);
-	  		  				calcMPPT();
-	  		  			}
+	  			  if (iSolarArray > THRESHOLD_CURRENT)
+	  			  {
+	  				  switchSolarArray(ON);
+	  				  HAL_Delay(10);
+	  				  isCharging = 1;
+	  				  currentPower = vSolar * iSolar;
+	  				  last_vSolarArray = vSolarArray;
+	  				  duty = MAX_DUTY_CYCLE;
+	  				  lastPower = currentPower;
+	  				  lowChargeCurrentFlag = 0;
+	  			  }
+	  			  else
+	  			  {
+	  				  isCharging = 0;
 
-	  		  			if (lcdUpdateFlag == 1)
-	  		  			{
-	  		  				lcdUpdateFlag = 0;
-	  		  				updateLCD(lcdUpdate, warning);
-	  		  			}
+	  				  if (vBattery >= FloatVoltage(tempAmbient) )
+	  				  {
+	  					  canCharge = 0;
+	  				  }
+	  				  else
+	  				  {
+	  					  lowChargeCurrentFlag = 1;
 
-	  		  			// We no longer have enough current to charge.
-	  		  			// Exit the isCharging loop but keep the bridge running and continue to
-	  		  			// monitor solar array voltage and current
-	  		  			if (iSolarArray <= THRESHOLD_CURRENT)
-	  		  			{
-	  		  				switchSolarArray(OFF);
-	  		  				isCharging = 0;
-	  		  				switchChargeLED(ON);
-	  		  			}
+	  					  if (lowChargeCurrentTimeout >= 300)
+	  					  {
+	  						  canCharge = 0;
+	  			  			  changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+	  			  			  switchCharger(OFF);
+	  					  }
+	  					  else
+	  					  {
+	  						  canCharge = 1;
+	  					  }
+	  				  }
+	  			  }
 
-	  		  			// Protection against over charging.
-	  		  			// Exit both loops, stop the bridge and wait for Vbattery to drop below start_volt
-	  		  			if (vBattery >= FloatVoltage(tempAmbient) || (warning == HIBATTV) )
-	  		  			{
-	  		  				switchSolarArray(OFF);
-	  		  				isCharging = 0;
-	  		  				canCharge = 0;
-	  		  				changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
-	  		  				switchChargeLED(ON);
-	  		  			}
+	  			  while (isCharging)
+	  			  {
 
-	  		  			// This is here to prevent catastrophic failure!
-	  		  			// If vSolarArray gets too high, we risk damaging PCB components
-	  		  			// on the solar array (Vin) side of the bridge. As as result, we also risk frying
-	  		  			// the processor and the 3.3v supply.
+	  		  		  if (getADC == 1)
+	  		  		  {
+	  		  			  getADC = 0;
+	  		  			  getADCreadings(8);
+	  		  			  calcMPPT();
+	  		  		  }
 
-	  		  			// Given the IV characteristics of a "typical" solar panel used with this charger, there
-	  		  			// is no reason for this voltage to exceed 20v.
-	  		  			// This circuit can generate voltages across the solar array in excess of 30v!
-	  		  			// ( The relationship is Duty Cycle = V(battery) / V(solar array) )
+	  		  		  if (lcdUpdateFlag == 1)
+	  		  		  {
+	  		  			  lcdUpdateFlag = 0;
+	  		  			  updateLCD(lcdUpdate, warning);
+	  		  		  }
 
-	  		  			if (vSolarArray >= MAX_PV_VOLT)
-	  		  			{
-	  		  				switchSolarArray(OFF);
-	  		  				changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
-	  		  				isCharging = 0;
-	  		  				canCharge = 0;
-	  		  				switchChargeLED(ON);
-	  		  			}
-	  				} // end while (isCharging)
-				} //end else
-			} //end while (canCharge)
-		} // end if (vSolarArray > (vBattery + TWO_VOLT))
+	  		  		  // We no longer have enough current to charge.
+	  		  		  // Exit the isCharging loop but keep the bridge running and continue to
+	  		  		  // monitor solar array voltage and current
+	  		  		  if (iSolarArray <= THRESHOLD_CURRENT)
+	  		  		  {
+	  		  			  switchSolarArray(OFF);
+	  		  			  isCharging = 0;
+	  		  			  switchChargeLED(ON);
+	  		  		  }
 
-		// Solar array voltage is high enough to de-sulfate the batteries but not high enough to charge them
-		else if ( (vSolarArray > vBattery) && (vSolarArray <= (vBattery + ONE_AND_HALF_VOLT)))
-		{
-			changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
-			switchCharger(OFF);
-			canCharge = 0;
-			isCharging = 0;
+	  		  		  // Protection against over charging.
+	  		  		  // Exit both loops, stop the bridge and wait for Vbattery to drop below start_volt
+	  		  		  if (vBattery >= FloatVoltage(tempAmbient) || (warning == HIBATTV) )
+	  		  		  {
+	  		  			  switchSolarArray(OFF);
+	  		  			  isCharging = 0;
+	  		  			  canCharge = 0;
+	  		  			  changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+	  		  			  switchChargeLED(ON);
+	  		  		  }
 
-			if (canPulse == pulseInterval)
-			{
-				pulse();
-				canPulse = 0;
-			}
-		}
+	  		  		  // This is here to prevent catastrophic failure!
+	  		  		  // If vSolarArray gets too high, we risk damaging PCB components
+	  		  		  // on the solar array (Vin) side of the bridge. As as result, we also risk frying
+	  		  		  // the processor and the 3.3v supply.
 
-		// Don't do anything if the solar array voltage is below battery voltage.
-		else
-		{
-			changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
-			switchCharger(OFF);
-			canCharge = 0;
-			isCharging = 0;
-			switchChargeLED(ON);
-			canPulse = 0;
-		}
+	  		  		  // Given the IV characteristics of a "typical" solar panel used with this charger, there
+	  		  		  // is no reason for this voltage to exceed 20v.
+	  		  		  // This circuit can generate voltages across the solar array in excess of 30v!
+	  		  		  // ( The relationship is Duty Cycle = V(battery) / V(solar array) )
 
-	} //end while
+	  		  		  if (vSolarArray >= MAX_PV_VOLT)
+	  		  		  {
+	  		  			  switchSolarArray(OFF);
+	  		  			  changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+	  		  			  isCharging = 0;
+	  		  			  canCharge = 0;
+	  		  			  switchChargeLED(ON);
+	  		  		  }
+	  			  } // end while (isCharging)
+	  		  } //end else
+	  	  } //end while (canCharge)
+	  }
+
+	  // Solar array voltage is high enough to de-sulfate the batteries but not high enough to charge them
+	  else if ( (vSolarArray > vBattery) && (vSolarArray <= (vBattery + ONE_AND_HALF_VOLT)))
+	  {
+		  changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+		  switchCharger(OFF);
+		  canCharge = 0;
+		  isCharging = 0;
+
+		  if (canPulse == pulseInterval)
+		  {
+			  pulse();
+			  canPulse = 0;
+		  }
+	  }
+
+	  // Don't do anything if the solar array voltage is below battery voltage.
+	  else
+	  {
+		  changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+		  switchCharger(OFF);
+		  canCharge = 0;
+		  isCharging = 0;
+		  switchChargeLED(ON);
+		  canPulse = 0;
+	  }
+
+  } //end while
 
 }
 
