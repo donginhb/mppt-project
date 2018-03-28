@@ -143,8 +143,7 @@ void lcdSolarInfo(void);
 static void getADCreadings(uint8_t);
 static uint16_t FloatVoltage(uint16_t);
 
-//static void updateLCD(uint8_t dataIndex, uint8_t warning);
-static void updateLCD(uint8_t warning);
+static void updateLCD(uint8_t dataIndex, uint8_t warning);
 
 static void pulse(void);
 void delay_us(uint32_t);
@@ -600,10 +599,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			lcdUpdate++;
 			canPulse++;
 
-			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) || (lcdUpdate == 13) )
+			if ( (lcdUpdate == 4) || (lcdUpdate == 8) || (lcdUpdate == 12) )
 				lcdUpdateFlag = 1;
 
-			if (lcdUpdate > 16)
+			if (lcdUpdate > 12)
 				lcdUpdate = 0;
 
 			// Flash the charge LED to indicate charging is active
@@ -1023,7 +1022,6 @@ void lcdSolarInfo(void)
 	HD44780_WriteData(1, 0, tmp_buffer, NO);
 }
 
-/*
 static void updateLCD(uint8_t dataIndex, uint8_t warning)
 {
 
@@ -1032,7 +1030,7 @@ static void updateLCD(uint8_t dataIndex, uint8_t warning)
 	switch (dataIndex)
 	{
 
-		case 1:
+		case 4:
 
 			if (warning == HIBATTV)
 			{
@@ -1046,81 +1044,17 @@ static void updateLCD(uint8_t dataIndex, uint8_t warning)
 			}
 
 			else
-
-				if (isCharging == 1)
-				{
-					lcdBatteryInfo();
-				}
-				else
-				{
-					HD44780_WriteData(0, 0, logo, YES);
-					HD44780_WriteData(1, 0, version, NO);
-				}
-
+			{
+				HD44780_WriteData(0, 0, logo, YES);
+				HD44780_WriteData(1, 0, version, NO);
+			}
 			break;
 
-		case 5:
-			lcdSolarInfo();
-			break;
-
-		case 9:
+		case 8:
 			lcdBatteryInfo();
 			break;
 
-		case 13:
-			lcdSolarInfo();
-			break;
-
-		default:
-			break;
-	}
-}
-*/
-
-static void updateLCD(uint8_t warning)
-{
-
-	lcdUpdateFlag = 0;
-
-	switch (lcdUpdate)
-	{
-
-		case 1:
-
-			if (warning == HIBATTV)
-			{
-				HD44780_WriteData(0, 0, battery, YES);
-				HD44780_WriteData(1, 0, battHi, NO);
-			}
-			else if (warning == LOBATTV)
-			{
-				HD44780_WriteData(0, 0, battery, YES);
-				HD44780_WriteData(1, 0, battLo, NO);
-			}
-
-			else
-
-				if (isCharging == 1)
-				{
-					lcdBatteryInfo();
-				}
-				else
-				{
-					HD44780_WriteData(0, 0, logo, YES);
-					HD44780_WriteData(1, 0, version, NO);
-				}
-
-			break;
-
-		case 5:
-			lcdSolarInfo();
-			break;
-
-		case 9:
-			lcdBatteryInfo();
-			break;
-
-		case 13:
+		case 12:
 			lcdSolarInfo();
 			break;
 
@@ -1232,8 +1166,7 @@ int main(void)
 		if (lcdUpdateFlag == 1)
 		{
 			lcdUpdateFlag = 0;
-//			updateLCD(lcdUpdate, warning);
-			updateLCD(warning);
+			updateLCD(lcdUpdate, warning);
 		}
 
 		// Switch load according to battery voltage condition
@@ -1272,8 +1205,7 @@ int main(void)
 				if (lcdUpdateFlag == 1)
 				{
 					lcdUpdateFlag = 0;
-//					updateLCD(lcdUpdate, warning);
-					updateLCD(warning);
+					updateLCD(lcdUpdate, warning);
 				}
 
 				// Get out of this loop if we can't charge
@@ -1302,9 +1234,13 @@ int main(void)
 						switchSolarArray(OFF);
 
 						if (vBattery >= FloatVoltage(tempAmbient) )
+						{
 							canCharge = 0;
+						}
 						else
+						{
 							canCharge = 1;
+						}
 					}
 
 					while (isCharging)
@@ -1320,8 +1256,7 @@ int main(void)
 	  		  			if (lcdUpdateFlag == 1)
 	  		  			{
 	  		  				lcdUpdateFlag = 0;
-//	  		  				updateLCD(lcdUpdate, warning);
-	  		  				updateLCD(warning);
+	  		  				updateLCD(lcdUpdate, warning);
 	  		  			}
 
 	  		  			// We no longer have enough current to charge.

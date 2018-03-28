@@ -83,7 +83,7 @@ uint16_t start_volt;
 uint8_t getADC = 0;
 uint8_t adcConvComplete = 0;
 uint16_t tim9Count = 9;
-uint8_t lcdUpdate = 0;
+//uint8_t lcdUpdate = 0;
 uint8_t lcdUpdateFlag = 0;
 uint8_t warning = 0;
 uint8_t canCharge;
