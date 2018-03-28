@@ -600,22 +600,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			lcdUpdate++;
 			canPulse++;
 
-//			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) || (lcdUpdate == 13) )
-			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) )
+			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) || (lcdUpdate == 13) )
 				lcdUpdateFlag = 1;
 
-			if (isCharging == 1)
-			{
-				if (lcdUpdate > 12)
-					lcdUpdate = 4;
-			}
-			else
-			{
-				if (lcdUpdate > 12)
-					lcdUpdate = 0;
-			}
-
-
+			if (lcdUpdate > 16)
+				lcdUpdate = 0;
 
 			// Flash the charge LED to indicate charging is active
 			if (isCharging == 1)
@@ -1131,9 +1120,9 @@ static void updateLCD(uint8_t warning)
 			lcdBatteryInfo();
 			break;
 
-//		case 13:
-//			lcdSolarInfo();
-//			break;
+		case 13:
+			lcdSolarInfo();
+			break;
 
 		default:
 			break;
