@@ -1276,6 +1276,7 @@ int main(void)
 	  		  				switchSolarArray(OFF);
 	  		  				isCharging = 0;
 	  		  				canCharge = 0;
+	  		  				switchCharger(OFF);
 	  		  				changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
 	  		  				switchChargeLED(ON);
 	  		  			}
@@ -1293,6 +1294,7 @@ int main(void)
 	  		  			if (vSolarArray >= MAX_PV_VOLT)
 	  		  			{
 	  		  				switchSolarArray(OFF);
+	  		  				switchCharger(OFF);
 	  		  				changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
 	  		  				isCharging = 0;
 	  		  				canCharge = 0;
