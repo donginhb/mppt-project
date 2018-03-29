@@ -63,9 +63,9 @@ uint8_t strBuffer[128];
  * 2: Battery Bank Current
  * 3: Solar Array Current
  * 4: Battery Load Voltage
- * 5: Ambient Temperature
- * 6: MOSFET Temperature
- * 7: Battery Load Current
+ * 6: Ambient Temperature
+ * 7: MOSFET Temperature
+ * 8: Battery Load Current
  */
 uint16_t adcBuffer[9];
 
@@ -78,7 +78,7 @@ uint32_t tempAmbient;
 uint32_t tempMOSFETS;
 uint32_t iLoad;
 uint16_t flashData;
-//uint16_t start_volt;
+uint16_t start_volt;
 
 uint8_t lowChargeCurrentFlag;
 uint8_t lowChargeCurrentTimeout;
@@ -92,7 +92,7 @@ uint8_t warning = 0;
 uint8_t canCharge;
 uint8_t isCharging;
 uint16_t canPulse;
-uint8_t pulseInterval = 120;		// 120 second (2 minute) intervals between pulsing the battery bank
+uint8_t pulseInterval = 5;		// 120 second (2 minute) intervals between pulsing the battery bank
 static uint16_t duty;
 
 uint16_t flashData, flashData2, flashData3;
@@ -105,10 +105,10 @@ const double voltageDividerOutput = 0.0623;		// Voltage Divider ratio gives 0.06
 
 char logo[] = "SOLAR TECH";
 char version[] = "MPPT EMS VER 1.0";
-char battery[] = "BATTERY BANK";
+char battery[] = "BATTERY BANK:";
 char battHi[] = "HIGH VOLTAGE!";
 char battLo[] = "LOW VOLTAGE!";
-char solarArray[] = "SOLAR ARRAY";
+char solarArray[] = "SOLAR ARRAY:";
 
 
 void SystemClock_Config(void);
@@ -320,6 +320,9 @@ static void MX_TIM1_Init(void)
 	  TIM_SlaveConfigTypeDef sSlaveConfig;
 	  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 
+	  TIM_OC_InitTypeDef sConfigOC;
+
+
 	  htim1.Instance = TIM1;
 	  htim1.Init.Prescaler = 0; //0;
 	  htim1.Init.CounterMode = TIM_COUNTERMODE_CENTERALIGNED2; //TIM_COUNTERMODE_UP;
@@ -359,7 +362,7 @@ static void MX_TIM1_Init(void)
 	  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_ENABLE;
 	  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
 	  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-	  sBreakDeadTimeConfig.DeadTime =  8;
+	  sBreakDeadTimeConfig.DeadTime =  8; //100;
 	  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
 	  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
 	  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
@@ -780,7 +783,6 @@ static void getADCreadings (uint8_t howMany)
 {
 
 	uint8_t i;
-
 	vBattery = 0;
 	vSolarArray = 0;
 	iBattery = 0;
@@ -1036,7 +1038,7 @@ void lcdBatteryInfo(void)
 	char tmp_buffer[16];
 
 	HD44780_WriteData(0, 0, battery, YES);
-	sprintf(tmp_buffer, "%2.2f V %2.2f A", vBat, iBat);
+	sprintf(tmp_buffer, "%2.2f V, %2.2f A", vBat, iBat);
 	HD44780_WriteData(1, 0, tmp_buffer, NO);
 }
 
@@ -1045,7 +1047,7 @@ void lcdSolarInfo(void)
 	char tmp_buffer[16];
 
 	HD44780_WriteData(0, 0, solarArray, YES);
-	sprintf(tmp_buffer, "%2.2f V %2.2f A", vSolar, iSolar);
+	sprintf(tmp_buffer, "%2.2f V, %2.2f A", vSolar, iSolar);
 	HD44780_WriteData(1, 0, tmp_buffer, NO);
 }
 
@@ -1091,6 +1093,10 @@ static void updateLCD(uint8_t warning)
 		case 9:
 			lcdBatteryInfo();
 			break;
+
+//		case 13:
+//			lcdSolarInfo();
+//			break;
 
 		default:
 			break;
@@ -1145,8 +1151,6 @@ void writeFlash(uint16_t data)
 
 int main(void)
 {
-
-	uint16_t start_volt;
 
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
 	HAL_Init();
@@ -1214,12 +1218,11 @@ int main(void)
 //		else
 //			switchLoad(ON);
 
-		// We are able to charge the batteries
+		// We can charge the batteries
 		if (vSolarArray > (vBattery + TWO_VOLT))
 		{
 			start_volt = min( (FloatVoltage(tempAmbient) - HALF_VOLT), MAX_START_VOLT);
 
-			// Batteries need charging?
 			if ( (vBattery < start_volt) && (lowChargeCurrentFlag == 0) )
 			{
 				canCharge = 1;
@@ -1231,8 +1234,8 @@ int main(void)
 			else
 			{
 				canCharge = 0;
-			 	switchCharger(OFF);
 			 	changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+			 	switchCharger(OFF);
 			}
 
 			while(canCharge)
@@ -1254,8 +1257,8 @@ int main(void)
 				if (vSolarArray <= (vBattery + TWO_VOLT))
 				{
 					canCharge = 0;
-				 	switchCharger(OFF);
 					changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+					switchCharger(OFF);
 				}
 
 				else
@@ -1275,8 +1278,8 @@ int main(void)
 						isCharging = 0;
 						canCharge = 0;
 						switchSolarArray(OFF);
-						switchCharger(OFF);
 						changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+						switchCharger(OFF);
 						lowChargeCurrentFlag = 1;
 
 					}
@@ -1300,8 +1303,6 @@ int main(void)
 	  		  			// We no longer have enough current to charge.
 	  		  			// Exit the isCharging loop but keep the bridge running and continue to
 	  		  			// monitor solar array current
-	  		  			// We'll check iSolarArray on the next pass of the canCharge loop and
-	  		  			// bail out there if it's still below threshold.
 	  		  			if (iSolarArray <= THRESHOLD_CURRENT)
 	  		  			{
 	  		  				switchSolarArray(OFF);
@@ -1309,9 +1310,9 @@ int main(void)
 	  		  				switchChargeLED(ON);
 	  		  			}
 
-	  		  			// Protection against over charging or vSolarArray getting too high
+	  		  			// Protection against over charging.
 	  		  			// Exit both loops, stop the bridge and wait for Vbattery to drop below start_volt
-	  		  			if (vBattery >= FloatVoltage(tempAmbient) || (warning == HIBATTV) || (vSolarArray >= MAX_PV_VOLT) )
+	  		  			if (vBattery >= FloatVoltage(tempAmbient) || (warning == HIBATTV) )
 	  		  			{
 	  		  				switchSolarArray(OFF);
 	  		  				isCharging = 0;
@@ -1321,6 +1322,25 @@ int main(void)
 	  		  				switchChargeLED(ON);
 	  		  			}
 
+	  		  			// This is here to prevent catastrophic failure!
+	  		  			// If vSolarArray gets too high, we risk damaging PCB components
+	  		  			// on the solar array (Vin) side of the bridge. As as result, we also risk frying
+	  		  			// the processor and the 3.3v supply.
+
+	  		  			// Given the IV characteristics of a "typical" solar panel used with this charger, there
+	  		  			// is no reason for this voltage to exceed 20v.
+	  		  			// This circuit can generate voltages across the solar array in excess of 30v!
+	  		  			// ( The relationship is Duty Cycle = V(battery) / V(solar array) )
+
+	  		  			if (vSolarArray >= MAX_PV_VOLT)
+	  		  			{
+	  		  				switchSolarArray(OFF);
+	  		  				switchCharger(OFF);
+	  		  				changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+	  		  				isCharging = 0;
+	  		  				canCharge = 0;
+	  		  				switchChargeLED(ON);
+	  		  			}
 	  				} // end while (isCharging)
 				} //end else
 			} //end while (canCharge)
@@ -1329,8 +1349,8 @@ int main(void)
 		// Solar array voltage is high enough to de-sulfate the batteries but not high enough to charge them
 		else if ( (vSolarArray > vBattery) && (vSolarArray <= (vBattery + ONE_AND_HALF_VOLT)))
 		{
-		 	switchCharger(OFF);
 			changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+			switchCharger(OFF);
 			canCharge = 0;
 			isCharging = 0;
 
@@ -1344,8 +1364,8 @@ int main(void)
 		// Don't do anything if the solar array voltage is below battery voltage.
 		else
 		{
-		 	switchCharger(OFF);
 			changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+			switchCharger(OFF);
 			canCharge = 0;
 			isCharging = 0;
 			switchChargeLED(ON);
