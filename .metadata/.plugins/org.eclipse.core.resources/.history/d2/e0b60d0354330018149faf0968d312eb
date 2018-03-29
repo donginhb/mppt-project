@@ -80,9 +80,6 @@ uint32_t iLoad;
 uint16_t flashData;
 uint16_t start_volt;
 
-uint8_t lowChargeCurrentFlag;
-uint8_t lowChargeCurrentTimeout;
-
 uint8_t getADC = 0;
 uint8_t adcConvComplete = 0;
 uint16_t tim9Count = 9;
@@ -146,6 +143,7 @@ void lcdSolarInfo(void);
 static void getADCreadings(uint8_t);
 static uint16_t FloatVoltage(uint16_t);
 
+//static void updateLCD(uint8_t dataIndex, uint8_t warning);
 static void updateLCD(uint8_t warning);
 
 static void pulse(void);
@@ -551,7 +549,7 @@ static void MX_GPIO_Init(void)
  //Pin 11 pings the external WDT, Pin 10 is the Charge LED,  Pin 9 controls SA_SWITCH,  Pins 6 - 0 control the LCD
   GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_10 | GPIO_PIN_9 | GPIO_PIN_6 |GPIO_PIN_5 | GPIO_PIN_4 | GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 |GPIO_PIN_0;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
@@ -567,7 +565,7 @@ static void MX_GPIO_Init(void)
   //Pin 1 controls BB_V+_Switch, Pin 2 for Fan Control, Pin 15 for the on-board Diagnostic LED
    GPIO_InitStruct.Pin = GPIO_PIN_15 | GPIO_PIN_11 | GPIO_PIN_10 |  GPIO_PIN_5 | GPIO_PIN_2 | GPIO_PIN_1;
    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+   GPIO_InitStruct.Pull = GPIO_NOPULL;
    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
@@ -602,34 +600,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			lcdUpdate++;
 			canPulse++;
 
+//			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) || (lcdUpdate == 13) )
 			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) )
 				lcdUpdateFlag = 1;
 
-			if (isCharging == 1) // Skip displaying the logo and version while charging
+			if (isCharging == 1)
 			{
 				if (lcdUpdate > 12)
 					lcdUpdate = 4;
 			}
 			else
 			{
-				if (lcdUpdate > 12) // Display everything
+				if (lcdUpdate > 12)
 					lcdUpdate = 0;
-			}
-
-			if (lowChargeCurrentFlag == 1)
-			{
-				lowChargeCurrentTimeout++;
-
-				if (lowChargeCurrentTimeout == 10)
-				{
-					lowChargeCurrentTimeout = 0;
-					lowChargeCurrentFlag = 0;
-				}
-			}
-			else
-			{
-				lowChargeCurrentTimeout = 0;
-				lowChargeCurrentFlag = 0;
 			}
 
 
@@ -1051,6 +1034,60 @@ void lcdSolarInfo(void)
 	HD44780_WriteData(1, 0, tmp_buffer, NO);
 }
 
+/*
+static void updateLCD(uint8_t dataIndex, uint8_t warning)
+{
+
+	lcdUpdateFlag = 0;
+
+	switch (dataIndex)
+	{
+
+		case 1:
+
+			if (warning == HIBATTV)
+			{
+				HD44780_WriteData(0, 0, battery, YES);
+				HD44780_WriteData(1, 0, battHi, NO);
+			}
+			else if (warning == LOBATTV)
+			{
+				HD44780_WriteData(0, 0, battery, YES);
+				HD44780_WriteData(1, 0, battLo, NO);
+			}
+
+			else
+
+				if (isCharging == 1)
+				{
+					lcdBatteryInfo();
+				}
+				else
+				{
+					HD44780_WriteData(0, 0, logo, YES);
+					HD44780_WriteData(1, 0, version, NO);
+				}
+
+			break;
+
+		case 5:
+			lcdSolarInfo();
+			break;
+
+		case 9:
+			lcdBatteryInfo();
+			break;
+
+		case 13:
+			lcdSolarInfo();
+			break;
+
+		default:
+			break;
+	}
+}
+*/
+
 static void updateLCD(uint8_t warning)
 {
 
@@ -1192,9 +1229,6 @@ int main(void)
 // flashData2 = *(__IO uint16_t *)0x08010002;
 // flashData3 = *(__IO uint16_t *)0x08010004;
 
-	lowChargeCurrentFlag = 0;
-	lowChargeCurrentTimeout = 0;
-
 	while (1)
 	{
 
@@ -1209,27 +1243,26 @@ int main(void)
 		if (lcdUpdateFlag == 1)
 		{
 			lcdUpdateFlag = 0;
+//			updateLCD(lcdUpdate, warning);
 			updateLCD(warning);
 		}
 
 		// Switch load according to battery voltage condition
-//		if ((warning == LOBATTV) || (warning == HIBATTV))
-//			switchLoad(OFF);
-//		else
-//			switchLoad(ON);
+		if ((warning == LOBATTV) || (warning == HIBATTV))
+			switchLoad(OFF);
+		else
+			switchLoad(ON);
 
 		// We can charge the batteries
 		if (vSolarArray > (vBattery + TWO_VOLT))
 		{
 			start_volt = min( (FloatVoltage(tempAmbient) - HALF_VOLT), MAX_START_VOLT);
 
-			if ( (vBattery < start_volt) && (lowChargeCurrentFlag == 0) )
+			if (vBattery < start_volt)
 			{
 				canCharge = 1;
 				changePWM_TIM1(MAX_DUTY_CYCLE, ON);
 				switchCharger(ON);
-				lowChargeCurrentTimeout = 0;
-				HAL_Delay(1500);
 			}
 			else
 			{
@@ -1250,6 +1283,7 @@ int main(void)
 				if (lcdUpdateFlag == 1)
 				{
 					lcdUpdateFlag = 0;
+//					updateLCD(lcdUpdate, warning);
 					updateLCD(warning);
 				}
 
@@ -1276,12 +1310,12 @@ int main(void)
 					else
 					{
 						isCharging = 0;
-						canCharge = 0;
 						switchSolarArray(OFF);
-						changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
-						switchCharger(OFF);
-						lowChargeCurrentFlag = 1;
 
+						if (vBattery >= FloatVoltage(tempAmbient) )
+							canCharge = 0;
+						else
+							canCharge = 1;
 					}
 
 					while (isCharging)
@@ -1297,6 +1331,7 @@ int main(void)
 	  		  			if (lcdUpdateFlag == 1)
 	  		  			{
 	  		  				lcdUpdateFlag = 0;
+//	  		  				updateLCD(lcdUpdate, warning);
 	  		  				updateLCD(warning);
 	  		  			}
 
