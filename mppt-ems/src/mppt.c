@@ -617,7 +617,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			{
 				lowChargeCurrentTimeout++;
 
-				if (lowChargeCurrentTimeout == 10)
+				if (lowChargeCurrentTimeout == 11)
 				{
 					lowChargeCurrentTimeout = 0;
 					lowChargeCurrentFlag = 0;
@@ -626,21 +626,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			else
 			{
 				lowChargeCurrentTimeout = 0;
-				lowChargeCurrentFlag = 0;
+//				lowChargeCurrentFlag = 0;
 			}
-
-
 
 			// Flash the charge LED to indicate charging is active
-			if (isCharging == 1)
+			if (isCharging == 0)
 				toggleChargeLED();
-
-			// Flash the charge LED quickly: alerts user to battery voltage problem
-			if (warning != NORMALBATTV)
-			{
-				if ((tim9Count % 2) != 0)
-					toggleChargeLED();
-			}
+			else
+				switchChargeLED(ON);
 		}
 
 		tim9Count++;
@@ -849,7 +842,7 @@ static void getADCreadings (uint8_t howMany)
 
 	// This data is sent to the controller
 //	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %x, %x, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, flashData, flashData2, flashData3);
-	 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, currentPower);
+	 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, lowChargeCurrentFlag, lowChargeCurrentTimeout);
 	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
 }
@@ -1217,16 +1210,23 @@ int main(void)
 		// We are able to charge the batteries
 		if (vSolarArray > (vBattery + TWO_VOLT))
 		{
+
+			if (canPulse == pulseInterval)
+			{
+				pulse();
+				canPulse = 0;
+			}
+
 			start_volt = min( (FloatVoltage(tempAmbient) - HALF_VOLT), MAX_START_VOLT);
 
 			// Batteries need charging?
-			if ( (vBattery < start_volt) && (lowChargeCurrentFlag == 0) )
+			if (vBattery < start_volt)
 			{
 				canCharge = 1;
-				changePWM_TIM1(MAX_DUTY_CYCLE, ON);
-				switchCharger(ON);
-				lowChargeCurrentTimeout = 0;
-				HAL_Delay(1500);
+//				changePWM_TIM1(MAX_DUTY_CYCLE, ON);
+//				switchCharger(ON);
+//				lowChargeCurrentTimeout = 0;
+//				HAL_Delay(1500);
 			}
 			else
 			{
@@ -1237,6 +1237,12 @@ int main(void)
 
 			while(canCharge)
 			{
+
+				if (canPulse == pulseInterval)
+				{
+					pulse();
+					canPulse = 0;
+				}
 
 				if (getADC == 1)
 				{
@@ -1250,8 +1256,8 @@ int main(void)
 					updateLCD(warning);
 				}
 
-				// Get out of this loop if we can't charge
-				if (vSolarArray <= (vBattery + TWO_VOLT))
+				// Get out of this loop if we can't charge or no longer need to charge
+				if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBattery >= FloatVoltage(tempAmbient) ) )
 				{
 					canCharge = 0;
 				 	switchCharger(OFF);
@@ -1260,25 +1266,34 @@ int main(void)
 
 				else
 				{
-					if (iSolarArray > THRESHOLD_CURRENT)
-					{
-						switchSolarArray(ON);
-						HAL_Delay(10);
-						isCharging = 1;
-						currentPower = vSolar * iSolar;
-						last_vSolarArray = vSolarArray;
-						duty = MAX_DUTY_CYCLE;
-						lastPower = currentPower;
-					}
-					else
-					{
-						isCharging = 0;
-						canCharge = 0;
-						switchSolarArray(OFF);
-						switchCharger(OFF);
-						changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
-						lowChargeCurrentFlag = 1;
 
+					if (lowChargeCurrentFlag == 0)
+					{
+
+						changePWM_TIM1(MAX_DUTY_CYCLE, ON);
+						switchCharger(ON);
+
+						HAL_Delay(1000);
+						getADCreadings(8);
+
+						if (iSolarArray >= THRESHOLD_CURRENT)
+						{
+							switchSolarArray(ON);
+							HAL_Delay(10);
+							isCharging = 1;
+							currentPower = vSolar * iSolar;
+							last_vSolarArray = vSolarArray;
+							duty = MAX_DUTY_CYCLE;
+							lastPower = currentPower;
+						}
+						else
+						{
+							isCharging = 0;
+							switchSolarArray(OFF);
+							switchCharger(OFF);
+							changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+							lowChargeCurrentFlag = 1;
+						}
 					}
 
 					while (isCharging)
@@ -1298,29 +1313,23 @@ int main(void)
 	  		  			}
 
 	  		  			// We no longer have enough current to charge.
-	  		  			// Exit the isCharging loop but keep the bridge running and continue to
-	  		  			// monitor solar array current
-	  		  			// We'll check iSolarArray on the next pass of the canCharge loop and
-	  		  			// bail out there if it's still below threshold.
-	  		  			if (iSolarArray <= THRESHOLD_CURRENT)
+	  		  			if (iSolarArray < THRESHOLD_CURRENT)
 	  		  			{
 	  		  				switchSolarArray(OFF);
 	  		  				isCharging = 0;
-	  		  				switchChargeLED(ON);
+//	  		  				lowChargeCurrentFlag = 1;
 	  		  			}
 
 	  		  			// Protection against over charging or vSolarArray getting too high
 	  		  			// Exit both loops, stop the bridge and wait for Vbattery to drop below start_volt
-	  		  			if (vBattery >= FloatVoltage(tempAmbient) || (warning == HIBATTV) || (vSolarArray >= MAX_PV_VOLT) )
+	  		  			if (vBattery >= FloatVoltage(tempAmbient) || (warning == HIBATTV) || (vSolarArray >= MAX_PV_VOLT) || (vSolarArray < (vBattery + TWO_VOLT) ) )
 	  		  			{
 	  		  				switchSolarArray(OFF);
 	  		  				isCharging = 0;
 	  		  				canCharge = 0;
 	  		  				switchCharger(OFF);
 	  		  				changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
-	  		  				switchChargeLED(ON);
 	  		  			}
-
 	  				} // end while (isCharging)
 				} //end else
 			} //end while (canCharge)
@@ -1348,7 +1357,6 @@ int main(void)
 			changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
 			canCharge = 0;
 			isCharging = 0;
-			switchChargeLED(ON);
 			canPulse = 0;
 		}
 
