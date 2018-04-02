@@ -1,5 +1,5 @@
 /** mppt.c
- * Top level source file for MPPT EMS (STI assembly number 781-124-033 rev. 0)
+ * Top level source file for MPPT EMS (STI assembly number 781-124-033)
  *
  * (c) 2018 Solar Technology Inc.
  * 7620 Cetronia Road
@@ -105,6 +105,7 @@ const double voltageDividerOutput = 0.0623;		// Voltage Divider ratio gives 0.06
 
 char logo[] = "SOLAR TECH";
 char version[] = "MPPT EMS VER 1.0";
+char verStr[] = "1.0";
 char battery[] = "BATTERY BANK";
 char battHi[] = "HIGH VOLTAGE!";
 char battLo[] = "LOW VOLTAGE!";
@@ -842,7 +843,7 @@ static void getADCreadings (uint8_t howMany)
 
 	// This data is sent to the controller
 //	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %x, %x, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, flashData, flashData2, flashData3);
-	 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, lowChargeCurrentFlag, lowChargeCurrentTimeout);
+	 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp);
 	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
 }
@@ -1171,7 +1172,8 @@ int main(void)
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 
 	changePWM_TIM5(15000, ON);
-	changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
+	changePWM_TIM1(MAX_DUTY_CYCLE, ON);
+	switchCharger(ON);
 
 	getADCreadings(1);
 	lcdBatteryInfo();
@@ -1200,7 +1202,7 @@ int main(void)
 			lcdUpdateFlag = 0;
 			updateLCD(warning);
 		}
-
+/*
 		// Switch load according to battery voltage condition
 //		if ((warning == LOBATTV) || (warning == HIBATTV))
 //			switchLoad(OFF);
@@ -1358,7 +1360,7 @@ int main(void)
 			canCharge = 0;
 			isCharging = 0;
 			canPulse = 0;
-		}
+		} */
 
 	} //end while
 
