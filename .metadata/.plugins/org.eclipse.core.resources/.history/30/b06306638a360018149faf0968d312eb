@@ -30,22 +30,6 @@
 #define NORMALBATTV	0
 #define HIBATTV 	1
 #define LOBATTV		2
-
-
-// WARNING! DANGER! WARNING! DANGER!
-// Thre relationship of Duty Cycle (DC) to voltage is...
-// DC = Vout / Vin where...
-// Vout is battery voltage and...
-// Vin is the voltage across the solar array
-// In other words, the switching converter boosts battery voltage to a higher value at the solar array connector
-// according to DC. Given the IV characteristics of a solar panel typically used with this converter, the Maximum Power
-// Point is usually realized when the Solar Array voltage is held at around 17 volts, above which, the PV power tends to rolls of very sharply.
-// With a battery charged to 15 volts and a DC at 65%, we will get 23 volts across the Solar Array connector which
-// is approaching the absolute maximum voltage ratings of the MOV, TVS diode and current sense amplifier on the solar
-// array side of the bridge.
-// For further safety, we have #define'd MAX_PV_VOLT in mppt.h at 20v as the point at which we will stop charging and
-// shut the converter down in the isCharging loop below.
-
 #define MIN_DUTY_CYCLE	166		//65% of the TIM1 period
 #define MAX_DUTY_CYCLE  205 	//80% of the TIM1 period
 
@@ -70,9 +54,8 @@ TIM_HandleTypeDef htim11;
 UART_HandleTypeDef huart1;
 
 
-uint8_t strBuffer[128];
 
-unsigned char sendBuffer[128], escBuffer[128];
+uint8_t strBuffer[128];
 
 /** adcBuffer Description
  * 0: Battery Bank Voltage
@@ -122,7 +105,6 @@ const double voltageDividerOutput = 0.0623;		// Voltage Divider ratio gives 0.06
 
 char logo[] = "SOLAR TECH";
 char version[] = "MPPT EMS VER 1.0";
-char ver[] = "1.0";
 char battery[] = "BATTERY BANK";
 char battHi[] = "HIGH VOLTAGE!";
 char battLo[] = "LOW VOLTAGE!";
@@ -166,16 +148,11 @@ static uint16_t FloatVoltage(uint16_t);
 
 static void updateLCD(uint8_t warning);
 
-void sendMessage(void);
-
 static void pulse(void);
 void delay_us(uint32_t);
 void writeFlash(uint16_t data);
 
 void calcMPPT(void);
-
-extern void crc16_init(void);
-extern uint16_t crc16(uint8_t[], uint8_t);
 
 
 /** System Clock Configuration
@@ -334,17 +311,7 @@ static void MX_ADC1_Init(void)
 
 }
 
-// Generated 4 PWN channels that switch the DC-DC MOSFETs
-// These timer settings are chosen to give a 196 KHz switching frequency and
-// complementary switching of the high and low side MOSFETS
-// that is 180 deg phase shifted to give interleaved switching between the 2 sides (phases) of the bridge.
-// The DeadTime parameter was determined using an oscilloscope with
-// 2 channels connected to the gates of the HI and LOW side MOSFETS on one side of the bridge.
-// The DeadTime parameter below gives about a 50 nS dead time between switching the HI and LOW
-// side MOSFETS. The proper setting of this parameter is very important to prevent shoot-through.
-//
-// DO NOT change these settings without a thorough understanding of how the switching converter operates else you risk
-// damage to the switching MOSFETS, processor, 3.3v supply and other components on the PCB.
+//Generated 4 PWN channels that switch the DC-DC MOSFETs
 static void MX_TIM1_Init(void)
 {
 
@@ -402,6 +369,8 @@ static void MX_TIM1_Init(void)
 	  }
 
 	 HAL_TIM_MspPostInit(&htim1);
+
+//	 changePWM_TIM1(256, ON);
 
 }
 
@@ -873,9 +842,8 @@ static void getADCreadings (uint8_t howMany)
 
 	// This data is sent to the controller
 //	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %x, %x, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, flashData, flashData2, flashData3);
-//	 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, lowChargeCurrentFlag, lowChargeCurrentTimeout);
-//	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
-	sendMessage();
+	 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, lowChargeCurrentFlag, lowChargeCurrentTimeout);
+	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
 }
 
@@ -1167,71 +1135,6 @@ void writeFlash(uint16_t data)
     HAL_FLASH_Lock();
 }
 
-void sendMessage(void)
-{
-
-	uint16_t crc = 0xffff;
-	uint8_t msgLength = 0;
-	uint16_t data;
-
-	memset((void *)sendBuffer, 0, sizeof(sendBuffer));
-	memset((void *)escBuffer, 0, sizeof(escBuffer));
-
-	sendBuffer[0] = 0x9a;
-	msgLength++;
-
-	strncpy((char *)&sendBuffer[1], ver, 3);
-	msgLength += 3;
-
-	sendBuffer[msgLength] = 0x9e;
-	msgLength++;
-
-	data = vBat * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = iBat * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = vSolar * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = iSolar * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = loadVoltage * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = loadCurrent * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-//	msgLength++;
-
-	crc = crc16(sendBuffer, msgLength);
-	sendBuffer[msgLength++] = (uint8_t)crc & 0x00ff;
-	sendBuffer[msgLength++] = (uint8_t) (crc>>8);
-
-	HAL_UART_Transmit(&huart1, sendBuffer, msgLength, 0xffff);
-
-}
-
-
-
 
 int main(void)
 {
@@ -1254,7 +1157,7 @@ int main(void)
 	MX_TIM11_Init();
 	MX_USART1_UART_Init();
 
-	crc16_init();
+	//crc16_init();
 	HD44780_Init();
 
 	// switchFan(OFF);
@@ -1263,7 +1166,6 @@ int main(void)
 	switchLoad(OFF);
 	switchChargeLED(ON);
 	switchCapacitors(ON);
-	switchDiagLED(OFF);
 
 	// Ensure that Desulphate MOSFETS are OFF
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);

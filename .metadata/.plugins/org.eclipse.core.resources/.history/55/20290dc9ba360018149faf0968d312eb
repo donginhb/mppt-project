@@ -58,7 +58,7 @@ uint16_t crc16(uint8_t data[], uint8_t msgSize) {
 
 	remain = 0;
  
-	for (i=0; i<=msgSize; i++) {
+	for (i=0; i<msgSize; i++) {
 
 		byte = data[i] ^ (remain >> 8);
 		remain = crcTable[byte] ^ (remain << 8);

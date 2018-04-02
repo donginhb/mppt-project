@@ -175,7 +175,7 @@ void writeFlash(uint16_t data);
 void calcMPPT(void);
 
 extern void crc16_init(void);
-extern uint16_t crc16(uint8_t[], uint8_t);
+extern uint16_t crc16(uint8_t[]);
 
 
 /** System Clock Configuration
@@ -1195,36 +1195,38 @@ void sendMessage(void)
 	data = iBat * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
+	sendBuffer[msgLength] = (uint8_t) data >> 8;
 	msgLength++;
 
 	data = vSolar * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
+	sendBuffer[msgLength] = (uint8_t) data >> 8;
 	msgLength++;
 
 	data = iSolar * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
+	sendBuffer[msgLength] = (uint8_t) data >> 8;
 	msgLength++;
 
 	data = loadVoltage * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
+	sendBuffer[msgLength] = (uint8_t) data >> 8;
 	msgLength++;
 
 	data = loadCurrent * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-//	msgLength++;
+	sendBuffer[msgLength] = (uint8_t) data >> 8;
+	msgLength++;
 
-	crc = crc16(sendBuffer, msgLength);
-	sendBuffer[msgLength++] = (uint8_t)crc & 0x00ff;
-	sendBuffer[msgLength++] = (uint8_t) (crc>>8);
+	crc = crc16(data);
+	sendBuffer[msgLength] = (uint8_t)crc & 0x00ff;
+	msgLength++;
+	sendBuffer[msgLength] = (uint8_t) crc >> 8;
+	msgLength++;
 
 	HAL_UART_Transmit(&huart1, sendBuffer, msgLength, 0xffff);
 

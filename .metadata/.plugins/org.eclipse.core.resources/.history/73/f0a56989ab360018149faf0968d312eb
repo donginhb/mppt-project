@@ -71,8 +71,7 @@ UART_HandleTypeDef huart1;
 
 
 uint8_t strBuffer[128];
-
-unsigned char sendBuffer[128], escBuffer[128];
+uint8_t sendBuffer[128], escBuffer[128];
 
 /** adcBuffer Description
  * 0: Battery Bank Voltage
@@ -122,7 +121,6 @@ const double voltageDividerOutput = 0.0623;		// Voltage Divider ratio gives 0.06
 
 char logo[] = "SOLAR TECH";
 char version[] = "MPPT EMS VER 1.0";
-char ver[] = "1.0";
 char battery[] = "BATTERY BANK";
 char battHi[] = "HIGH VOLTAGE!";
 char battLo[] = "LOW VOLTAGE!";
@@ -173,9 +171,6 @@ void delay_us(uint32_t);
 void writeFlash(uint16_t data);
 
 void calcMPPT(void);
-
-extern void crc16_init(void);
-extern uint16_t crc16(uint8_t[], uint8_t);
 
 
 /** System Clock Configuration
@@ -875,7 +870,6 @@ static void getADCreadings (uint8_t howMany)
 //	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %x, %x, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, flashData, flashData2, flashData3);
 //	 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, lowChargeCurrentFlag, lowChargeCurrentTimeout);
 //	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
-	sendMessage();
 
 }
 
@@ -1170,63 +1164,7 @@ void writeFlash(uint16_t data)
 void sendMessage(void)
 {
 
-	uint16_t crc = 0xffff;
-	uint8_t msgLength = 0;
-	uint16_t data;
 
-	memset((void *)sendBuffer, 0, sizeof(sendBuffer));
-	memset((void *)escBuffer, 0, sizeof(escBuffer));
-
-	sendBuffer[0] = 0x9a;
-	msgLength++;
-
-	strncpy((char *)&sendBuffer[1], ver, 3);
-	msgLength += 3;
-
-	sendBuffer[msgLength] = 0x9e;
-	msgLength++;
-
-	data = vBat * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = iBat * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = vSolar * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = iSolar * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = loadVoltage * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = loadCurrent * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-//	msgLength++;
-
-	crc = crc16(sendBuffer, msgLength);
-	sendBuffer[msgLength++] = (uint8_t)crc & 0x00ff;
-	sendBuffer[msgLength++] = (uint8_t) (crc>>8);
-
-	HAL_UART_Transmit(&huart1, sendBuffer, msgLength, 0xffff);
 
 }
 
