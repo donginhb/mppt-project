@@ -1260,7 +1260,7 @@ void sendMessage(void)
 
 	}
 
-	HAL_UART_Transmit(&huart1, escBuffer, j, 0xffff);
+	HAL_UART_Transmit(&huart1, sendBuffer, j, 0xffff);
 
 }
 

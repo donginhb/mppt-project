@@ -1172,7 +1172,6 @@ void sendMessage(void)
 
 	uint16_t crc = 0xffff;
 	uint8_t msgLength = 0;
-	uint8_t i, j;
 	uint16_t data;
 
 	memset((void *)sendBuffer, 0, sizeof(sendBuffer));
@@ -1229,40 +1228,11 @@ void sendMessage(void)
 	sendBuffer[msgLength] = (uint8_t) (crc>>8);
 	msgLength++;
 
-	for (i = 0, j = 0; i < msgLength; i++, j++) {
-
-		switch (sendBuffer[i]) {
-
-		case 0x9a:
-
-			if (i != 0) {
-				escBuffer[j++] = 0x9b;
-				escBuffer[j] = 0x01;
-			}
-
-			else
-				escBuffer[j] = sendBuffer[i];
-
-			break;
-
-		case 0x9b:
-
-			escBuffer[j++] = 0x9b;
-			escBuffer[j] = 0x02;
-
-			break;
-
-		default:
-			escBuffer[j] = sendBuffer[i];
-			break;
-
-		}
-
-	}
-
-	HAL_UART_Transmit(&huart1, escBuffer, j, 0xffff);
+	HAL_UART_Transmit(&huart1, sendBuffer, msgLength, 0xffff);
 
 }
+
+
 
 
 int main(void)
