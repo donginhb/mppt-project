@@ -33,6 +33,8 @@
 
 
 // WARNING! DANGER! WARNING! DANGER!
+// About MIN_DUTY_CYCLE and MAX_DUTY_CYCLE
+//
 // Thre relationship of Duty Cycle (DC) to voltage is...
 // DC = Vout / Vin where...
 // Vout is battery voltage and...
@@ -48,6 +50,10 @@
 
 #define MIN_DUTY_CYCLE	166		//65% of the TIM1 period
 #define MAX_DUTY_CYCLE  205 	//80% of the TIM1 period
+
+// Time, in seconds, to wait between reading solar array charge current if it's at or close to THRESHOLD_CURRENT
+// The switching converter is turned off while in timeout, conserving power.
+#define LOW_CHARGE_CURRENT_TIMEOUT	10
 
 #define min(a,b) 	((a) < (b)) ? (a) : (b);
 
@@ -334,7 +340,7 @@ static void MX_ADC1_Init(void)
 
 }
 
-// Generated 4 PWN channels that switch the DC-DC MOSFETs
+// Generates 4 PWN channels that switch the DC-DC MOSFETs
 // These timer settings are chosen to give a 196 KHz switching frequency and
 // complementary switching of the high and low side MOSFETS
 // that is 180 deg phase shifted to give interleaved switching between the 2 sides (phases) of the bridge.
@@ -354,9 +360,9 @@ static void MX_TIM1_Init(void)
 	  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 
 	  htim1.Instance = TIM1;
-	  htim1.Init.Prescaler = 0; //0;
-	  htim1.Init.CounterMode = TIM_COUNTERMODE_CENTERALIGNED2; //TIM_COUNTERMODE_UP;
-	  htim1.Init.Period = 256; //256;
+	  htim1.Init.Prescaler = 0;
+	  htim1.Init.CounterMode = TIM_COUNTERMODE_CENTERALIGNED2;
+	  htim1.Init.Period = 256;
 	  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	  htim1.Init.RepetitionCounter = 0;
 	  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
@@ -411,7 +417,6 @@ static void MX_TIM5_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig;
   TIM_MasterConfigTypeDef sMasterConfig;
-//  TIM_OC_InitTypeDef sConfigOC;
 
   htim5.Instance = TIM5;
   htim5.Init.Prescaler = 0;
@@ -429,10 +434,6 @@ static void MX_TIM5_Init(void)
     Error_Handler();
   }
 
-//  if (HAL_TIM_OC_Init(&htim5) != HAL_OK)
-//  {
-//    Error_Handler();
-//  }
 
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
@@ -440,8 +441,6 @@ static void MX_TIM5_Init(void)
   {
     Error_Handler();
   }
-
-//  changePWM_TIM5(30000);
 }
 
 //Used as a 1 mS timer.
@@ -449,7 +448,6 @@ static void MX_TIM9_Init(void) {
 
 	  TIM_ClockConfigTypeDef sClockSourceConfig;
 	  TIM_MasterConfigTypeDef sMasterConfig;
-//	  TIM_OC_InitTypeDef sConfigOC;
 
 	  htim9.Instance = TIM9;
 	  htim9.Init.Prescaler = 50000; // 50 MHz / 50000 = 1 kHz
@@ -482,7 +480,7 @@ static void MX_TIM9_Init(void) {
 	  HAL_TIM_Base_Start_IT(&htim9);
 }
 
-//Used as free running counter delay_us() .
+//Used as free running counter for delay_us() .
 static void MX_TIM11_Init(void) {
 
 	  TIM_ClockConfigTypeDef sClockSourceConfig;
@@ -644,11 +642,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 					lcdUpdate = 0;
 			}
 
+			// This flasg get set in the canCharge loop
 			if (lowChargeCurrentFlag == 1)
 			{
 				lowChargeCurrentTimeout++;
 
-				if (lowChargeCurrentTimeout == 11)
+				if (lowChargeCurrentTimeout == LOW_CHARGE_CURRENT_TIMEOUT)
 				{
 					lowChargeCurrentTimeout = 0;
 					lowChargeCurrentFlag = 0;
@@ -1288,6 +1287,10 @@ int main(void)
 
 	crc16_init();
 	HD44780_Init();
+
+	lcdUpdate = 0;
+	canCharge = 0;
+	isCharging = 0;
 
 	// switchFan(OFF);
 	switchCharger(OFF);
