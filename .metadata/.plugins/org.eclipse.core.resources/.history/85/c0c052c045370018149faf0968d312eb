@@ -1220,13 +1220,12 @@ void sendMessage(void)
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
+//	msgLength++;
 
 	crc = crc16(sendBuffer, msgLength);
 	sendBuffer[msgLength] = (uint8_t)crc & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (crc>>8);
-	msgLength++;
 
 	HAL_UART_Transmit(&huart1, sendBuffer, msgLength, 0xffff);
 

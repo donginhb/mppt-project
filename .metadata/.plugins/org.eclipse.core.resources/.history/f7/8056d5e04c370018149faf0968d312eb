@@ -25,10 +25,10 @@
 uint16_t crcTable[256];
 uint16_t remain;
 
-void crc16_init(void);
+inline void crc16_init(void);
 uint16_t crc16(uint8_t[], uint8_t);
 
-void crc16_init(void) {
+inline void crc16_init(void) {
 
 	uint16_t poly = 0x1021;
 	uint16_t i;
@@ -55,6 +55,8 @@ uint16_t crc16(uint8_t data[], uint8_t msgSize) {
 
 	uint8_t i;
 	uint8_t byte;
+
+	crc16_init();
 
 	remain = 0;
  

@@ -1256,7 +1256,7 @@ int main(void)
 	MX_TIM11_Init();
 	MX_USART1_UART_Init();
 
-	crc16_init();
+//	crc16_init();
 	HD44780_Init();
 
 	// switchFan(OFF);

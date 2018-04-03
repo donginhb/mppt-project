@@ -56,6 +56,8 @@ uint16_t crc16(uint8_t data[], uint8_t msgSize) {
 	uint8_t i;
 	uint8_t byte;
 
+	crc16_init();
+
 	remain = 0;
  
 	for (i=0; i<msgSize; i++) {
