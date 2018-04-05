@@ -31,6 +31,10 @@
 #define HIBATTV 	1
 #define LOBATTV		2
 
+// Time, in seconds, to wait between reading solar array charge current if it's at or close to THRESHOLD_CURRENT
+// The switching converter is turned off while in timeout, conserving power.
+#define LOW_CHARGE_CURRENT_TIMEOUT	10
+
 
 #include "stm32f4xx_hal.h"
 #include "HD44780.h"
@@ -62,6 +66,10 @@ uint8_t strBuffer[128];
  * 8: Battery Load Current
  */
 uint16_t adcBuffer[9];
+uint16_t canPulse;
+
+uint8_t lowChargeCurrentFlag;
+uint8_t lowChargeCurrentTimeout;
 
 uint32_t vBattery;
 static uint32_t vSolarArray;
@@ -88,7 +96,7 @@ uint16_t flashData, flashData2, flashData3;
 // adcUnit = Vref / 2^12
 //Vref = 3.3v and 2^12 = 4096 for 12 bits of resolution
 const double adcUnit = 0.000806;
-const double voltageDividerOutput = 0.0992;		// Voltage Divider ratio gives 0.0992 volts out / volt in
+const double voltageDividerOutput = 0.0623;		// Voltage Divider ratio gives 0.0623 volts out / volt in
 
 char logo1[] = "MPPT TEST AND";
 char logo2[] = "CALIBRATION";
@@ -132,10 +140,10 @@ void lcdSolarInfo(void);
 static void getADCreadings(uint8_t);
 static uint16_t FloatVoltage(uint16_t);
 
-static void updateLCD(uint8_t dataIndex, uint8_t warning);
+static void updateLCD(uint8_t warning);
 
 static void pulse();
-void delay_5us(uint32_t);
+void delay_us(uint32_t);
 void writeFlash(uint32_t address, uint16_t data, uint8_t erase);
 
 
@@ -242,7 +250,7 @@ static void MX_ADC1_Init(void)
  //Battery Bank Current
  sConfig.Channel = ADC_CHANNEL_2;
  sConfig.Rank = 3;
- sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -251,7 +259,7 @@ static void MX_ADC1_Init(void)
  //Solar Array Current
  sConfig.Channel = ADC_CHANNEL_3;
  sConfig.Rank = 4;
- sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -287,7 +295,7 @@ static void MX_ADC1_Init(void)
  //Load Current
  sConfig.Channel = ADC_CHANNEL_8;
  sConfig.Rank = 8;
- sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -309,8 +317,8 @@ static void MX_TIM1_Init(void)
 
 	  htim1.Instance = TIM1;
 	  htim1.Init.Prescaler = 0; //0;
-	  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-	  htim1.Init.Period = 512; //256;
+	  htim1.Init.CounterMode = TIM_COUNTERMODE_CENTERALIGNED2;
+	  htim1.Init.Period = 256; //256;
 	  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	  htim1.Init.RepetitionCounter = 0;
 	  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
@@ -346,7 +354,7 @@ static void MX_TIM1_Init(void)
 	  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_ENABLE;
 	  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
 	  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-	  sBreakDeadTimeConfig.DeadTime = 8;
+	  sBreakDeadTimeConfig.DeadTime = 22;
 	  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
 	  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
 	  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
@@ -395,7 +403,7 @@ static void MX_TIM5_Init(void)
     Error_Handler();
   }
 
-  changePWM_TIM5(30000);
+//  changePWM_TIM5(30000);
 
   HAL_TIM_MspPostInit(&htim5);
 }
@@ -438,16 +446,16 @@ static void MX_TIM9_Init(void) {
 	  HAL_TIM_Base_Start_IT(&htim9);
 }
 
-//Used as a 5uS timer.
+//Used as a 1uS timer.
 static void MX_TIM11_Init(void) {
 
 	  TIM_ClockConfigTypeDef sClockSourceConfig;
 	  TIM_MasterConfigTypeDef sMasterConfig;
 
 	  htim11.Instance = TIM11;
-	  htim11.Init.Prescaler = 1;
+	  htim11.Init.Prescaler = 50;
 	  htim11.Init.CounterMode = TIM_COUNTERMODE_UP;
-	  htim11.Init.Period = 250;
+	  htim11.Init.Period = 0xffff;
 	  htim11.Init.ClockDivision = TIM_CLOCKDIVISION_DIV2;
 	  if (HAL_TIM_Base_Init(&htim11) != HAL_OK)
 	  {
@@ -467,7 +475,7 @@ static void MX_TIM11_Init(void) {
 	    Error_Handler();
 	  }
 
-	  HAL_TIM_Base_Start_IT(&htim11);
+	  HAL_TIM_Base_Start(&htim11);
 }
 
 /* USART1 init function */
@@ -535,7 +543,7 @@ static void MX_GPIO_Init(void)
  //Pin 11 pings the external WDT, Pin 10 is the Charge LED,  Pin 9 controls SA_SWITCH,  Pins 6 - 0 control the LCD
   GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_10 | GPIO_PIN_9 | GPIO_PIN_6 |GPIO_PIN_5 | GPIO_PIN_4 | GPIO_PIN_3 | GPIO_PIN_2 | GPIO_PIN_1 |GPIO_PIN_0;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
@@ -549,9 +557,9 @@ static void MX_GPIO_Init(void)
 
   //PORT B GPIOs: OUTPUTS
   //Pin 1 controls BB_V+_Switch, Pin 2 for Fan Control, Pin 15 for the on-board Diagnostic LED
-   GPIO_InitStruct.Pin = GPIO_PIN_15 |  GPIO_PIN_5 | GPIO_PIN_2 | GPIO_PIN_1;
+   GPIO_InitStruct.Pin = GPIO_PIN_15 | GPIO_PIN_11 | GPIO_PIN_10 |  GPIO_PIN_5 | GPIO_PIN_2 | GPIO_PIN_1;
    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-   GPIO_InitStruct.Pull = GPIO_NOPULL;
+   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
@@ -573,39 +581,59 @@ void Error_Handler(void)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
-	//TIM9 is the 100 mS timer
+	//TIM9 is the 1 mS timer
 	if (htim->Instance==TIM9)
 	{
 
 		if (tim9Count == 1000)
 		{
+
 			getADC = 1;
 //			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_15);
 			tim9Count = 0;
 			lcdUpdate++;
+			canPulse++;
 
-			if ( (lcdUpdate == 4) || (lcdUpdate == 8) || (lcdUpdate == 12) )
+			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) )
 				lcdUpdateFlag = 1;
 
-			if (lcdUpdate > 12)
-				lcdUpdate = 0;
-		}
+			if (isCharging == 1) // Skip displaying the logo and version while charging
+			{
+				if (lcdUpdate > 12)
+					lcdUpdate = 4;
+			}
+			else
+			{
+				if (lcdUpdate > 12) // Display everything
+					lcdUpdate = 0;
+			}
 
-		// Flash the charge LED quickly: alerts user to battery voltage problem
-		if (warning != NORMALBATTV)
-		{
-			if ((tim9Count % 2) != 0)
+			// This flag get set in the canCharge loop
+			if (lowChargeCurrentFlag == 1)
+			{
+				lowChargeCurrentTimeout++;
+
+				if (lowChargeCurrentTimeout == LOW_CHARGE_CURRENT_TIMEOUT)
+				{
+					lowChargeCurrentTimeout = 0;
+					lowChargeCurrentFlag = 0;
+				}
+			}
+			else
+			{
+				lowChargeCurrentTimeout = 0;
+//				lowChargeCurrentFlag = 0;
+			}
+
+			// Flash the charge LED to indicate charging is active
+			if (isCharging == 0)
 				toggleChargeLED();
+			else
+				switchChargeLED(ON);
 		}
 
 		tim9Count++;
 		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_11); // Ping the WDT
-	}
-
-	else if (htim->Instance == TIM11)
-	{
-		if (usCounter != 0)
-		usCounter--;
 	}
 }
 
@@ -662,7 +690,7 @@ static void changePWM_TIM1(uint16_t pulse, uint8_t onOff)
 		  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
 
 		  sConfigOC2.OCMode = TIM_OCMODE_PWM2;
-		  sConfigOC2.Pulse = 512 - pulse;
+		  sConfigOC2.Pulse = 256 - pulse;
 		  sConfigOC2.OCPolarity = TIM_OCPOLARITY_HIGH;
 		  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_HIGH;
 		  sConfigOC2.OCFastMode = TIM_OCFAST_DISABLE;
@@ -909,15 +937,15 @@ void lcdSolarInfo(void)
 }
 
 
-static void updateLCD(uint8_t dataIndex, uint8_t warning)
+static void updateLCD(uint8_t warning)
 {
 
 	lcdUpdateFlag = 0;
 
-	switch (dataIndex)
+	switch (lcdUpdate)
 	{
 
-		case 4:
+		case 1:
 
 			if (warning == HIBATTV)
 			{
@@ -931,18 +959,25 @@ static void updateLCD(uint8_t dataIndex, uint8_t warning)
 			}
 
 			else
-			{
-//				HD44780_WriteData(0, 0, logo, YES);
-//				HD44780_WriteData(1, 0, version, NO);
-			}
+
+				if (isCharging == 1)
+				{
+					lcdBatteryInfo();
+				}
+				else
+				{
+					HD44780_WriteData(0, 0, logo1, YES);
+					HD44780_WriteData(1, 0, logo2, NO);
+				}
+
 			break;
 
-		case 8:
-			lcdBatteryInfo();
-			break;
-
-		case 12:
+		case 5:
 			lcdSolarInfo();
+			break;
+
+		case 9:
+			lcdBatteryInfo();
 			break;
 
 		default:
@@ -951,23 +986,29 @@ static void updateLCD(uint8_t dataIndex, uint8_t warning)
 }
 
 
-static void pulse()
+static void pulse(void)
 {
 
 	uint8_t i;
 
+	switchCapacitors(OFF);
+
 	for (i=0; i<=9; i++)
 	{
-		delay_5us(1);
 		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_11);
+		delay_us(100);
 	}
+
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
+	switchCapacitors(ON);
 }
 
-void delay_5us(uint32_t usDelay)
+void delay_us(uint32_t usDelay)
 {
-	usCounter = usDelay;
-	while (usCounter != 0);
+	uint32_t initTime;
 
+	initTime = __HAL_TIM_GET_COUNTER(&htim11);
+	while ( (__HAL_TIM_GET_COUNTER(&htim11) - initTime < usDelay));
 }
 
 void writeFlash(uint32_t address, uint16_t data, uint8_t erase)
@@ -1292,13 +1333,5 @@ int main(void)
 */
   }
 }
-
-/**
-  * @}
-  */ 
-
-/**
-  * @}
-*/ 
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

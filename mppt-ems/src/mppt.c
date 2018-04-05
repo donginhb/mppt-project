@@ -35,12 +35,12 @@
 // WARNING! DANGER! WARNING! DANGER!
 // About MIN_DUTY_CYCLE and MAX_DUTY_CYCLE
 //
-// Thre relationship of Duty Cycle (DC) to voltage is...
+// The relationship of Duty Cycle (DC) to voltage is...
 // DC = Vout / Vin where...
 // Vout is battery voltage and...
 // Vin is the voltage across the solar array
 // In other words, the switching converter boosts battery voltage to a higher value at the solar array connector
-// according to DC. Given the IV characteristics of a solar panel typically used with this converter, the Maximum Power
+// according to DC and teh battery voltage. Given the IV characteristics of a solar panel typically used with this converter, the Maximum Power
 // Point is usually realized when the Solar Array voltage is held at around 17 volts, above which, the PV power tends to rolls of very sharply.
 // With a battery charged to 15 volts and a DC at 65%, we will get 23 volts across the Solar Array connector which
 // is approaching the absolute maximum voltage ratings of the MOV, TVS diode and current sense amplifier on the solar
@@ -50,6 +50,7 @@
 
 #define MIN_DUTY_CYCLE	166		//65% of the TIM1 period
 #define MAX_DUTY_CYCLE  205 	//80% of the TIM1 period
+//#define MAX_DUTY_CYCLE  230 	//90% of the TIM1 period
 
 // Time, in seconds, to wait between reading solar array charge current if it's at or close to THRESHOLD_CURRENT
 // The switching converter is turned off while in timeout, conserving power.
@@ -287,7 +288,7 @@ static void MX_ADC1_Init(void)
  //Battery Bank Current
  sConfig.Channel = ADC_CHANNEL_2;
  sConfig.Rank = 3;
- sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -296,7 +297,7 @@ static void MX_ADC1_Init(void)
  //Solar Array Current
  sConfig.Channel = ADC_CHANNEL_3;
  sConfig.Rank = 4;
- sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -332,7 +333,7 @@ static void MX_ADC1_Init(void)
  //Load Current
  sConfig.Channel = ADC_CHANNEL_8;
  sConfig.Rank = 8;
- sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
+ sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
  {
    Error_Handler();
@@ -344,7 +345,7 @@ static void MX_ADC1_Init(void)
 // These timer settings are chosen to give a 196 KHz switching frequency and
 // complementary switching of the high and low side MOSFETS
 // that is 180 deg phase shifted to give interleaved switching between the 2 sides (phases) of the bridge.
-// The DeadTime parameter was determined using an oscilloscope with
+// The DeadTime parameter was determined and optimized using an oscilloscope with
 // 2 channels connected to the gates of the HI and LOW side MOSFETS on one side of the bridge.
 // The DeadTime parameter below gives about a 50 nS dead time between switching the HI and LOW
 // side MOSFETS. The proper setting of this parameter is very important to prevent shoot-through.
@@ -615,7 +616,7 @@ void Error_Handler(void)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
-	//TIM9 is the 100 mS timer
+	//TIM9 is the 1 mS timer
 	if (htim->Instance==TIM9)
 	{
 
@@ -642,7 +643,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 					lcdUpdate = 0;
 			}
 
-			// This flasg get set in the canCharge loop
+			// This flag get set in the canCharge loop
 			if (lowChargeCurrentFlag == 1)
 			{
 				lowChargeCurrentTimeout++;
@@ -872,9 +873,9 @@ static void getADCreadings (uint8_t howMany)
 
 	// This data is sent to the controller
 //	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %x, %x, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, flashData, flashData2, flashData3);
-//	 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, lowChargeCurrentFlag, lowChargeCurrentTimeout);
-//	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
-	sendMessage();
+	 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp);
+	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+//	sendMessage();
 
 }
 
@@ -1166,6 +1167,7 @@ void writeFlash(uint16_t data)
     HAL_FLASH_Lock();
 }
 
+// this function sends data to the controller
 void sendMessage(void)
 {
 
@@ -1228,39 +1230,39 @@ void sendMessage(void)
 	sendBuffer[msgLength] = (uint8_t) (crc>>8);
 	msgLength++;
 
-	for (i = 0, j = 0; i < msgLength; i++, j++) {
+	for (i = 0, j = 0; i < msgLength; i++, j++)
+	{
 
-		switch (sendBuffer[i]) {
+		switch (sendBuffer[i])
+		{
 
-		case 0x9a:
+			case 0x9a:
 
-			if (i != 0) {
+				if (i != 0)
+				{
+					escBuffer[j++] = 0x9b;
+					escBuffer[j] = 0x01;
+				}
+
+				else
+					escBuffer[j] = sendBuffer[i];
+
+				break;
+
+			case 0x9b:
+
 				escBuffer[j++] = 0x9b;
-				escBuffer[j] = 0x01;
-			}
+				escBuffer[j] = 0x02;
 
-			else
+				break;
+
+			default:
 				escBuffer[j] = sendBuffer[i];
-
-			break;
-
-		case 0x9b:
-
-			escBuffer[j++] = 0x9b;
-			escBuffer[j] = 0x02;
-
-			break;
-
-		default:
-			escBuffer[j] = sendBuffer[i];
-			break;
-
+				break;
 		}
-
 	}
 
 	HAL_UART_Transmit(&huart1, escBuffer, j, 0xffff);
-
 }
 
 
@@ -1295,7 +1297,7 @@ int main(void)
 	// switchFan(OFF);
 	switchCharger(OFF);
 	switchSolarArray(OFF); // Enable this only when ready to charge, disable all other times.
-	switchLoad(OFF);
+	switchLoad(ON);
 	switchChargeLED(ON);
 	switchCapacitors(ON);
 	switchDiagLED(OFF);
@@ -1306,7 +1308,7 @@ int main(void)
 	changePWM_TIM5(15000, ON);
 	changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
 
-	getADCreadings(1);
+	getADCreadings(32);
 	lcdBatteryInfo();
 
 // writeFlash(0xaa55);
@@ -1324,7 +1326,7 @@ int main(void)
 		if (getADC == 1)
 		{
 			getADC = 0;
-			getADCreadings(8);
+			getADCreadings(32);
 		}
 
 		// Update the LCD
@@ -1374,7 +1376,7 @@ int main(void)
 				if (getADC == 1)
 				{
 					getADC = 0;
-					getADCreadings(8);
+					getADCreadings(32);
 				}
 
 				if (lcdUpdateFlag == 1)
@@ -1401,7 +1403,7 @@ int main(void)
 						switchCharger(ON);
 
 						HAL_Delay(1000);
-						getADCreadings(8);
+						getADCreadings(32);
 
 						if (iSolarArray >= THRESHOLD_CURRENT)
 						{
@@ -1429,7 +1431,7 @@ int main(void)
 	  					if (getADC == 1)
 	  		  			{
 	  						getADC = 0;
-	  		  				getADCreadings(8);
+	  		  				getADCreadings(32);
 	  		  				calcMPPT();
 	  		  			}
 
