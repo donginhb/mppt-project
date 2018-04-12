@@ -111,7 +111,7 @@ uint8_t lowChargeCurrentTimeout;
 
 uint8_t getADC = 0;
 uint8_t adcConvComplete = 0;
-uint16_t tim9Count, adcCount;
+uint16_t tim9Count = 9;
 uint8_t lcdUpdate = 0;
 uint8_t lcdUpdateFlag = 0;
 uint8_t warning = 0;
@@ -481,7 +481,7 @@ static void MX_TIM5_Init(void)
   }
 
 	 sConfigOC_LCD.OCMode = TIM_OCMODE_PWM1;
-	 sConfigOC_LCD.Pulse = 15000;
+	 sConfigOC_LCD.Pulse = pulse;
 	 sConfigOC_LCD.OCPolarity = TIM_OCPOLARITY_HIGH;
 	 sConfigOC_LCD.OCFastMode = TIM_OCFAST_DISABLE;
 	 sConfigOC_LCD.OCIdleState = TIM_OCIDLESTATE_RESET;
@@ -676,15 +676,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance==TIM9)
 	{
 
-		if (adcCount == 250)
-		{
-			adcCount = 0;
-			getADC = 1;
-		}
-
 		if (tim9Count == 1000)
 		{
-//			getADC = 1;
+
+			getADC = 1;
+//			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_15);
 			tim9Count = 0;
 			lcdUpdate++;
 			canPulse++;
@@ -728,8 +724,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		}
 
 		tim9Count++;
-		adcCount++;
-
 		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_11); // Ping the WDT
 	}
 }
