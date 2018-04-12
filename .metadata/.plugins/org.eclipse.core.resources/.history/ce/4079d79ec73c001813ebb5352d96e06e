@@ -23,7 +23,6 @@
 
 #define ON		1
 #define OFF		0
-#define UPDATE	2
 
 #define YES		1
 #define NO		0
@@ -49,9 +48,8 @@
 // For further safety, we have #define'd MAX_PV_VOLT in mppt.h at 20v as the point at which we will stop charging and
 // shut the converter down in the isCharging loop below.
 
-#define MIN_DUTY_CYCLE		192		//75% of the TIM1 period
-#define MAX_DUTY_CYCLE  	230 	//90% of the TIM1 period
-#define PCT80_DUTY_CYCLE 	205
+#define MIN_DUTY_CYCLE	166		//65% of the TIM1 period
+#define MAX_DUTY_CYCLE  205 	//80% of the TIM1 period
 //#define MAX_DUTY_CYCLE  230 	//90% of the TIM1 period
 
 // Time, in seconds, to wait between reading solar array charge current if it's at or close to THRESHOLD_CURRENT
@@ -181,8 +179,7 @@ static void pulse(void);
 void delay_us(uint32_t);
 void writeFlash(uint16_t data);
 
-void calcMPPT_CC(void);
-void calcMPPT_CV(void);
+void calcMPPT(void);
 
 extern void crc16_init(void);
 extern uint16_t crc16(uint8_t[], uint8_t);
@@ -363,9 +360,6 @@ static void MX_TIM1_Init(void)
 	  TIM_SlaveConfigTypeDef sSlaveConfig;
 	  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 
-	  TIM_OC_InitTypeDef sConfigOC;
-	  TIM_OC_InitTypeDef sConfigOC2;
-
 	  htim1.Instance = TIM1;
 	  htim1.Init.Prescaler = 0;
 	  htim1.Init.CounterMode = TIM_COUNTERMODE_CENTERALIGNED2;
@@ -414,36 +408,7 @@ static void MX_TIM1_Init(void)
 	    Error_Handler();
 	  }
 
-	  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-	  sConfigOC.Pulse = PCT80_DUTY_CYCLE;
-	  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-	  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-	  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-	  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-	  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-
-	  sConfigOC2.OCMode = TIM_OCMODE_PWM2;
-	  sConfigOC2.Pulse = 256 - PCT80_DUTY_CYCLE;
-	  sConfigOC2.OCPolarity = TIM_OCPOLARITY_HIGH;
-	  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-	  sConfigOC2.OCFastMode = TIM_OCFAST_DISABLE;
-	  sConfigOC2.OCIdleState = TIM_OCIDLESTATE_RESET;
-	  sConfigOC2.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-
-
-	  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-	  {
-		  Error_Handler();
-	  }
-
-	  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_2) != HAL_OK)
-	  {
-		  Error_Handler();
-	  }
-
 	 HAL_TIM_MspPostInit(&htim1);
-
-
 
 }
 
@@ -453,8 +418,6 @@ static void MX_TIM5_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig;
   TIM_MasterConfigTypeDef sMasterConfig;
-
-  TIM_OC_InitTypeDef sConfigOC_LCD;
 
   htim5.Instance = TIM5;
   htim5.Init.Prescaler = 0;
@@ -479,25 +442,6 @@ static void MX_TIM5_Init(void)
   {
     Error_Handler();
   }
-
-	 sConfigOC_LCD.OCMode = TIM_OCMODE_PWM1;
-	 sConfigOC_LCD.Pulse = pulse;
-	 sConfigOC_LCD.OCPolarity = TIM_OCPOLARITY_HIGH;
-	 sConfigOC_LCD.OCFastMode = TIM_OCFAST_DISABLE;
-	 sConfigOC_LCD.OCIdleState = TIM_OCIDLESTATE_RESET;
-
-if (HAL_TIM_OC_Init(&htim5) != HAL_OK)
-{
-	Error_Handler();
-}
-
-if (HAL_TIM_OC_ConfigChannel(&htim5, &sConfigOC_LCD, TIM_CHANNEL_1) != HAL_OK)
-{
-	Error_Handler();
-}
-
-HAL_TIM_MspPostInit(&htim5);
-
 }
 
 //Used as a 1 mS timer.
@@ -763,13 +707,43 @@ void assert_failed(uint8_t* file, uint32_t line)
 
 #endif
 
-static void changePWM_TIM1(uint16_t pulse, uint8_t onOffUpdate)
+static void changePWM_TIM1(uint16_t pulse, uint8_t onOff)
 {
 
-	  if (onOffUpdate == ON)
+	  TIM_OC_InitTypeDef sConfigOC;
+	  TIM_OC_InitTypeDef sConfigOC2;
+
+	  if (onOff)
 	  {
-		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, PCT80_DUTY_CYCLE);
-		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 256 - PCT80_DUTY_CYCLE);
+		  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+		  sConfigOC.Pulse = pulse;
+		  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+		  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+		  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+		  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+		  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+
+		  sConfigOC2.OCMode = TIM_OCMODE_PWM2;
+		  sConfigOC2.Pulse = 256 - pulse; //512 - pulse;
+		  sConfigOC2.OCPolarity = TIM_OCPOLARITY_HIGH;
+		  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+		  sConfigOC2.OCFastMode = TIM_OCFAST_DISABLE;
+		  sConfigOC2.OCIdleState = TIM_OCIDLESTATE_RESET;
+		  sConfigOC2.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+
+
+		  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+		  {
+			  Error_Handler();
+		  }
+
+//		  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+		  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_2) != HAL_OK)
+		  {
+			  Error_Handler();
+		  }
+
+		  HAL_TIM_MspPostInit(&htim1);
 
 		  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 		  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
@@ -778,7 +752,7 @@ static void changePWM_TIM1(uint16_t pulse, uint8_t onOffUpdate)
 		  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);
 	  }
 
-	  else if (onOffUpdate == OFF)
+	  else
 	  {
 		  HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
 		  HAL_TIMEx_PWMN_Stop(&htim1, TIM_CHANNEL_1);
@@ -786,40 +760,41 @@ static void changePWM_TIM1(uint16_t pulse, uint8_t onOffUpdate)
 		  HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
 		  HAL_TIMEx_PWMN_Stop(&htim1, TIM_CHANNEL_2);
 	  }
-
-	  else if (onOffUpdate == UPDATE)
-	  {
-		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, pulse);
-		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 256 - pulse);
-	  }
-	  else
-	  {
-		  // Do Nothing
-	  }
 }
 
 // Controls the brightness of the LCD backlight
-static void changePWM_TIM5(uint16_t pulse, uint8_t onOffUpdate)
+static void changePWM_TIM5(uint16_t pulse, uint8_t onOff)
 {
-	 if (onOffUpdate == ON)
-	 {
-		 __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_1, pulse);
-		 HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
-	 }
+	 TIM_OC_InitTypeDef sConfigOC_LCD;
 
-	 else if (onOffUpdate == OFF)
+	 if (onOff)
 	 {
-		 HAL_TIM_PWM_Stop(&htim5, TIM_CHANNEL_1);
-	 }
 
-	 else if (onOffUpdate == UPDATE)
-	 {
-		 __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_1, pulse);
-	 }
+//	TIM_OC_InitTypeDef sConfigOC;
 
+		 sConfigOC_LCD.OCMode = TIM_OCMODE_PWM1;
+		 sConfigOC_LCD.Pulse = pulse;
+		 sConfigOC_LCD.OCPolarity = TIM_OCPOLARITY_HIGH;
+		 sConfigOC_LCD.OCFastMode = TIM_OCFAST_DISABLE;
+		 sConfigOC_LCD.OCIdleState = TIM_OCIDLESTATE_RESET;
+
+	if (HAL_TIM_OC_Init(&htim5) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	if (HAL_TIM_OC_ConfigChannel(&htim5, &sConfigOC_LCD, TIM_CHANNEL_1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	HAL_TIM_MspPostInit(&htim5);
+	HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
+
+	 }
 	 else
 	 {
-		 // Do Nothing
+		 HAL_TIM_PWM_Stop(&htim5, TIM_CHANNEL_1);
 	 }
 
 
@@ -868,7 +843,7 @@ static void getADCreadings (uint8_t howMany)
 		switchLoad(OFF);
 	}
 
-	if ((warning == HIBATTV) && (vBattery <= V_MAX_LOAD_ON) )
+	if ((warning == 1) && (vBattery <= V_MAX_LOAD_ON) )
 	{
 		warning = NORMALBATTV;
 		switchLoad(ON);
@@ -880,7 +855,7 @@ static void getADCreadings (uint8_t howMany)
 		switchLoad(OFF);
 	}
 
-	if ((warning == LOBATTV) && (vBattery >= V_MIN_LOAD_ON))
+	if ((warning == 2) && (vBattery >= V_MIN_LOAD_ON))
 	{
 		warning = NORMALBATTV;
 		switchLoad(ON);
@@ -964,7 +939,7 @@ double calcTemperature(uint16_t ADvalue)
 // we must limit the minimum duty cycle to prevent this voltage from exceeding a maximum value,
 // especially with a fully charged or overcharged battery
 
-void calcMPPT_CC(void)
+void calcMPPT(void)
 {
 
 	currentPower = vSolar * iSolar;
@@ -977,6 +952,7 @@ void calcMPPT_CC(void)
 	{
 		if (currentPower > lastPower)
 		{
+
 			if (vSolarArray > last_vSolarArray)
 			{
 				duty++;
@@ -1015,28 +991,7 @@ void calcMPPT_CC(void)
 
 	lastPower = currentPower;
 	last_vSolarArray = vSolarArray;
-	changePWM_TIM1(duty, UPDATE);
-}
-
-void calcMPPT_CV(void)
-{
-
-	uint16_t maxPeriod = 256;
-	uint8_t solarVoltage = 16;
-//	uint16_t solarVoltage = 0xa44; //2628 counts = 17v
-//	uint16_t solarVoltage = 0x9a9; //2473 counts = 16v
-
-	duty = maxPeriod * (vBat / (double)solarVoltage);
-
-	if (duty >= MAX_DUTY_CYCLE)
-		duty = MAX_DUTY_CYCLE;
-
-	if (duty <= MIN_DUTY_CYCLE)
-		duty = MIN_DUTY_CYCLE;
-
-
-	changePWM_TIM1(duty, UPDATE);
-
+	changePWM_TIM1(duty, ON);
 }
 
 void switchFan(uint8_t onOff)
@@ -1351,7 +1306,7 @@ int main(void)
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 
 	changePWM_TIM5(15000, ON);
-	changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+	changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
 
 	getADCreadings(32);
 	lcdBatteryInfo();
@@ -1397,12 +1352,16 @@ int main(void)
 			if (vBattery < start_volt)
 			{
 				canCharge = 1;
+//				changePWM_TIM1(MAX_DUTY_CYCLE, ON);
+//				switchCharger(ON);
+//				lowChargeCurrentTimeout = 0;
+//				HAL_Delay(1500);
 			}
 			else
 			{
 				canCharge = 0;
 			 	switchCharger(OFF);
-			 	changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+			 	changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
 			}
 
 			while(canCharge)
@@ -1431,7 +1390,7 @@ int main(void)
 				{
 					canCharge = 0;
 				 	switchCharger(OFF);
-					changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+					changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
 				}
 
 				else
@@ -1440,7 +1399,7 @@ int main(void)
 					if (lowChargeCurrentFlag == 0)
 					{
 
-						changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
+						changePWM_TIM1(MAX_DUTY_CYCLE, ON);
 						switchCharger(ON);
 
 						HAL_Delay(1000);
@@ -1453,7 +1412,7 @@ int main(void)
 							isCharging = 1;
 							currentPower = vSolar * iSolar;
 							last_vSolarArray = vSolarArray;
-							duty = PCT80_DUTY_CYCLE;
+							duty = MAX_DUTY_CYCLE;
 							lastPower = currentPower;
 						}
 						else
@@ -1461,7 +1420,7 @@ int main(void)
 							isCharging = 0;
 							switchSolarArray(OFF);
 							switchCharger(OFF);
-							changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+							changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
 							lowChargeCurrentFlag = 1;
 						}
 					}
@@ -1473,11 +1432,7 @@ int main(void)
 	  		  			{
 	  						getADC = 0;
 	  		  				getADCreadings(32);
-
-	  		  				if (vBattery < (FloatVoltage(tempAmbient) - HALF_VOLT) )
-	  		  					calcMPPT_CC();
-	  		  				else
-	  		  					calcMPPT_CV();
+	  		  				calcMPPT();
 	  		  			}
 
 	  		  			if (lcdUpdateFlag == 1)
@@ -1502,7 +1457,7 @@ int main(void)
 	  		  				isCharging = 0;
 	  		  				canCharge = 0;
 	  		  				switchCharger(OFF);
-	  		  				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+	  		  				changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
 	  		  			}
 	  				} // end while (isCharging)
 				} //end else
@@ -1513,7 +1468,7 @@ int main(void)
 		else if ( (vSolarArray > vBattery) && (vSolarArray <= (vBattery + ONE_AND_HALF_VOLT)))
 		{
 		 	switchCharger(OFF);
-			changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+			changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
 			canCharge = 0;
 			isCharging = 0;
 
@@ -1528,11 +1483,13 @@ int main(void)
 		else
 		{
 		 	switchCharger(OFF);
-			changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+			changePWM_TIM1(MAX_DUTY_CYCLE, OFF);
 			canCharge = 0;
 			isCharging = 0;
 			canPulse = 0;
 		}
+
 	} //end while
+
 }
 

@@ -801,12 +801,34 @@ static void changePWM_TIM1(uint16_t pulse, uint8_t onOffUpdate)
 // Controls the brightness of the LCD backlight
 static void changePWM_TIM5(uint16_t pulse, uint8_t onOffUpdate)
 {
+//	 TIM_OC_InitTypeDef sConfigOC_LCD;
+
 	 if (onOffUpdate == ON)
 	 {
-		 __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_1, pulse);
-		 HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
-	 }
 
+//	TIM_OC_InitTypeDef sConfigOC;
+
+/*		 sConfigOC_LCD.OCMode = TIM_OCMODE_PWM1;
+		 sConfigOC_LCD.Pulse = pulse;
+		 sConfigOC_LCD.OCPolarity = TIM_OCPOLARITY_HIGH;
+		 sConfigOC_LCD.OCFastMode = TIM_OCFAST_DISABLE;
+		 sConfigOC_LCD.OCIdleState = TIM_OCIDLESTATE_RESET;
+
+	if (HAL_TIM_OC_Init(&htim5) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	if (HAL_TIM_OC_ConfigChannel(&htim5, &sConfigOC_LCD, TIM_CHANNEL_1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	HAL_TIM_MspPostInit(&htim5); */
+	__HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_1, pulse);
+	HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
+
+	 }
 	 else if (onOffUpdate == OFF)
 	 {
 		 HAL_TIM_PWM_Stop(&htim5, TIM_CHANNEL_1);
