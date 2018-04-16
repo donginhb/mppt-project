@@ -907,7 +907,7 @@ static void getADCreadings (uint8_t howMany)
 
 	sendMessageCount++;
 
-	if (sendMessageCount >= 4)
+	if (sendMessageCount >= 3)
 	{
 		sendMessageCount = 0;
 		// This data is sent to the controller
@@ -966,6 +966,18 @@ double calcTemperature(uint16_t ADvalue)
 
 	return degC;
 }
+
+// This MPPT Perturb and Observe (P&O) algorithm is generic and widely
+// available online. MAX_DUTY_CYCLE and MIN_DUTY_CYCLE are #define 'd above and
+// are set to their current values for 2 reasons.
+
+// 1) the Max Power Point of the solar panels used with this circuit is typically realized
+// at around 17 volts
+
+// 2) At high battery voltages and low duty cycles (DC < 60%) we risk damage to the PCB
+// since this circuit boosts battery voltage on the solar array side of the bridge. Therefore,
+// we must limit the minimum duty cycle to prevent this voltage from exceeding a maximum value,
+// especially with a fully charged or overcharged battery
 
 void calcMPPT_CC(void)
 {

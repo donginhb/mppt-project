@@ -108,7 +108,6 @@ uint16_t flashData;
 
 uint8_t lowChargeCurrentFlag;
 uint8_t lowChargeCurrentTimeout;
-uint8_t sendMessageCount = 0;
 
 uint8_t getADC = 0;
 uint8_t adcConvComplete = 0;
@@ -905,18 +904,11 @@ static void getADCreadings (uint8_t howMany)
 	mosfetTemp = calcTemperature(tempMOSFETS);
 	loadCurrent = calcCurrent(iLoad);
 
-	sendMessageCount++;
-
-	if (sendMessageCount >= 4)
-	{
-		sendMessageCount = 0;
 		// This data is sent to the controller
 	//	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %x, %x, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, flashData, flashData2, flashData3);
 		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp);
 		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 	//	sendMessage();
-
-	}
 }
 
 
@@ -966,6 +958,18 @@ double calcTemperature(uint16_t ADvalue)
 
 	return degC;
 }
+
+// This MPPT Perturb and Observe (P&O) algorithm is generic and widely
+// available online. MAX_DUTY_CYCLE and MIN_DUTY_CYCLE are #define 'd above and
+// are set to their current values for 2 reasons.
+
+// 1) the Max Power Point of the solar panels used with this circuit is typically realized
+// at around 17 volts
+
+// 2) At high battery voltages and low duty cycles (DC < 60%) we risk damage to the PCB
+// since this circuit boosts battery voltage on the solar array side of the bridge. Therefore,
+// we must limit the minimum duty cycle to prevent this voltage from exceeding a maximum value,
+// especially with a fully charged or overcharged battery
 
 void calcMPPT_CC(void)
 {
