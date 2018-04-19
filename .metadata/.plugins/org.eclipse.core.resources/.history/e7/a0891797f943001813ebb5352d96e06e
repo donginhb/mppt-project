@@ -43,9 +43,7 @@ extern TIM_HandleTypeDef htim9;
 extern TIM_HandleTypeDef htim11;
 
 uint8_t calculateCRC(void);
-void advancePointer(void);
 extern uint16_t crc16(uint8_t[], uint8_t);
-extern void handleData(void);
 
 //static void getADCreadings(uint8_t);
 
@@ -210,17 +208,17 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void) {
 
 void USART1_IRQHandler(void) {
 
-	HAL_UART_Receive(&huart1, &rxBuff[rxByteCount], 1, 0);
+	HAL_UART_Receive(&huart1, &myChar, 1, 0);
 	advancePointer();
 
-	if (rxByteCount >= 6) {
+	if (inByteCount >= 7) {
 //		calculateCRC();
 		rxByteCount = 0;
 		inByteCount = 0;
-
-		if (calculateCRC() == 1)
-			handleData();
 	}
+
+	if (calculateCRC() == 1))
+		handleData();
 
 	__HAL_UART_FLUSH_DRREGISTER(&huart1);
 	HAL_NVIC_ClearPendingIRQ(USART1_IRQn);
@@ -252,8 +250,11 @@ void DMA2_Stream0_IRQHandler(void)
 
 /* USER CODE END 1 */
 
-void advancePointer(void)
+inline void advancePointer(void)
 {
+
+	cli();
+
 	if (rxByteCount == 0) {
 
 		if (rxBuff[rxByteCount] == 0x9a) {	// Start of frame
@@ -283,29 +284,12 @@ void advancePointer(void)
 			inByteCount++;
 		}
 	}
+
+	sei();
+	return;
 }
 
-uint8_t calculateCRC(void)
-{
-	uint8_t status;
-	uint8_t i;
-	uint8_t crcBuff[16];
-	uint16_t crc, rxCRC;
 
-	rxCRC = (inBuff[inByteCount - 1] << 8) | inBuff[inByteCount - 2];
-
-	for (i = 0; i < (inByteCount-3); i++)
-			crcBuff[i] = inBuff[i];
-
-
-	crc = crc16(crcBuff, i);
-
-	if (crc == rxCRC)
-		return 1;
-	else
-		return 0;
-
-}
 
 
 

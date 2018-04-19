@@ -210,17 +210,17 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void) {
 
 void USART1_IRQHandler(void) {
 
-	HAL_UART_Receive(&huart1, &rxBuff[rxByteCount], 1, 0);
+	HAL_UART_Receive(&huart1, &myChar, 1, 0);
 	advancePointer();
 
-	if (rxByteCount >= 6) {
+	if (inByteCount >= 7) {
 //		calculateCRC();
 		rxByteCount = 0;
 		inByteCount = 0;
-
-		if (calculateCRC() == 1)
-			handleData();
 	}
+
+	if (calculateCRC() == 1)
+		handleData();
 
 	__HAL_UART_FLUSH_DRREGISTER(&huart1);
 	HAL_NVIC_ClearPendingIRQ(USART1_IRQn);
@@ -298,7 +298,7 @@ uint8_t calculateCRC(void)
 			crcBuff[i] = inBuff[i];
 
 
-	crc = crc16(crcBuff, i);
+	crc = crc16(crcBuff);
 
 	if (crc == rxCRC)
 		return 1;

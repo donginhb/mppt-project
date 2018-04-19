@@ -36,7 +36,7 @@
 #define V_MIN_LOAD_OFF 		0x676	// 1654 counts = 10.7 Volts
 #define V_MAX_LOAD_OFF 		0x95c	// 2396 counts = 15.5 Volts
 #define MAX_START_VOLT 		0x7da	// 2010 counts = 13.0 Volts
-#define BAT_DROP_DEAD_VOLT	0x4d5	// 1237 counts = 8 Volts: the minimum battery voltage below which, we will not charge and warn the user.
+#define BAT_DROP_DEAD_VOLT	0x56f	// 1391 counts = 9 Volts: the minimum battery voltage below which, we will not charge and warn the user.
 
 // this is the range of voltages that we want across the solar array and are a function of duty cycle and battery voltage
 #define MAX_PV_VOLT			0xc14	// 3092 counts corresponding to 20.0 Volts
@@ -72,11 +72,8 @@ static double vBat, iBat, vSolar, iSolar, loadVoltage, ambientTemp, mosfetTemp, 
 
 char *rx;
 uint8_t myChar;
-uint8_t inBuff[16];
-uint8_t rxBuff[16];
-
-uint8_t rxByteCount;
-uint8_t inByteCount;
+char inBuffer[16];
+uint8_t charCount;
 uint32_t usCounter;
 
 

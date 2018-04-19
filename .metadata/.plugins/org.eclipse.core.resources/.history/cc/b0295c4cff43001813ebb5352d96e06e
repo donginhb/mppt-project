@@ -741,25 +741,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 			if (enablePowerCycle == 1)
 			{
+
 				timerCount++;
 
 				if (timerCount >= powerCycleTimeout)
 				{
-					enablePowerCycle = 0;
-					offTimeCount++;
-					switchLoad(OFF);
-				}
-			}
 
-			if (offTimeCount > 0)
-			{
-				offTimeCount++;
-
-				if (offTimeCount >= powerCycleOffTime)
-				{
-					offTimeCount = 0;
-					switchLoad(ON);
 				}
+
 			}
 		}
 

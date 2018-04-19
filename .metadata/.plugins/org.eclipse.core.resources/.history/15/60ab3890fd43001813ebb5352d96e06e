@@ -104,12 +104,6 @@ uint32_t tempAmbient;
 uint32_t tempMOSFETS;
 uint32_t iLoad;
 uint16_t flashData;
-
-uint16_t powerCycleTimeout, timerCount;
-uint8_t  powerCycleOffTime, offTimeCount;
-uint8_t  enablePowerCycle;
-
-
 //uint16_t start_volt;
 
 uint8_t lowChargeCurrentFlag;
@@ -193,7 +187,6 @@ void calcMPPT_CV(void);
 
 extern void crc16_init(void);
 extern uint16_t crc16(uint8_t[], uint8_t);
-void handleData(void);
 
 
 /** System Clock Configuration
@@ -738,29 +731,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 				toggleChargeLED();
 			else
 				switchChargeLED(ON);
-
-			if (enablePowerCycle == 1)
-			{
-				timerCount++;
-
-				if (timerCount >= powerCycleTimeout)
-				{
-					enablePowerCycle = 0;
-					offTimeCount++;
-					switchLoad(OFF);
-				}
-			}
-
-			if (offTimeCount > 0)
-			{
-				offTimeCount++;
-
-				if (offTimeCount >= powerCycleOffTime)
-				{
-					offTimeCount = 0;
-					switchLoad(ON);
-				}
-			}
 		}
 
 		tim9Count++;
@@ -1344,31 +1314,6 @@ void sendMessage(void)
 	HAL_UART_Transmit(&huart1, escBuffer, j, 0xffff);
 }
 
-void handleData()
-{
-
-	uint8_t commandByte;
-
-	commandByte = inBuff[1];
-
-	//to be altered as we add more commands
-	if (commandByte != 0x00) {
-		return;
-	}
-
-	powerCycleTimeout = (inBuff[2] << 8) | inBuff[3];
-	powerCycleOffTime = inBuff[4];
-
-	if ((powerCycleTimeout >= 1) && (powerCycleTimeout < 0xffff)) {
-		enablePowerCycle = 1;
-		timerCount = 0;
-		offTimeCount = 0;
-	}
-
-	else {
-		enablePowerCycle = 0;
-	}
-}
 
 int main(void)
 {

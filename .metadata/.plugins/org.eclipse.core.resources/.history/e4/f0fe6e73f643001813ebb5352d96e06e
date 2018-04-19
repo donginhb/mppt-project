@@ -42,12 +42,7 @@ extern ADC_HandleTypeDef hadc1;
 extern TIM_HandleTypeDef htim9;
 extern TIM_HandleTypeDef htim11;
 
-uint8_t calculateCRC(void);
-void advancePointer(void);
-extern uint16_t crc16(uint8_t[], uint8_t);
-extern void handleData(void);
-
-//static void getADCreadings(uint8_t);
+static void getADCreadings(uint8_t);
 
 /* USER CODE BEGIN 0 */
 
@@ -210,20 +205,22 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void) {
 
 void USART1_IRQHandler(void) {
 
-	HAL_UART_Receive(&huart1, &rxBuff[rxByteCount], 1, 0);
-	advancePointer();
+	HAL_UART_Receive(&huart1, &myChar, 1, 0);
+//	rx++;
+//	charCount++;
 
-	if (rxByteCount >= 6) {
-//		calculateCRC();
-		rxByteCount = 0;
-		inByteCount = 0;
+//	if (charCount >= 15) {
+//		charCount = 0;
+//		rx = inBuffer;
+//	}
+	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_15);
 
-		if (calculateCRC() == 1)
-			handleData();
-	}
-
+//	HAL_UART_Receive_IT(&huart2, (uint8_t *)rxBuffer, 3);
 	__HAL_UART_FLUSH_DRREGISTER(&huart1);
 	HAL_NVIC_ClearPendingIRQ(USART1_IRQn);
+//	sprintf(txBuffer, "Received: %c\r\n", rxBuffer[0]);
+//	sprintf(txBuffer, "Received: %s\r\n", rxBuffer);
+
 }
 
 void ADC_IRQHandler(void)
@@ -251,62 +248,4 @@ void DMA2_Stream0_IRQHandler(void)
 /* USER CODE BEGIN 1 */
 
 /* USER CODE END 1 */
-
-void advancePointer(void)
-{
-	if (rxByteCount == 0) {
-
-		if (rxBuff[rxByteCount] == 0x9a) {	// Start of frame
-			inBuff[rxByteCount] = rxBuff[rxByteCount];
-			rxByteCount++;
-			inByteCount++;
-		} else {
-			rxByteCount = 0;
-			inByteCount = 0;
-			memset((void *)rxBuff, 0, 20);
-			memset((void *)inBuff, 0, 20);
-		}
-	} else {
-		if (rxBuff[rxByteCount] == 0x9b) {	//Escape char received
-			rxByteCount++;
-		} else if ((rxBuff[rxByteCount] == 0x01) && (rxBuff[rxByteCount - 1] == 0x9b)) {	// Decode 0x9b, 0x01 to 0x9a
-			inBuff[inByteCount] = 0x9a;
-			rxByteCount++;
-			inByteCount++;
-		} else if ((rxBuff[rxByteCount] == 0x02) && (rxBuff[rxByteCount - 1] == 0x9b)) {	// Decode 0x9b, 0x02 to 0x9b
-			inBuff[inByteCount] = 0x9b;
-			rxByteCount++;
-			inByteCount++;
-		} else {
-			inBuff[inByteCount] = rxBuff[rxByteCount];
-			rxByteCount++;
-			inByteCount++;
-		}
-	}
-}
-
-uint8_t calculateCRC(void)
-{
-	uint8_t status;
-	uint8_t i;
-	uint8_t crcBuff[16];
-	uint16_t crc, rxCRC;
-
-	rxCRC = (inBuff[inByteCount - 1] << 8) | inBuff[inByteCount - 2];
-
-	for (i = 0; i < (inByteCount-3); i++)
-			crcBuff[i] = inBuff[i];
-
-
-	crc = crc16(crcBuff, i);
-
-	if (crc == rxCRC)
-		return 1;
-	else
-		return 0;
-
-}
-
-
-
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

@@ -72,11 +72,8 @@ static double vBat, iBat, vSolar, iSolar, loadVoltage, ambientTemp, mosfetTemp, 
 
 char *rx;
 uint8_t myChar;
-uint8_t inBuff[16];
-uint8_t rxBuff[16];
-
-uint8_t rxByteCount;
-uint8_t inByteCount;
+char inBuffer[16];
+uint8_t charCount;
 uint32_t usCounter;
 
 
