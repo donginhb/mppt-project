@@ -1,7 +1,7 @@
-14:47:59 **** Clean-only build of configuration Debug for project mppt-ems ****
+15:53:00 **** Clean-only build of configuration Debug for project mppt-ems ****
 make clean 
 rm -rf *
  
 
-14:47:59 Build Finished (took 256ms)
+15:53:01 Build Finished (took 478ms)
 

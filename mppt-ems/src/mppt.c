@@ -32,6 +32,14 @@
 #define HIBATTV 	1
 #define LOBATTV		2
 
+#define ADSORPTION_TIME_SEALED	9000 	// 9000 seconds = 150 minutes
+#define ADSORPTION_TIME_FLOODED	10800 	// 10800 seconds = 180 minutes180
+
+#define ADSORPTIONV_SEALED		0x874 	// 2164 counts = 14.0v
+#define ADSORPTIONV_FLOODED		0x8b2 	// 2226 counts = 14.4v
+
+#define FLOATV_SEALED_FLOODED	0x827 	// 2087 counts = 13.5v
+
 
 // WARNING! DANGER! WARNING! DANGER!
 // About MIN_DUTY_CYCLE and MAX_DUTY_CYCLE
@@ -50,7 +58,7 @@
 // shut the converter down in the isCharging loop below.
 
 #define MIN_DUTY_CYCLE		192		//75% of the TIM1 period
-#define MAX_DUTY_CYCLE  	230 	//90% of the TIM1 period
+#define MAX_DUTY_CYCLE  	218 	//85% of the TIM1 period
 #define PCT80_DUTY_CYCLE 	205
 //#define MAX_DUTY_CYCLE  230 	//90% of the TIM1 period
 
@@ -104,10 +112,14 @@ uint32_t tempAmbient;
 uint32_t tempMOSFETS;
 uint32_t iLoad;
 uint16_t flashData;
+uint16_t adsorptionTime;
 
 uint16_t powerCycleTimeout, timerCount;
 uint8_t  powerCycleOffTime, offTimeCount;
 uint8_t  enablePowerCycle;
+
+uint8_t adsorptionVflag;
+uint8_t floatVflag;
 
 
 //uint16_t start_volt;
@@ -178,7 +190,8 @@ void lcdBatteryInfo(void);
 void lcdSolarInfo(void);
 
 static void getADCreadings(uint8_t);
-static uint16_t FloatVoltage(uint16_t);
+//static uint16_t FloatVoltage(uint16_t);
+static uint16_t AdsorptionVoltage(uint16_t);
 
 static void updateLCD(uint8_t warning);
 
@@ -260,7 +273,7 @@ static void MX_ADC1_Init(void)
     /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
     */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2; // was _DIV4
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.ScanConvMode = ENABLE;
   hadc1.Init.ContinuousConvMode = DISABLE; //DISABLE;
@@ -684,8 +697,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance==TIM9)
 	{
 		// Read the ADC and execute the MPPT algorithm in the isCharging loop every 250 mS
-//		if (adcCount == 250)
-		if (adcCount == 100)
+		if (adcCount == 250)
+//		if (adcCount == 100)
 		{
 			adcCount = 0;
 			getADC = 1;
@@ -738,6 +751,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 				toggleChargeLED();
 			else
 				switchChargeLED(ON);
+
+			if (adsorptionVflag == 1)
+			{
+				adsorptionTime++;
+
+				if (adsorptionTime >= ADSORPTION_TIME_FLOODED)
+					adsorptionVflag = 0;
+			}
+
 
 			if (enablePowerCycle == 1)
 			{
@@ -938,8 +960,8 @@ static void getADCreadings (uint8_t howMany)
 
 	sendMessageCount++;
 
-	if (sendMessageCount >= 10)
-	{
+//	if (sendMessageCount >= 4)
+//	{
 		sendMessageCount = 0;
 		// This data is sent to the controller
 	//	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %x, %x, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, flashData, flashData2, flashData3);
@@ -947,7 +969,7 @@ static void getADCreadings (uint8_t howMany)
 		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 	//	sendMessage();
 
-	}
+//	}
 }
 
 
@@ -957,6 +979,7 @@ static void getADCreadings (uint8_t howMany)
  (-35 mV/degree centigrade) at 40 gegrees centigrade
  falls linearly at -10 mV/degree centigrade above that
  */
+/*
 static uint16_t FloatVoltage(uint16_t ambTemp)
 {
 	if (ambTemp < TEMP_0)
@@ -964,6 +987,19 @@ static uint16_t FloatVoltage(uint16_t ambTemp)
 
 	else if (ambTemp < TEMP_40)
 		return (TV_0 - ((ambTemp - TEMP_0) * RATE1) / 100);
+
+	else
+		return (TV_40 - ((ambTemp - TEMP_40) * RATE2) / 100);
+}
+*/
+
+static uint16_t AdsorptionVoltage(uint16_t ambTemp)
+{
+	if (ambTemp < TEMP_NEG30)
+		return (TV_NEG30);
+
+	else if (ambTemp < TEMP_40)
+		return (TV_NEG30 - ((ambTemp - TEMP_NEG30) * RATE1) / 100);
 
 	else
 		return (TV_40 - ((ambTemp - TEMP_40) * RATE2) / 100);
@@ -1373,7 +1409,7 @@ void handleData()
 int main(void)
 {
 
-	uint16_t start_volt;
+//	uint16_t start_volt;
 
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
 	HAL_Init();
@@ -1410,7 +1446,7 @@ int main(void)
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 
 	changePWM_TIM5(15000, ON);
-	changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+	changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
 
 	getADCreadings(32);
 	lcdBatteryInfo();
@@ -1450,13 +1486,37 @@ int main(void)
 				canPulse = 0;
 			}
 
-			start_volt = min( (FloatVoltage(tempAmbient) - HALF_VOLT), MAX_START_VOLT);
+//			start_volt = min( (FloatVoltage(tempAmbient) - HALF_VOLT), MAX_START_VOLT);
 
 			// Batteries need charging?
-			if (vBattery < start_volt)
+//			if (vBattery < start_volt)
+			if (vBattery < FLOATV_SEALED_FLOODED)
+			{
+				canCharge = 1;
+				floatVflag = 0;
+				adsorptionVflag = 0;
+			}
+
+			else if ( ((adsorptionVflag == 1) && (floatVflag == 1)) )
 			{
 				canCharge = 1;
 			}
+
+			else if ( (adsorptionVflag == 0) && (floatVflag == 1) )
+			{
+
+				if (vBattery >= (FLOATV_SEALED_FLOODED + HALF_VOLT) )
+				{
+					canCharge = 0;
+				}
+
+				else if ( (vBattery <= (FLOATV_SEALED_FLOODED + HALF_VOLT) ) && (vBattery >= FLOATV_SEALED_FLOODED))
+				{
+					canCharge = 1;
+				}
+
+			}
+
 			else
 			{
 				canCharge = 0;
@@ -1485,8 +1545,16 @@ int main(void)
 					updateLCD(warning);
 				}
 
+				if (vBattery < FLOATV_SEALED_FLOODED)
+				{
+					floatVflag = 0;
+					adsorptionVflag = 0;
+				}
+
 				// Get out of this loop if we can't charge or no longer need to charge
-				if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBattery >= FloatVoltage(tempAmbient) ) )
+//				if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBattery >= FloatVoltage(tempAmbient) ) )
+//				if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBattery >= AdsorptionVoltage(tempAmbient) ) )
+				if ( (vSolarArray <= (vBattery + TWO_VOLT) ) )
 				{
 					canCharge = 0;
 					isCharging = 0;
@@ -1534,10 +1602,10 @@ int main(void)
 	  						getADC = 0;
 	  		  				getADCreadings(32);
 
-	  		  				if (vBattery < (FloatVoltage(tempAmbient) - HALF_VOLT) )
-	  		  					calcMPPT_CC();
-	  		  				else
-	  		  					calcMPPT_CV();
+//	  		  				if (vBattery < (AdsorptionVoltage(tempAmbient) - ONE_VOLT) )
+	  		  				calcMPPT_CC();
+//	  		  				else
+//	  		  					calcMPPT_CV();
 	  		  			}
 
 	  		  			if (lcdUpdateFlag == 1)
@@ -1551,19 +1619,55 @@ int main(void)
 	  		  			{
 	  		  				switchSolarArray(OFF);
 	  		  				isCharging = 0;
-//	  		  				lowChargeCurrentFlag = 1;
 	  		  			}
 
-	  		  			// Protection against over charging or vSolarArray getting too high
-	  		  			// Exit both loops, stop the bridge and wait for Vbattery to drop below start_volt
-	  		  			if (vBattery >= FloatVoltage(tempAmbient) || (warning == HIBATTV) || (vSolarArray >= MAX_PV_VOLT) || (vSolarArray < (vBattery + TWO_VOLT) ) )
+//	  		  			if (vBattery >= FloatVoltage(tempAmbient) || (warning == HIBATTV) || (vSolarArray >= MAX_PV_VOLT) || (vSolarArray < (vBattery + TWO_VOLT) ) )
+//		  		  		if (vBattery >= AdsorptionVoltage(tempAmbient) || (warning == HIBATTV) || (vSolarArray >= MAX_PV_VOLT) || (vSolarArray < (vBattery + TWO_VOLT) ) )
+	  		  			if ( (warning == HIBATTV) || (vSolarArray >= MAX_PV_VOLT) || (vSolarArray < (vBattery + TWO_VOLT) ) )
 	  		  			{
+	  		  				switchDiagLED(ON);
 	  		  				switchSolarArray(OFF);
 	  		  				isCharging = 0;
 	  		  				canCharge = 0;
 	  		  				switchCharger(OFF);
 	  		  				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 	  		  			}
+
+		  		  		if ( (adsorptionVflag == 0) && (vBattery >= AdsorptionVoltage(tempAmbient) ) )
+		  		  		{
+		  		  			adsorptionVflag = 1;
+		  		  			floatVflag = 1;
+		  		  			adsorptionTime = 0;
+		  		  		}
+
+		  		  		if ( (adsorptionVflag == 1) && (floatVflag == 1) )
+		  		  		{
+		  		  			if (vBattery >= AdsorptionVoltage(tempAmbient) )
+		  		  			{
+		  		  				switchDiagLED(ON);
+		  		  				switchSolarArray(OFF);
+		  		  				isCharging = 0;
+		  		  				canCharge = 0;
+		  		  				switchCharger(OFF);
+		  		  				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+		  		  			}
+		  		  		}
+		  		  		else if ( (adsorptionVflag == 0) && (floatVflag == 1) )
+		  		  		{
+		  		  			if (vBattery >= FLOATV_SEALED_FLOODED )
+		  		  			{
+		  		  				switchDiagLED(ON);
+		  		  				switchSolarArray(OFF);
+		  		  				isCharging = 0;
+		  		  				canCharge = 0;
+		  		  				switchCharger(OFF);
+		  		  				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+		  		  			}
+		  		  		}
+		  		  		else
+		  		  		{
+
+		  		  		}
 	  				} // end while (isCharging)
 				} //end else
 			} //end while (canCharge)

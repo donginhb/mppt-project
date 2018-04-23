@@ -214,7 +214,7 @@ void USART1_IRQHandler(void) {
 	advancePointer();
 
 	if (rxByteCount >= 6) {
-//		calculateCRC();
+		calculateCRC();
 		rxByteCount = 0;
 		inByteCount = 0;
 

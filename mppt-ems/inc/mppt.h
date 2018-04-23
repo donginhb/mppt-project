@@ -49,13 +49,19 @@
 // Threshold voltage calculations
 #define TV_0        		0x8e8	// 2280 thresh. volt count at  0C (14.75V)
 #define TV_40      			0x810	// 2064 thresh. volt count at 40C (13.35V)
+#define TV_NEG30			0x9c1	// 2497 counts = 16.15v
+#define TV_80				0x7b3	// 1971 counts = 12.85v
+
+
 
 //the two rates given below are in counts, and are 10 times larger than actual.
-#define RATE1       		54		// TV rate between 0C and 40C (-35 mV/degree)
+//#define RATE1       		54		// TV rate between 0C and 40C (-35 mV/degree)
+#define RATE1				46		// TV rate between -30C and 40C (-30 mV/degree)
 #define RATE2       		15		// TV rate above 40C (-10 mV/degree)
 
 #define TEMP_0      		0xd3d	// 3389 count corrensponding to 0 C
 #define TEMP_40	    		0xf2d	// 3885 count corrensponding to 40 C
+#define TEMP_NEG30			0xbc9	// 3017 counts = -30 C
 
 /* This is the MOSFET temperatures at which the fan is switched on or off. Change as necessary */
 #define FAN_ON_TEMP			0xfa9 	// 4009 counts for 50 C / 122 deg F
