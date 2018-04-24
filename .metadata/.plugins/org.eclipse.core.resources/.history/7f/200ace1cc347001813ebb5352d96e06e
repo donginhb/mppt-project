@@ -25,7 +25,6 @@
 
 // voltage related constants
 // The ones that are commented out are not used in rev 4.3
-#define TENTH_VOLT			0x0f
 #define HALF_VOLT      		0x4d	// 77 counts = 0.5 V
 #define ONE_VOLT			0x9b	// 155 counts
 #define TWO_VOLT       		0x135	// 309 counts = 2.0 Volts
@@ -40,8 +39,7 @@
 #define BAT_DROP_DEAD_VOLT	0x4d5	// 1237 counts = 8 Volts: the minimum battery voltage below which, we will not charge and warn the user.
 
 // this is the range of voltages that we want across the solar array and are a function of duty cycle and battery voltage
-//#define MAX_PV_VOLT			0xc14	// 3092 counts corresponding to 20.0 Volts
-#define MAX_PV_VOLT			0xcae	// 3246 counts corresponding to 21.0 Volts
+#define MAX_PV_VOLT			0xc14	// 3092 counts corresponding to 20.0 Volts
 #define MIN_PV_VOLT			0x90f	// 2319 counts corresponding to 15.0 Volts
 
 //#define THRESHOLD_CURRENT	0x1F	// 31 counts corresponding t0 250 mA
@@ -52,7 +50,7 @@
 #define TV_0        		0x8e8	// 2280 thresh. volt count at  0C (14.75V)
 #define TV_40      			0x810	// 2064 thresh. volt count at 40C (13.35V)
 #define TV_NEG30			0x9c1	// 2497 counts = 16.15v
-//#define TV_80				0x7b3	// 1971 counts = 12.85v
+#define TV_80				0x7b3	// 1971 counts = 12.85v
 
 
 

@@ -25,7 +25,6 @@
 
 // voltage related constants
 // The ones that are commented out are not used in rev 4.3
-#define TENTH_VOLT			0x0f
 #define HALF_VOLT      		0x4d	// 77 counts = 0.5 V
 #define ONE_VOLT			0x9b	// 155 counts
 #define TWO_VOLT       		0x135	// 309 counts = 2.0 Volts

@@ -33,8 +33,7 @@
 #define LOBATTV		2
 
 #define ADSORPTION_TIME_SEALED	9000 	// 9000 seconds = 150 minutes
-//#define ADSORPTION_TIME_FLOODED	10800 	// 10800 seconds = 180 minutes
-#define ADSORPTION_TIME_FLOODED	60
+#define ADSORPTION_TIME_FLOODED	10800 	// 10800 seconds = 180 minutes180
 
 #define ADSORPTIONV_SEALED		0x874 	// 2164 counts = 14.0v
 #define ADSORPTIONV_FLOODED		0x8b2 	// 2226 counts = 14.4v
@@ -74,7 +73,7 @@
 #include "HD44780.h"
 #include "mppt.h"
 #include <stdlib.h>
-#include <stdbool.h>
+
 #include <string.h>
 
 
@@ -119,9 +118,9 @@ uint16_t powerCycleTimeout, timerCount;
 uint8_t  powerCycleOffTime, offTimeCount;
 uint8_t  enablePowerCycle;
 
-static bool adsorptionFlag;
-static bool canCharge;
-static bool isCharging;
+uint8_t adsorptionVflag;
+uint8_t floatVflag;
+
 
 //uint16_t start_volt;
 
@@ -135,8 +134,8 @@ uint16_t tim9Count, adcCount;
 uint8_t lcdUpdate = 0;
 uint8_t lcdUpdateFlag = 0;
 uint8_t warning = 0;
-//uint8_t canCharge;
-//uint8_t isCharging;
+uint8_t canCharge;
+uint8_t isCharging;
 uint16_t canPulse;
 uint8_t pulseInterval = 120;		// 120 second (2 minute) intervals between pulsing the battery bank
 static uint16_t duty;
@@ -219,14 +218,19 @@ void SystemClock_Config(void)
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
 
   __HAL_RCC_PWR_CLK_ENABLE();
+  //__HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSI);
+  //__HAL_RCC_SYSCLK_CONFIG(RCC_SYSCLKSOURCE_PLLCLK);
+
 
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
 
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+ // RCC_OscInitStruct.HSIState = RCC_HSI_OFF;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+//  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSICalibrationValue = 16;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON; //RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = 8;
   RCC_OscInitStruct.PLL.PLLN = 100;
@@ -240,7 +244,7 @@ void SystemClock_Config(void)
   }
 
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK|RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;    //RCC_SYSCLKSOURCE_HSI;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
@@ -249,6 +253,8 @@ void SystemClock_Config(void)
    {
      Error_Handler();
    }
+
+//  __HAL_RCC_PLL_ENABLE();
 
   HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
 
@@ -746,12 +752,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			else
 				switchChargeLED(ON);
 
-			if (adsorptionFlag)
+			if (adsorptionVflag == 1)
 			{
 				adsorptionTime++;
 
 				if (adsorptionTime >= ADSORPTION_TIME_FLOODED)
-					adsorptionFlag = false;
+					adsorptionVflag = 0;
 			}
 
 
@@ -954,16 +960,16 @@ static void getADCreadings (uint8_t howMany)
 
 	sendMessageCount++;
 
-	if (sendMessageCount >= 5)
-	{
+//	if (sendMessageCount >= 4)
+//	{
 		sendMessageCount = 0;
 		// This data is sent to the controller
 	//	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %x, %x, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, flashData, flashData2, flashData3);
-		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, AdsorptionVoltage(tempAmbient), adsorptionFlag);
+		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, AdsorptionVoltage(tempAmbient), adsorptionVflag, floatVflag);
 		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 	//	sendMessage();
 
-	}
+//	}
 }
 
 
@@ -1425,8 +1431,8 @@ int main(void)
 	HD44780_Init();
 
 	lcdUpdate = 0;
-	canCharge = false;
-	isCharging = false;
+	canCharge = 0;
+	isCharging = 0;
 
 	// switchFan(OFF);
 	switchCharger(OFF);
@@ -1484,29 +1490,38 @@ int main(void)
 
 			// Batteries need charging?
 //			if (vBattery < start_volt)
-			if (vBattery < (FLOATV_SEALED_FLOODED - TENTH_VOLT) )
+			if (vBattery < (FLOATV_SEALED_FLOODED - HALF_VOLT) ) // HALF_VOLT
 			{
-				canCharge = true;
-				adsorptionFlag = false;
+				canCharge = 1;
+				floatVflag = 0;
+				adsorptionVflag = 0;
 			}
 
-			else if (adsorptionFlag)
+			else if ( (adsorptionVflag == 1) && (floatVflag == 1) )
 			{
-				if (vBattery <= AdsorptionVoltage(tempAmbient) - TENTH_VOLT)
-				{
-					canCharge = true;
-				}
+
+				if (vBattery <= AdsorptionVoltage(tempAmbient) - HALF_VOLT)
+					canCharge = 1;
 				else
+					canCharge = 0;
+			}
+
+			else if ( (adsorptionVflag == 0) && (floatVflag == 1) )
+			{
+				if (vBattery >= (FLOATV_SEALED_FLOODED + HALF_VOLT) )
 				{
-					canCharge = false;
-				 	switchCharger(OFF);
-				 	changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+					canCharge = 0;
+				}
+
+				else if ( (vBattery <= (FLOATV_SEALED_FLOODED + HALF_VOLT) ) && (vBattery >= (FLOATV_SEALED_FLOODED - HALF_VOLT) ) )
+				{
+					canCharge = 1;
 				}
 			}
 
 			else
 			{
-				canCharge = false;
+				canCharge = 0;
 			 	switchCharger(OFF);
 			 	changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 			}
@@ -1532,17 +1547,19 @@ int main(void)
 					updateLCD(warning);
 				}
 
-				// May not need this here...
 				if (vBattery < FLOATV_SEALED_FLOODED)
 				{
-					adsorptionFlag = false;
+					floatVflag = 0;
+					adsorptionVflag = 0;
 				}
 
 				// Get out of this loop if we can't charge or no longer need to charge
-				if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBattery >= AdsorptionVoltage(tempAmbient) ) )
+//				if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBattery >= FloatVoltage(tempAmbient) ) )
+//				if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBattery >= AdsorptionVoltage(tempAmbient) ) )
+				if ( (vSolarArray <= (vBattery + TWO_VOLT) ) )
 				{
-					canCharge = false;
-					isCharging = false;
+					canCharge = 0;
+					isCharging = 0;
 				 	switchCharger(OFF);
 					changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 				}
@@ -1563,7 +1580,7 @@ int main(void)
 						{
 							switchSolarArray(ON);
 							HAL_Delay(10);
-							isCharging = true;
+							isCharging = 1;
 							currentPower = vSolar * iSolar;
 							last_vSolarArray = vSolarArray;
 							duty = PCT80_DUTY_CYCLE;
@@ -1571,7 +1588,7 @@ int main(void)
 						}
 						else
 						{
-							isCharging = false;
+							isCharging = 0;
 							switchSolarArray(OFF);
 							switchCharger(OFF);
 							changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
@@ -1603,7 +1620,7 @@ int main(void)
 	  		  			if (iSolarArray < THRESHOLD_CURRENT)
 	  		  			{
 	  		  				switchSolarArray(OFF);
-	  		  				isCharging = false;
+	  		  				isCharging = 0;
 	  		  			}
 
 	  		  			if (vSolarArray >= MAX_PV_VOLT)
@@ -1617,41 +1634,46 @@ int main(void)
 	  		  			{
 	  		  				switchDiagLED(ON);
 	  		  				switchSolarArray(OFF);
-	  		  				isCharging = false;
-	  		  				canCharge = false;
+	  		  				isCharging = 0;
+	  		  				canCharge = 0;
 	  		  				switchCharger(OFF);
 	  		  				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 	  		  			}
 
-		  		  		if ( (!adsorptionFlag) && (vBattery >= AdsorptionVoltage(tempAmbient) ) )
+		  		  		if ( (adsorptionVflag == 0) && (vBattery >= AdsorptionVoltage(tempAmbient) ) )
 		  		  		{
-		  		  			adsorptionFlag = true;
+		  		  			adsorptionVflag = 1;
+		  		  			floatVflag = 1;
 		  		  			adsorptionTime = 0;
 		  		  		}
 
-		  		  		if (adsorptionFlag)
+		  		  		if ( (adsorptionVflag == 1) && (floatVflag == 1) )
 		  		  		{
-		  		  			if (vBattery >= (AdsorptionVoltage(tempAmbient) + TENTH_VOLT) )
+		  		  			if (vBattery >= AdsorptionVoltage(tempAmbient) )
 		  		  			{
 		  		  				switchDiagLED(ON);
 		  		  				switchSolarArray(OFF);
-		  		  				isCharging = false;
-		  		  				canCharge = false;
+		  		  				isCharging = 0;
+		  		  				canCharge = 0;
+		  		  				switchCharger(OFF);
+		  		  				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+		  		  			}
+		  		  		}
+		  		  		else if ( (adsorptionVflag == 0) && (floatVflag == 1) )
+		  		  		{
+		  		  			if (vBattery >= FLOATV_SEALED_FLOODED )
+		  		  			{
+		  		  				switchDiagLED(ON);
+		  		  				switchSolarArray(OFF);
+		  		  				isCharging = 0;
+		  		  				canCharge = 0;
 		  		  				switchCharger(OFF);
 		  		  				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 		  		  			}
 		  		  		}
 		  		  		else
 		  		  		{
-		  		  			if (vBattery >= (FLOATV_SEALED_FLOODED + TENTH_VOLT) )
-		  		  			{
-		  		  				switchDiagLED(ON);
-		  		  				switchSolarArray(OFF);
-		  		  				isCharging = false;
-		  		  				canCharge = false;
-		  		  				switchCharger(OFF);
-		  		  				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-		  		  			}
+
 		  		  		}
 	  				} // end while (isCharging)
 				} //end else
@@ -1663,8 +1685,8 @@ int main(void)
 		{
 		 	switchCharger(OFF);
 			changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-			canCharge = false;
-			isCharging = false;
+			canCharge = 0;
+			isCharging = 0;
 
 			if (canPulse == pulseInterval)
 			{
@@ -1678,8 +1700,8 @@ int main(void)
 		{
 		 	switchCharger(OFF);
 			changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-			canCharge = false;
-			isCharging = false;
+			canCharge = 0;
+			isCharging = 0;
 			canPulse = 0;
 		}
 	} //end while
