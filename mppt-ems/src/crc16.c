@@ -1,8 +1,7 @@
 /** crc16.c
  * CRC16 table generator and calculator
- * Should be useable across multiple platforms
  *
- * Uses the CCIT (XModem) Polynomial: x^16 + x^12 + x^5 + 1
+ * Uses the CCIT XModem Polynomial: x^16 + x^12 + x^5 + 1
  *
  * (c) 2018 Solar Technology Inc.
  * 7620 Cetronia Road

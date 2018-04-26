@@ -50,7 +50,7 @@
 // Vout is battery voltage and...
 // Vin is the voltage across the solar array
 // In other words, the switching converter boosts battery voltage to a higher value at the solar array connector
-// according to DC and teh battery voltage. Given the IV characteristics of a solar panel typically used with this converter, the Maximum Power
+// according to DC. Given the IV characteristics of a solar panel typically used with this converter, the Maximum Power
 // Point is usually realized when the Solar Array voltage is held at around 17 volts, above which, the PV power tends to rolls of very sharply.
 // With a battery charged to 15 volts and a DC at 65%, we will get 23 volts across the Solar Array connector which
 // is approaching the absolute maximum voltage ratings of the MOV, TVS diode and current sense amplifier on the solar
@@ -122,10 +122,9 @@ uint8_t  enablePowerCycle;
 static bool adsorptionFlag;
 static bool canCharge;
 static bool isCharging;
+static bool lowChargeCurrentFlag;
 
-//uint16_t start_volt;
-
-uint8_t lowChargeCurrentFlag;
+//uint8_t lowChargeCurrentFlag;
 uint8_t lowChargeCurrentTimeout;
 uint8_t sendMessageCount = 0;
 
@@ -197,6 +196,7 @@ static uint16_t AdsorptionVoltage(uint16_t);
 static void updateLCD(uint8_t warning);
 
 void sendMessage(void);
+void sendOldMessage(void);	// compatible with past versions of Trafix
 
 static void pulse(void);
 void delay_us(uint32_t);
@@ -724,20 +724,21 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			}
 
 			// This flag get set in the canCharge loop
-			if (lowChargeCurrentFlag == 1)
+//			if (lowChargeCurrentFlag == 1)
+			if (lowChargeCurrentFlag)
 			{
 				lowChargeCurrentTimeout++;
 
 				if (lowChargeCurrentTimeout == LOW_CHARGE_CURRENT_TIMEOUT)
 				{
 					lowChargeCurrentTimeout = 0;
-					lowChargeCurrentFlag = 0;
+//					lowChargeCurrentFlag = 0;
+					lowChargeCurrentFlag = false;
 				}
 			}
 			else
 			{
 				lowChargeCurrentTimeout = 0;
-//				lowChargeCurrentFlag = 0;
 			}
 
 			// Flash the charge LED to indicate charging is active
@@ -962,30 +963,10 @@ static void getADCreadings (uint8_t howMany)
 		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, AdsorptionVoltage(tempAmbient), adsorptionFlag);
 		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 	//	sendMessage();
+	//  sendOldMessage();
 
 	}
 }
-
-
-/** returns appropriate float voltage calculated as:
- 14.75 volts if temp < 0 degrees centigrade
- falls linearly to 13.35 volts
- (-35 mV/degree centigrade) at 40 gegrees centigrade
- falls linearly at -10 mV/degree centigrade above that
- */
-/*
-static uint16_t FloatVoltage(uint16_t ambTemp)
-{
-	if (ambTemp < TEMP_0)
-		return (TV_0);
-
-	else if (ambTemp < TEMP_40)
-		return (TV_0 - ((ambTemp - TEMP_0) * RATE1) / 100);
-
-	else
-		return (TV_40 - ((ambTemp - TEMP_40) * RATE2) / 100);
-}
-*/
 
 static uint16_t AdsorptionVoltage(uint16_t ambTemp)
 {
@@ -1082,12 +1063,13 @@ void calcMPPT_CC(void)
 	changePWM_TIM1(duty, UPDATE);
 }
 
+
 void calcMPPT_CV(void)
 {
 
 	uint16_t maxPeriod = 256;
-	uint8_t solarVoltage = 16;
-//	uint16_t solarVoltage = 0xa44; //2628 counts = 17v
+//	uint8_t solarVoltage = 16;
+	uint16_t solarVoltage = 0xa44; //2628 counts = 17v
 //	uint16_t solarVoltage = 0x9a9; //2473 counts = 16v
 
 	duty = maxPeriod * (vBat / (double)solarVoltage);
@@ -1374,6 +1356,92 @@ void sendMessage(void)
 	HAL_UART_Transmit(&huart1, escBuffer, j, 0xffff);
 }
 
+void sendOldMessage(void)
+{
+
+	uint16_t crc = 0xffff;
+	uint8_t msgLength = 0;
+	uint8_t i, j;
+	uint16_t data;
+
+	memset((void *)sendBuffer, 0, sizeof(sendBuffer));
+	memset((void *)escBuffer, 0, sizeof(escBuffer));
+
+	sendBuffer[0] = 0x9a;
+	msgLength++;
+
+	strncpy((char *)&sendBuffer[1], ver, 3);
+	msgLength += 3;
+
+	sendBuffer[msgLength] = 0x9e;
+	msgLength++;
+
+	data = vBat * 1000;
+	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
+	msgLength++;
+	sendBuffer[msgLength] = (uint8_t) (data>>8);
+	msgLength++;
+
+	data = iBat * 1000;
+	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
+	msgLength++;
+	sendBuffer[msgLength] = (uint8_t) (data>>8);
+	msgLength++;
+
+	data = vSolar * 1000;
+	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
+	msgLength++;
+	sendBuffer[msgLength] = (uint8_t) (data>>8);
+	msgLength++;
+
+	data = iSolar * 1000;
+	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
+	msgLength++;
+	sendBuffer[msgLength] = (uint8_t) (data>>8);
+	msgLength++;
+
+	crc = crc16(sendBuffer, msgLength);
+	sendBuffer[msgLength] = (uint8_t)crc & 0x00ff;
+	msgLength++;
+	sendBuffer[msgLength] = (uint8_t) (crc>>8);
+	msgLength++;
+
+	for (i = 0, j = 0; i < msgLength; i++, j++)
+	{
+
+		switch (sendBuffer[i])
+		{
+
+			case 0x9a:
+
+				if (i != 0)
+				{
+					escBuffer[j++] = 0x9b;
+					escBuffer[j] = 0x01;
+				}
+
+				else
+					escBuffer[j] = sendBuffer[i];
+
+				break;
+
+			case 0x9b:
+
+				escBuffer[j++] = 0x9b;
+				escBuffer[j] = 0x02;
+
+				break;
+
+			default:
+				escBuffer[j] = sendBuffer[i];
+				break;
+		}
+	}
+
+	HAL_UART_Transmit(&huart1, escBuffer, j, 0xffff);
+}
+
+
 void handleData()
 {
 
@@ -1450,7 +1518,8 @@ int main(void)
 // flashData2 = *(__IO uint16_t *)0x08010002;
 // flashData3 = *(__IO uint16_t *)0x08010004;
 
-	lowChargeCurrentFlag = 0;
+//	lowChargeCurrentFlag = 0;
+	lowChargeCurrentFlag = false;
 	lowChargeCurrentTimeout = 0;
 
 	while (1)
@@ -1480,14 +1549,12 @@ int main(void)
 				canPulse = 0;
 			}
 
-//			start_volt = min( (FloatVoltage(tempAmbient) - HALF_VOLT), MAX_START_VOLT);
-
 			// Batteries need charging?
-//			if (vBattery < start_volt)
 			if (vBattery < (FLOATV_SEALED_FLOODED - TENTH_VOLT) )
 			{
 				canCharge = true;
 				adsorptionFlag = false;
+				switchDiagLED(OFF);
 			}
 
 			else if (adsorptionFlag)
@@ -1536,6 +1603,8 @@ int main(void)
 				if (vBattery < FLOATV_SEALED_FLOODED)
 				{
 					adsorptionFlag = false;
+					adsorptionTime = 0;
+					switchDiagLED(OFF);
 				}
 
 				// Get out of this loop if we can't charge or no longer need to charge
@@ -1550,7 +1619,8 @@ int main(void)
 				else
 				{
 
-					if (lowChargeCurrentFlag == 0)
+//					if (lowChargeCurrentFlag == 0)
+					if (!lowChargeCurrentFlag)
 					{
 
 						changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
@@ -1575,7 +1645,8 @@ int main(void)
 							switchSolarArray(OFF);
 							switchCharger(OFF);
 							changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-							lowChargeCurrentFlag = 1;
+//							lowChargeCurrentFlag = 1;
+							lowChargeCurrentFlag = true;
 						}
 					}
 
@@ -1645,7 +1716,7 @@ int main(void)
 		  		  		{
 		  		  			if (vBattery >= (FLOATV_SEALED_FLOODED + TENTH_VOLT) )
 		  		  			{
-		  		  				switchDiagLED(ON);
+//		  		  				switchDiagLED(ON);
 		  		  				switchSolarArray(OFF);
 		  		  				isCharging = false;
 		  		  				canCharge = false;

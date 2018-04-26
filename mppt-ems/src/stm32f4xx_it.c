@@ -1,40 +1,33 @@
-/**
-  ******************************************************************************
-  * @file    stm32f4xx_it.c
-  * @brief   Interrupt Service Routines.
-  ******************************************************************************
+/** stm32f4xx_it.c.c
+ * Source file for MPPT EMS (STI assembly number 781-124-033 rev. 0)
+ * that contains interrupt handlers
   *
-  * COPYRIGHT(c) 2017 STMicroelectronics
-  *
-  * Redistribution and use in source and binary forms, with or without modification,
-  * are permitted provided that the following conditions are met:
-  *   1. Redistributions of source code must retain the above copyright notice,
-  *      this list of conditions and the following disclaimer.
-  *   2. Redistributions in binary form must reproduce the above copyright notice,
-  *      this list of conditions and the following disclaimer in the documentation
-  *      and/or other materials provided with the distribution.
-  *   3. Neither the name of STMicroelectronics nor the names of its contributors
-  *      may be used to endorse or promote products derived from this software
-  *      without specific prior written permission.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-  *
-  ******************************************************************************
-  */
-/* Includes ------------------------------------------------------------------*/
+ * (c) 2018 Solar Technology Inc.
+ * 7620 Cetronia Road
+ * Allentown PA, 18106
+ * 610-391-8600
+ *
+ * This code is for the exclusive use of Solar Technology Inc.
+ * and cannot be used in its present or any other modified form
+ * without prior written authorization.
+ *
+ * HOST PROCESSOR: STM32F410RBT6
+ * Developed using STM32CubeF4 HAL and API version 1.18.0
+ *
+ * Baseline code was generated using STM32CubeMX version 4.23.0
+ *
+ * REVISION HISTORY
+ *
+ * 1.0: 12/27/2017	Created By Nicholas C. Ipri (NCI) nipri@solartechnology.com
+ *
+ */
+
+
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx.h"
 #include "stm32f4xx_it.h"
 #include "mppt.h"
+#include <string.h>
 
 extern UART_HandleTypeDef huart1;
 extern DMA_HandleTypeDef hdma_adc1;
@@ -47,14 +40,6 @@ void advancePointer(void);
 extern uint16_t crc16(uint8_t[], uint8_t);
 extern void handleData(void);
 
-//static void getADCreadings(uint8_t);
-
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
-
-/* External variables --------------------------------------------------------*/
-
 /******************************************************************************/
 /*            Cortex-M4 Processor Interruption and Exception Handlers         */ 
 /******************************************************************************/
@@ -64,12 +49,7 @@ extern void handleData(void);
 */
 void NMI_Handler(void)
 {
-  /* USER CODE BEGIN NonMaskableInt_IRQn 0 */
 
-  /* USER CODE END NonMaskableInt_IRQn 0 */
-  /* USER CODE BEGIN NonMaskableInt_IRQn 1 */
-
-  /* USER CODE END NonMaskableInt_IRQn 1 */
 }
 
 /**
@@ -77,15 +57,11 @@ void NMI_Handler(void)
 */
 void HardFault_Handler(void)
 {
-  /* USER CODE BEGIN HardFault_IRQn 0 */
-  /* USER CODE END HardFault_IRQn 0 */
+
   while (1)
   {
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
   }
-  /* USER CODE BEGIN HardFault_IRQn 1 */
-
-  /* USER CODE END HardFault_IRQn 1 */
 }
 
 /**
@@ -93,15 +69,9 @@ void HardFault_Handler(void)
 */
 void MemManage_Handler(void)
 {
-  /* USER CODE BEGIN MemoryManagement_IRQn 0 */
-
-  /* USER CODE END MemoryManagement_IRQn 0 */
   while (1)
   {
   }
-  /* USER CODE BEGIN MemoryManagement_IRQn 1 */
-
-  /* USER CODE END MemoryManagement_IRQn 1 */
 }
 
 /**
@@ -109,15 +79,9 @@ void MemManage_Handler(void)
 */
 void BusFault_Handler(void)
 {
-  /* USER CODE BEGIN BusFault_IRQn 0 */
-
-  /* USER CODE END BusFault_IRQn 0 */
   while (1)
   {
   }
-  /* USER CODE BEGIN BusFault_IRQn 1 */
-
-  /* USER CODE END BusFault_IRQn 1 */
 }
 
 /**
@@ -125,15 +89,9 @@ void BusFault_Handler(void)
 */
 void UsageFault_Handler(void)
 {
-  /* USER CODE BEGIN UsageFault_IRQn 0 */
-
-  /* USER CODE END UsageFault_IRQn 0 */
   while (1)
   {
   }
-  /* USER CODE BEGIN UsageFault_IRQn 1 */
-
-  /* USER CODE END UsageFault_IRQn 1 */
 }
 
 /**
@@ -141,12 +99,6 @@ void UsageFault_Handler(void)
 */
 void SVC_Handler(void)
 {
-  /* USER CODE BEGIN SVCall_IRQn 0 */
-
-  /* USER CODE END SVCall_IRQn 0 */
-  /* USER CODE BEGIN SVCall_IRQn 1 */
-
-  /* USER CODE END SVCall_IRQn 1 */
 }
 
 /**
@@ -154,12 +106,6 @@ void SVC_Handler(void)
 */
 void DebugMon_Handler(void)
 {
-  /* USER CODE BEGIN DebugMonitor_IRQn 0 */
-
-  /* USER CODE END DebugMonitor_IRQn 0 */
-  /* USER CODE BEGIN DebugMonitor_IRQn 1 */
-
-  /* USER CODE END DebugMonitor_IRQn 1 */
 }
 
 /**
@@ -167,12 +113,6 @@ void DebugMon_Handler(void)
 */
 void PendSV_Handler(void)
 {
-  /* USER CODE BEGIN PendSV_IRQn 0 */
-
-  /* USER CODE END PendSV_IRQn 0 */
-  /* USER CODE BEGIN PendSV_IRQn 1 */
-
-  /* USER CODE END PendSV_IRQn 1 */
 }
 
 /**
@@ -180,14 +120,8 @@ void PendSV_Handler(void)
 */
 void SysTick_Handler(void)
 {
-  /* USER CODE BEGIN SysTick_IRQn 0 */
-
-  /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   HAL_SYSTICK_IRQHandler();
-  /* USER CODE BEGIN SysTick_IRQn 1 */
-
-  /* USER CODE END SysTick_IRQn 1 */
 }
 
 /******************************************************************************/
@@ -200,7 +134,6 @@ void SysTick_Handler(void)
 
 void TIM1_BRK_TIM9_IRQHandler(void) {
 	HAL_TIM_IRQHandler(&htim9);
-//	HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 }
 
 void TIM1_TRG_COM_TIM11_IRQHandler(void) {
@@ -228,56 +161,60 @@ void USART1_IRQHandler(void) {
 
 void ADC_IRQHandler(void)
 {
-  /* USER CODE BEGIN ADC_IRQn 0 */
-
-  /* USER CODE END ADC_IRQn 0 */
   HAL_ADC_IRQHandler(&hadc1);
-  /* USER CODE BEGIN ADC_IRQn 1 */
-
-  /* USER CODE END ADC_IRQn 1 */
 }
 
 void DMA2_Stream0_IRQHandler(void)
 {
-  /* USER CODE BEGIN DMA2_Stream0_IRQn 0 */
-
-  /* USER CODE END DMA2_Stream0_IRQn 0 */
   HAL_DMA_IRQHandler(&hdma_adc1);
-  /* USER CODE BEGIN DMA2_Stream0_IRQn 1 */
-
-  /* USER CODE END DMA2_Stream0_IRQn 1 */
 }
 
-/* USER CODE BEGIN 1 */
-
-/* USER CODE END 1 */
 
 void advancePointer(void)
 {
-	if (rxByteCount == 0) {
+	if (rxByteCount == 0)
+	{
 
-		if (rxBuff[rxByteCount] == 0x9a) {	// Start of frame
+		if (rxBuff[rxByteCount] == 0x9a)
+		{	// Start of frame
 			inBuff[rxByteCount] = rxBuff[rxByteCount];
 			rxByteCount++;
 			inByteCount++;
-		} else {
+		}
+		else
+		{
 			rxByteCount = 0;
 			inByteCount = 0;
 			memset((void *)rxBuff, 0, 20);
 			memset((void *)inBuff, 0, 20);
 		}
-	} else {
-		if (rxBuff[rxByteCount] == 0x9b) {	//Escape char received
+	}
+	else
+	{
+		//Escape char received
+		if (rxBuff[rxByteCount] == 0x9b)
+		{
 			rxByteCount++;
-		} else if ((rxBuff[rxByteCount] == 0x01) && (rxBuff[rxByteCount - 1] == 0x9b)) {	// Decode 0x9b, 0x01 to 0x9a
+		}
+
+		// Decode 0x9b, 0x01 to 0x9a
+		else if ((rxBuff[rxByteCount] == 0x01) && (rxBuff[rxByteCount - 1] == 0x9b))
+		{
 			inBuff[inByteCount] = 0x9a;
 			rxByteCount++;
 			inByteCount++;
-		} else if ((rxBuff[rxByteCount] == 0x02) && (rxBuff[rxByteCount - 1] == 0x9b)) {	// Decode 0x9b, 0x02 to 0x9b
+		}
+
+		// Decode 0x9b, 0x02 to 0x9b
+		else if ((rxBuff[rxByteCount] == 0x02) && (rxBuff[rxByteCount - 1] == 0x9b))
+		{
 			inBuff[inByteCount] = 0x9b;
 			rxByteCount++;
 			inByteCount++;
-		} else {
+		}
+
+		else
+		{
 			inBuff[inByteCount] = rxBuff[rxByteCount];
 			rxByteCount++;
 			inByteCount++;
@@ -287,7 +224,6 @@ void advancePointer(void)
 
 uint8_t calculateCRC(void)
 {
-	uint8_t status;
 	uint8_t i;
 	uint8_t crcBuff[16];
 	uint16_t crc, rxCRC;
@@ -297,16 +233,10 @@ uint8_t calculateCRC(void)
 	for (i = 0; i < (inByteCount-3); i++)
 			crcBuff[i] = inBuff[i];
 
-
 	crc = crc16(crcBuff, i);
 
 	if (crc == rxCRC)
 		return 1;
 	else
 		return 0;
-
 }
-
-
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
