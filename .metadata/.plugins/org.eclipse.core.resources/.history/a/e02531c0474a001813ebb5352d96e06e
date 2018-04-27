@@ -121,7 +121,6 @@ uint8_t  powerCycleOffTime, offTimeCount;
 uint8_t  enablePowerCycle;
 
 static bool adsorptionFlag;
-static bool floatFlag;
 static bool canCharge;
 static bool isCharging;
 static bool lowChargeCurrentFlag;
@@ -1075,8 +1074,7 @@ void calcMPPT(void)
 }
 
 // This function calculates Duty Cycle based on battery voltage and on holding the solar array at 17 volts
-// (or whatever it's advertised operating voltage is)
-// Not MPPT, but may be useful for something. May want to delete this later
+// (Not MPPT, but may be useful for something. May want to delete this later
 void calcMPPT_CV(void)
 {
 
@@ -1093,7 +1091,9 @@ void calcMPPT_CV(void)
 	if (duty <= MIN_DUTY_CYCLE)
 		duty = MIN_DUTY_CYCLE;
 
+
 	changePWM_TIM1(duty, UPDATE);
+
 }
 
 void switchFan(uint8_t onOff)
@@ -1183,6 +1183,7 @@ static void updateLCD(uint8_t warning)
 
 	switch (lcdUpdate)
 	{
+
 		case 1:
 
 			if (warning == HIBATTV)
@@ -1581,7 +1582,6 @@ int main(void)
 				{
 					canCharge = true;
 					adsorptionFlag = false;
-					floatFlag = false;
 					switchDiagLED(OFF);
 				}
 
@@ -1600,7 +1600,6 @@ int main(void)
 					}
 				}
 
-				// We'll get into here when adsorptionFlag = 0 and vBattery > (float voltage - 0.1v)
 				else
 				{
 					canCharge = false;
@@ -1633,7 +1632,6 @@ int main(void)
 					if (vBattery < FLOATV_SEALED_FLOODED)
 					{
 						adsorptionFlag = false;
-						floatFlag = false;
 						adsorptionTime = 0;
 						switchDiagLED(OFF);
 					}
@@ -1712,8 +1710,9 @@ int main(void)
 								duty = PCT80_DUTY_CYCLE;
 							}
 
-
-							if ( (warning == HIBATTV) || (warning == DEADBATT) || (vSolarArray < (vBattery + TWO_VOLT) )  )
+//		  		  			if (vBattery >= FloatVoltage(tempAmbient) || (warning == HIBATTV) || (vSolarArray >= MAX_PV_VOLT) || (vSolarArray < (vBattery + TWO_VOLT) ) )
+//			  		  		if (vBattery >= AdsorptionVoltage(tempAmbient) || (warning == HIBATTV) || (vSolarArray >= MAX_PV_VOLT) || (vSolarArray < (vBattery + TWO_VOLT) ) )
+							if ( (warning == HIBATTV) || (vSolarArray < (vBattery + TWO_VOLT) )  || (vBattery < BAT_DROP_DEAD_VOLT) )
 							{
 								switchDiagLED(ON);
 								switchSolarArray(OFF);
@@ -1726,11 +1725,10 @@ int main(void)
 							if ( (!adsorptionFlag) && (vBattery >= AdsorptionVoltage(tempAmbient) ) )
 							{
 								adsorptionFlag = true;
-								floatFlag = true;
 								adsorptionTime = 0;
 							}
 
-							if (adsorptionFlag && floatFlag)
+							if (adsorptionFlag)
 							{
 								if (vBattery >= (AdsorptionVoltage(tempAmbient) + TENTH_VOLT) )
 								{
@@ -1742,20 +1740,17 @@ int main(void)
 									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 								}
 							}
-							else if (!adsorptionFlag && floatFlag)
+							else
 							{
 								if (vBattery >= (FLOATV_SEALED_FLOODED + TENTH_VOLT) )
 								{
+//			  		  				switchDiagLED(ON);
 									switchSolarArray(OFF);
 									isCharging = false;
 									canCharge = false;
 									switchCharger(OFF);
 									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 								}
-							}
-							else
-							{
-								// Do Nothing
 							}
 						} // end while (isCharging)
 					} //end else

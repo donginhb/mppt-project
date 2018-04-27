@@ -121,7 +121,7 @@ uint8_t  powerCycleOffTime, offTimeCount;
 uint8_t  enablePowerCycle;
 
 static bool adsorptionFlag;
-static bool floatFlag;
+staitc bool floatFlag;
 static bool canCharge;
 static bool isCharging;
 static bool lowChargeCurrentFlag;
@@ -1600,7 +1600,7 @@ int main(void)
 					}
 				}
 
-				// We'll get into here when adsorptionFlag = 0 and vBattery > (float voltage - 0.1v)
+				// We'll get into here when adsorptionFlag = 0 and vBattery > float voltage
 				else
 				{
 					canCharge = false;
@@ -1712,7 +1712,8 @@ int main(void)
 								duty = PCT80_DUTY_CYCLE;
 							}
 
-
+//		  		  			if (vBattery >= FloatVoltage(tempAmbient) || (warning == HIBATTV) || (vSolarArray >= MAX_PV_VOLT) || (vSolarArray < (vBattery + TWO_VOLT) ) )
+//			  		  		if (vBattery >= AdsorptionVoltage(tempAmbient) || (warning == HIBATTV) || (vSolarArray >= MAX_PV_VOLT) || (vSolarArray < (vBattery + TWO_VOLT) ) )
 							if ( (warning == HIBATTV) || (warning == DEADBATT) || (vSolarArray < (vBattery + TWO_VOLT) )  )
 							{
 								switchDiagLED(ON);
@@ -1746,6 +1747,7 @@ int main(void)
 							{
 								if (vBattery >= (FLOATV_SEALED_FLOODED + TENTH_VOLT) )
 								{
+//			  		  				switchDiagLED(ON);
 									switchSolarArray(OFF);
 									isCharging = false;
 									canCharge = false;

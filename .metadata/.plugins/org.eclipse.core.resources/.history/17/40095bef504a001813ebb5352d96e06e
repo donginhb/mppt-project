@@ -1746,6 +1746,7 @@ int main(void)
 							{
 								if (vBattery >= (FLOATV_SEALED_FLOODED + TENTH_VOLT) )
 								{
+//			  		  				switchDiagLED(ON);
 									switchSolarArray(OFF);
 									isCharging = false;
 									canCharge = false;
