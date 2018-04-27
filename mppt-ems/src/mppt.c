@@ -31,6 +31,7 @@
 #define NORMALBATTV	0
 #define HIBATTV 	1
 #define LOBATTV		2
+#define DEADBATT	3
 
 #define ADSORPTION_TIME_SEALED	9000 	// 9000 seconds = 150 minutes
 //#define ADSORPTION_TIME_FLOODED	10800 	// 10800 seconds = 180 minutes
@@ -154,6 +155,9 @@ char ver[] = "1.0";
 char battery[] = "BATTERY BANK";
 char battHi[] = "HIGH VOLTAGE!";
 char battLo[] = "LOW VOLTAGE!";
+char battDead[] = "LESS THAN 8 V!";
+char charger1[] = "PLEASE CONNECT";
+char charger2[] = "EXTERNAL CHARGER";
 char solarArray[] = "SOLAR ARRAY";
 
 
@@ -943,6 +947,19 @@ static void getADCreadings (uint8_t howMany)
 		switchLoad(ON);
 	}
 
+	if (vBattery < BAT_DROP_DEAD_VOLT)
+	{
+		warning = DEADBATT;
+		switchLoad(OFF);
+	}
+
+	if ( (warning == DEADBATT) && (vBattery >= BAT_DROP_DEAD_VOLT) )
+	{
+		warning = NORMALBATTV;
+		switchLoad(ON);
+	}
+
+
 // Calculate the values and send them to the host controller
 	vBat = calcVoltage(vBattery, 2);
 	vSolar = calcVoltage(vSolarArray, 2);
@@ -982,31 +999,23 @@ static uint16_t AdsorptionVoltage(uint16_t ambTemp)
 
 double calcVoltage(uint16_t ADvalue, uint8_t gain)
 {
-	double voltage;
-	voltage  = (ADvalue * adcUnit) / gain / voltageDividerOutput;
-	return voltage;
+	return (ADvalue * adcUnit) / gain / voltageDividerOutput;
 }
 
 double calcCurrent(uint16_t ADvalue)
 {
 	const uint8_t gain = 50;						// Gain of the INA213AIDCK current sense amplifier
 	const double Rsense	=	0.002;					// Value of current sense resistors used in design.
-	double current;
 
-	current = (ADvalue * adcUnit) / gain / Rsense;
-
-	return current;
+	return (ADvalue * adcUnit) / gain / Rsense;
 }
 
 double calcTemperature(uint16_t ADvalue)
 {
 	const double LM335voltage = 0.010;				// The LM335 outputs 10 mV / degree Kelvin
 	const double kelvin = 273.15;					// 0 C = 273.15 K
-	double degC;
 
-	degC = ((ADvalue * adcUnit) / LM335voltage) - kelvin;
-
-	return degC;
+	return ((ADvalue * adcUnit) / LM335voltage) - kelvin;
 }
 
 void calcMPPT_CC(void)
@@ -1185,6 +1194,11 @@ static void updateLCD(uint8_t warning)
 				HD44780_WriteData(0, 0, battery, YES);
 				HD44780_WriteData(1, 0, battLo, NO);
 			}
+			else if (warning == DEADBATT)
+			{
+				HD44780_WriteData(0, 0, battery, YES);
+				HD44780_WriteData(1, 0, battDead, NO);
+			}
 
 			else
 
@@ -1201,7 +1215,17 @@ static void updateLCD(uint8_t warning)
 			break;
 
 		case 5:
-			lcdSolarInfo();
+
+			if (warning == DEADBATT)
+			{
+				HD44780_WriteData(0, 0, charger1, YES);
+				HD44780_WriteData(1, 0, charger2, NO);
+			}
+			else
+			{
+				lcdSolarInfo();
+			}
+
 			break;
 
 		case 9:
@@ -1539,46 +1563,11 @@ int main(void)
 			updateLCD(warning);
 		}
 
-		// We are able to charge the batteries
-		if (vSolarArray > (vBattery + TWO_VOLT))
+		if (vBattery >= BAT_DROP_DEAD_VOLT)
 		{
 
-			if (canPulse == pulseInterval)
-			{
-				pulse();
-				canPulse = 0;
-			}
-
-			// Batteries need charging?
-			if (vBattery < (FLOATV_SEALED_FLOODED - TENTH_VOLT) )
-			{
-				canCharge = true;
-				adsorptionFlag = false;
-				switchDiagLED(OFF);
-			}
-
-			else if (adsorptionFlag)
-			{
-				if (vBattery <= AdsorptionVoltage(tempAmbient) - TENTH_VOLT)
-				{
-					canCharge = true;
-				}
-				else
-				{
-					canCharge = false;
-				 	switchCharger(OFF);
-				 	changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-				}
-			}
-
-			else
-			{
-				canCharge = false;
-			 	switchCharger(OFF);
-			 	changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-			}
-
-			while(canCharge)
+			// We are able to charge the batteries
+			if (vSolarArray > (vBattery + TWO_VOLT))
 			{
 
 				if (canPulse == pulseInterval)
@@ -1587,167 +1576,215 @@ int main(void)
 					canPulse = 0;
 				}
 
-				if (getADC == 1)
+				// Batteries need charging?
+				if ( (vBattery < (FLOATV_SEALED_FLOODED - TENTH_VOLT) ) && (vBattery >= BAT_DROP_DEAD_VOLT) )
 				{
-					getADC = 0;
-					getADCreadings(32);
-				}
-
-				if (lcdUpdateFlag == 1)
-				{
-					lcdUpdateFlag = 0;
-					updateLCD(warning);
-				}
-
-				// May not need this here...
-				if (vBattery < FLOATV_SEALED_FLOODED)
-				{
+					canCharge = true;
 					adsorptionFlag = false;
-					adsorptionTime = 0;
 					switchDiagLED(OFF);
 				}
 
-				// Get out of this loop if we can't charge or no longer need to charge
-				if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBattery >= AdsorptionVoltage(tempAmbient) ) )
+				else if (adsorptionFlag)
 				{
-					canCharge = false;
-					isCharging = false;
-				 	switchCharger(OFF);
-					changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+					if (vBattery <= AdsorptionVoltage(tempAmbient) - TENTH_VOLT)
+					{
+						canCharge = true;
+					}
+					else
+					{
+						canCharge = false;
+						switchCharger(OFF);
+						changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+					}
 				}
 
 				else
 				{
+					canCharge = false;
+					switchCharger(OFF);
+					changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+				}
 
-//					if (lowChargeCurrentFlag == 0)
-					if (!lowChargeCurrentFlag)
+				while(canCharge)
+				{
+
+					if (canPulse == pulseInterval)
 					{
-
-						changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
-						switchCharger(ON);
-
-						HAL_Delay(1000);
-						getADCreadings(32);
-
-						if (iSolarArray >= THRESHOLD_CURRENT)
-						{
-							switchSolarArray(ON);
-							HAL_Delay(10);
-							isCharging = true;
-							currentPower = vSolar * iSolar;
-							last_vSolarArray = vSolarArray;
-							duty = PCT80_DUTY_CYCLE;
-							lastPower = currentPower;
-						}
-						else
-						{
-							isCharging = false;
-							switchSolarArray(OFF);
-							switchCharger(OFF);
-							changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-//							lowChargeCurrentFlag = 1;
-							lowChargeCurrentFlag = true;
-						}
+						pulse();
+						canPulse = 0;
 					}
 
-					while (isCharging)
-	  				{
+					if (getADC == 1)
+					{
+						getADC = 0;
+						getADCreadings(32);
+					}
 
-	  					if (getADC == 1)
-	  		  			{
-	  						getADC = 0;
-	  		  				getADCreadings(32);
+					if (lcdUpdateFlag == 1)
+					{
+						lcdUpdateFlag = 0;
+						updateLCD(warning);
+					}
 
-//	  		  				if (vBattery < (AdsorptionVoltage(tempAmbient) - ONE_VOLT) )
-	  		  				calcMPPT_CC();
-//	  		  				else
-//	  		  					calcMPPT_CV();
-	  		  			}
+					// May not need this here...
+					if (vBattery < FLOATV_SEALED_FLOODED)
+					{
+						adsorptionFlag = false;
+						adsorptionTime = 0;
+						switchDiagLED(OFF);
+					}
 
-	  		  			if (lcdUpdateFlag == 1)
-	  		  			{
-	  		  				lcdUpdateFlag = 0;
-	  		  				updateLCD(warning);
-	  		  			}
+					// Get out of this loop if we can't charge or no longer need to charge
+					if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBattery >= AdsorptionVoltage(tempAmbient) ) )
+					{
+						canCharge = false;
+						isCharging = false;
+						switchCharger(OFF);
+						changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+					}
 
-	  		  			// We no longer have enough current to charge.
-	  		  			if (iSolarArray < THRESHOLD_CURRENT)
-	  		  			{
-	  		  				switchSolarArray(OFF);
-	  		  				isCharging = false;
-	  		  			}
+					else
+					{
 
-	  		  			if (vSolarArray >= MAX_PV_VOLT)
-	  		  			{
-	  		  				duty = PCT80_DUTY_CYCLE;
-	  		  			}
+//						if (lowChargeCurrentFlag == 0)
+						if (!lowChargeCurrentFlag)
+						{
 
-//	  		  			if (vBattery >= FloatVoltage(tempAmbient) || (warning == HIBATTV) || (vSolarArray >= MAX_PV_VOLT) || (vSolarArray < (vBattery + TWO_VOLT) ) )
-//		  		  		if (vBattery >= AdsorptionVoltage(tempAmbient) || (warning == HIBATTV) || (vSolarArray >= MAX_PV_VOLT) || (vSolarArray < (vBattery + TWO_VOLT) ) )
-	  		  			if ( (warning == HIBATTV) || (vSolarArray < (vBattery + TWO_VOLT) ) )
-	  		  			{
-	  		  				switchDiagLED(ON);
-	  		  				switchSolarArray(OFF);
-	  		  				isCharging = false;
-	  		  				canCharge = false;
-	  		  				switchCharger(OFF);
-	  		  				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-	  		  			}
+							changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
+							switchCharger(ON);
 
-		  		  		if ( (!adsorptionFlag) && (vBattery >= AdsorptionVoltage(tempAmbient) ) )
-		  		  		{
-		  		  			adsorptionFlag = true;
-		  		  			adsorptionTime = 0;
-		  		  		}
+							HAL_Delay(1000);
+							getADCreadings(32);
 
-		  		  		if (adsorptionFlag)
-		  		  		{
-		  		  			if (vBattery >= (AdsorptionVoltage(tempAmbient) + TENTH_VOLT) )
-		  		  			{
-		  		  				switchDiagLED(ON);
-		  		  				switchSolarArray(OFF);
-		  		  				isCharging = false;
-		  		  				canCharge = false;
-		  		  				switchCharger(OFF);
-		  		  				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-		  		  			}
-		  		  		}
-		  		  		else
-		  		  		{
-		  		  			if (vBattery >= (FLOATV_SEALED_FLOODED + TENTH_VOLT) )
-		  		  			{
-//		  		  				switchDiagLED(ON);
-		  		  				switchSolarArray(OFF);
-		  		  				isCharging = false;
-		  		  				canCharge = false;
-		  		  				switchCharger(OFF);
-		  		  				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-		  		  			}
-		  		  		}
-	  				} // end while (isCharging)
-				} //end else
-			} //end while (canCharge)
-		} // end if (vSolarArray > (vBattery + TWO_VOLT))
+							if (iSolarArray >= THRESHOLD_CURRENT)
+							{
+								switchSolarArray(ON);
+								HAL_Delay(10);
+								isCharging = true;
+								currentPower = vSolar * iSolar;
+								last_vSolarArray = vSolarArray;
+								duty = PCT80_DUTY_CYCLE;
+								lastPower = currentPower;
+							}
+							else
+							{
+								isCharging = false;
+								switchSolarArray(OFF);
+								switchCharger(OFF);
+								changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+//								lowChargeCurrentFlag = 1;
+								lowChargeCurrentFlag = true;
+							}
+						}
 
-		// Solar array voltage is high enough to de-sulfate the batteries but not high enough to charge them
-		else if ( (vSolarArray > vBattery) && (vSolarArray <= (vBattery + ONE_AND_HALF_VOLT)))
-		{
-		 	switchCharger(OFF);
-			changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-			canCharge = false;
-			isCharging = false;
+						while (isCharging)
+						{
 
-			if (canPulse == pulseInterval)
+							if (getADC == 1)
+							{
+								getADC = 0;
+								getADCreadings(32);
+
+//		  		  				if (vBattery < (AdsorptionVoltage(tempAmbient) - ONE_VOLT) )
+								calcMPPT_CC();
+//		  		  				else
+//		  		  					calcMPPT_CV();
+							}
+
+							if (lcdUpdateFlag == 1)
+							{
+								lcdUpdateFlag = 0;
+								updateLCD(warning);
+							}
+
+							// We no longer have enough current to charge.
+							if (iSolarArray < THRESHOLD_CURRENT)
+							{
+								switchSolarArray(OFF);
+								isCharging = false;
+							}
+
+							if (vSolarArray >= MAX_PV_VOLT)
+							{
+								duty = PCT80_DUTY_CYCLE;
+							}
+
+//		  		  			if (vBattery >= FloatVoltage(tempAmbient) || (warning == HIBATTV) || (vSolarArray >= MAX_PV_VOLT) || (vSolarArray < (vBattery + TWO_VOLT) ) )
+//			  		  		if (vBattery >= AdsorptionVoltage(tempAmbient) || (warning == HIBATTV) || (vSolarArray >= MAX_PV_VOLT) || (vSolarArray < (vBattery + TWO_VOLT) ) )
+							if ( (warning == HIBATTV) || (vSolarArray < (vBattery + TWO_VOLT) )  || (vBattery < BAT_DROP_DEAD_VOLT) )
+							{
+								switchDiagLED(ON);
+								switchSolarArray(OFF);
+								isCharging = false;
+								canCharge = false;
+								switchCharger(OFF);
+								changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+							}
+
+							if ( (!adsorptionFlag) && (vBattery >= AdsorptionVoltage(tempAmbient) ) )
+							{
+								adsorptionFlag = true;
+								adsorptionTime = 0;
+							}
+
+							if (adsorptionFlag)
+							{
+								if (vBattery >= (AdsorptionVoltage(tempAmbient) + TENTH_VOLT) )
+								{
+									switchDiagLED(ON);
+									switchSolarArray(OFF);
+									isCharging = false;
+									canCharge = false;
+									switchCharger(OFF);
+									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+								}
+							}
+							else
+							{
+								if (vBattery >= (FLOATV_SEALED_FLOODED + TENTH_VOLT) )
+								{
+//			  		  				switchDiagLED(ON);
+									switchSolarArray(OFF);
+									isCharging = false;
+									canCharge = false;
+									switchCharger(OFF);
+									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+								}
+							}
+						} // end while (isCharging)
+					} //end else
+				} //end while (canCharge)
+			} // end if (vSolarArray > (vBattery + TWO_VOLT))
+
+			// Solar array voltage is high enough to de-sulfate the batteries but not high enough to charge them
+			else if ( (vSolarArray > vBattery) && (vSolarArray <= (vBattery + ONE_AND_HALF_VOLT)))
 			{
-				pulse();
+				switchCharger(OFF);
+				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+				canCharge = false;
+				isCharging = false;
+
+				if (canPulse == pulseInterval)
+				{
+					pulse();
+					canPulse = 0;
+				}
+			}
+
+			// Don't do anything if the solar array voltage is below battery voltage.
+			else
+			{
+				switchCharger(OFF);
+				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+				canCharge = false;
+				isCharging = false;
 				canPulse = 0;
 			}
-		}
+		} // end if (vBattery > BAT_DROP_DEAD_VOLT)
 
-		// Don't do anything if the solar array voltage is below battery voltage.
-		else
+		else // If batteries are below 8v, just keep these all off
 		{
-		 	switchCharger(OFF);
+			switchCharger(OFF);
 			changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 			canCharge = false;
 			isCharging = false;
