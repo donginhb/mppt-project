@@ -19,7 +19,6 @@
  *
  * 1.0: 12/27/2017	Created By Nicholas C. Ipri (NCI) nipri@solartechnology.com
  * 		This initial version supplies only very basic functionality to initialize and write the display in 4 bit mode
- * 		Can easily be expanded if necessary.
  */
 
 

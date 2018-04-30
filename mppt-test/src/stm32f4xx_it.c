@@ -210,13 +210,13 @@ void USART1_IRQHandler(void) {
 
 	HAL_UART_Receive(&huart1, &myChar, 1, 0);
 
-	if (myChar != ' ') {
-		inBuffer[charCount] = myChar;
-		sprintf(xBuff, "%c", inBuffer[charCount]);
-		HAL_UART_Transmit(&huart1, xBuff, sizeof(xBuff), 0xffff);
-	}
+//	if (myChar != ' ') {
+//		inBuffer[charCount] = myChar;
+//		sprintf(xBuff, "%c", inBuffer[charCount]);
+//		HAL_UART_Transmit(&huart1, xBuff, sizeof(xBuff), 0xffff);
+//	}
 
-	charCount++;
+//	charCount++;
 
 	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_15);
 	__HAL_UART_FLUSH_DRREGISTER(&huart1);

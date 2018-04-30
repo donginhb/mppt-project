@@ -35,6 +35,7 @@
 #define V_MIN_LOAD_OFF 		0x676	// 1654 counts corresponding to 10.7 Volts
 #define V_MAX_LOAD_OFF 		0x95c	// 2396 counts corresponding to 15.5 Volts
 #define MAX_START_VOLT 		0x7da	// 2010 counts corresponding to 13.0 Volts
+#define BAT_DROP_DEAD_VOLT	0x4d5	// 1237 counts = 8 Volts: the minimum battery voltage below which, we will not charge and warn the user.
 
 // this is the range of voltages that we want across the solar array and are a function of duty cycle and battery voltage
 #define MAX_PV_VOLT			0xc14	// 3092 counts corresponding to 20.0 Volts
@@ -47,6 +48,7 @@
 // Threshold voltage calculations
 #define TV_0        		0x8e8	// 2280 thresh. volt count at  0C (14.75V)
 #define TV_40      			0x810	// 2064 thresh. volt count at 40C (13.35V)
+#define TV_NEG30			0x9c1	// 2497 counts = 16.15v
 
 //the two rates given below are in counts, and are 10 times larger than actual.
 #define RATE1       		54		// TV rate between 0C and 40C (-35 mV/degree)
@@ -54,6 +56,7 @@
 
 #define TEMP_0      		0xd3d	// 3389 count corrensponding to 0 C
 #define TEMP_40	    		0xf2d	// 3885 count corrensponding to 40 C
+#define TEMP_NEG30			0xbc9	// 3017 counts = -30 C
 
 /* This is the MOSFET temperatures at which the fan is switched on or off. Change as necessary */
 #define FAN_ON_TEMP			0xfa9 	// 4009 counts for 50 C / 122 deg F
@@ -70,8 +73,11 @@ static double vBat, iBat, vSolar, iSolar, loadVoltage, ambientTemp, mosfetTemp, 
 
 char *rx;
 uint8_t myChar;
-char inBuffer[16];
-uint8_t charCount;
+uint8_t inBuff[16];
+uint8_t rxBuff[16];
+
+uint8_t rxByteCount;
+uint8_t inByteCount;
 uint32_t usCounter;
 
 
