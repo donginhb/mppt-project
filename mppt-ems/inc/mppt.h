@@ -69,6 +69,8 @@
 #define FAN_ON_TEMP			0xfa9 	// 4009 counts for 50 C / 122 deg F
 #define FAN_OFF_TEMP		0xf14	// 3860 counts for 38 C / 100.4 deg F
 
+#define MAX_TEMP
+
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 void HD44780_Init(void);
 //void HD44780_WriteData(uint8_t row, uint8_t col, char *data);

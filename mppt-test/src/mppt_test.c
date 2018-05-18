@@ -1606,7 +1606,7 @@ int main(void)
 
  else
  {
-	 writeFlash(0x08010000, (uint16_t)vBattery, YES);
+//	 writeFlash(0x08010000, (uint16_t)vBattery, YES);
 	 sprintf((char *)strBuffer, "Battery offset OK!\r\n\r\n");
 	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
  }
@@ -1645,7 +1645,7 @@ int main(void)
 	}
 	else
 	{
-		writeFlash(0x08010002, SA_OffsetVoltage, NO);
+//		writeFlash(0x08010002, SA_OffsetVoltage, NO);
 		sprintf((char *)strBuffer, "Solar Array Offset Voltage OK!\r\n\r\n");
 		HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
 	}
@@ -1673,7 +1673,7 @@ int main(void)
 
  else
  {
-	 writeFlash(0x08010004, (uint16_t)iSolarArray, NO);
+//	 writeFlash(0x08010004, (uint16_t)iSolarArray, NO);
 	 sprintf((char *)strBuffer, "Solar Array Current Offset Voltage OK!\r\n\r\n");
 	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
  }
@@ -1702,7 +1702,7 @@ int main(void)
 
   else
   {
- 	 writeFlash(0x08010006, (uint16_t)iBattery, NO);
+// 	 writeFlash(0x08010006, (uint16_t)iBattery, NO);
  	 sprintf((char *)strBuffer, "Battery Current Offset Voltage OK!\r\n\r\n");
  	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
   }
@@ -1730,7 +1730,7 @@ int main(void)
 
    else
    {
-  	 writeFlash(0x08010008, (uint16_t)iLoad, NO);
+//  	 writeFlash(0x08010008, (uint16_t)iLoad, NO);
   	 sprintf((char *)strBuffer, "Load Current Offset Voltage OK!\r\n\r\n");
   	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
    }
@@ -1769,6 +1769,22 @@ int main(void)
     myChar = 'z';
     while (myChar != ' ');
 
+
+    memset(strBuffer, (int)NULL, 128);
+    sprintf((char *)strBuffer, "Checking Charger Circuit \r\n");
+    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+
+    memset(strBuffer, (int)NULL, 128);
+    sprintf((char *)strBuffer, "Please connect the battery sense terminals on J2 \r\n");
+    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+
+	 sprintf((char *)strBuffer, "When finished, press SPACEBAR to continue\r\n");
+	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+	 myChar = 'z';
+	 while (myChar != ' ');
+
+
     memset(strBuffer, (int)NULL, 128);
     sprintf((char *)strBuffer, "Checking Charger Circuit: Test 1... \r\n");
     HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
@@ -1780,6 +1796,7 @@ int main(void)
     changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
     switchSolarArray(ON);
     switchCharger(ON);
+
 
     HAL_Delay(1000);
 
@@ -1796,6 +1813,11 @@ int main(void)
     }
 
     HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+
+    sprintf((char *)tempStr1, "Charger Circuit");
+    HD44780_WriteData(0, 0, (char *)tempStr1, YES);
+    sprintf((char *)tempStr1, "Test 1");
+    HD44780_WriteData(1, 0, (char *)tempStr1, NO);
 
     memset(strBuffer, (int)NULL, 128);
     sprintf((char *)strBuffer, "Checking Charger Circuit: Test 2... \r\n");
@@ -1820,6 +1842,11 @@ int main(void)
     }
 
     HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+
+    sprintf((char *)tempStr1, "Charger Circuit");
+    HD44780_WriteData(0, 0, (char *)tempStr1, YES);
+    sprintf((char *)tempStr1, "Test 2");
+    HD44780_WriteData(1, 0, (char *)tempStr1, NO);
 
     changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
     switchSolarArray(OFF);

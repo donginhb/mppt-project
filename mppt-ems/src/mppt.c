@@ -106,10 +106,13 @@ uint8_t  powerCycleOffTime, offTimeCount;
 uint8_t  enablePowerCycle;
 
 static bool adsorptionFlag;
+static bool adsorptionComplete;
 static bool floatFlag;
 static bool canCharge;
 static bool isCharging;
 static bool lowChargeCurrentFlag;
+static bool overTempFlag;
+static bool batteryFaultFlag;
 
 uint8_t lowChargeCurrentTimeout;
 uint8_t sendMessageCount = 0;
@@ -143,7 +146,7 @@ char charger2[] = "EXTERNAL CHARGER";
 char solarArray[] = "SOLAR ARRAY";
 
 // Version string sent to the controller in sendMessage()
-char ver[] = "1.0";
+char ver[] = "A1.0";
 
 
 void SystemClock_Config(void);
@@ -260,7 +263,7 @@ static void MX_ADC1_Init(void)
     /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
     */
 	hadc1.Instance = ADC1;
-	hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2; // was _DIV4
+	hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4; // was _DIV4
 	hadc1.Init.Resolution = ADC_RESOLUTION_12B;
 	hadc1.Init.ScanConvMode = ENABLE;
 	hadc1.Init.ContinuousConvMode = DISABLE; //DISABLE;
@@ -352,7 +355,7 @@ static void MX_ADC1_Init(void)
 //	MOSFET Temperature
 	sConfig.Channel = ADC_CHANNEL_7;
 	sConfig.Rank = 7;
-	sConfig.SamplingTime = ADC_SAMPLETIME_56CYCLES;
+	sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 // 	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
@@ -794,6 +797,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 				if (adsorptionTime >= ADSORPTION_TIME_FLOODED)
 					adsorptionFlag = false;
+					adsorptionComplete = true;
 			}
 
 
@@ -1002,8 +1006,8 @@ static void getADCreadings (uint8_t howMany)
 // Calculate the values and send them to the host controller
 	vBat = calcVoltage(vBattery, 2);
 	vSolar = calcVoltage(vSolarArray, 2);
-	iBat = calcCurrent(iBattery - battOffsetI);
-	iSolar = calcCurrent(iSolarArray - solarOffsetI);
+	iBat = calcCurrent(iBattery);
+	iSolar = calcCurrent(iSolarArray);
 	loadVoltage = calcVoltage(vLoad, 1);
 	ambientTemp = calcTemperature(tempAmbient);
 	mosfetTemp = calcTemperature(tempMOSFETS);
@@ -1016,10 +1020,9 @@ static void getADCreadings (uint8_t howMany)
 		sendMessageCount = 0;
 		// This data is sent to the controller
 	//	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %x, %x, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, flashData, flashData2, flashData3);
-		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, AdsorptionVoltage(tempAmbient), adsorptionFlag);
+		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, adsorptionFlag, floatFlag);
 		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
-	//	sendMessage();
-	//  sendOldMessage();
+//		sendMessage();
 
 	}
 }
@@ -1338,46 +1341,62 @@ void sendMessage(void)
 	sendBuffer[0] = 0x9a;
 	msgLength++;
 
-	strncpy((char *)&sendBuffer[1], ver, 3);
-	msgLength += 3;
+	strncpy((char *)&sendBuffer[1], ver, 4);
+	msgLength += 4;
 
 	sendBuffer[msgLength] = 0x9e;
 	msgLength++;
 
-	data = vBat * 1000;
+	// Battery Voltage
+	data = vBat * 1000;	// Convert to mV
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
 	msgLength++;
 
+	// Battery current
 	data = iBat * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
 	msgLength++;
 
+	// Solar Array Voltage
 	data = vSolar * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
 	msgLength++;
 
+	// Solar Array Current
 	data = iSolar * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
 	msgLength++;
 
+	// Load Voltage
 	data = loadVoltage * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
 	msgLength++;
 
+	// Load Current
 	data = loadCurrent * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
+	msgLength++;
+
+	// Vbattery flag
+	data = batteryFaultFlag;
+	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
+	msgLength++;
+
+	// Overtemp flag
+	data = overTempFlag;
+	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 
 	crc = crc16(sendBuffer, msgLength);
@@ -1588,6 +1607,10 @@ int main(void)
 	lowChargeCurrentFlag = false;
 	lowChargeCurrentTimeout = 0;
 
+	overTempFlag = false;
+	batteryFaultFlag = false;
+	adsorptionComplete = false;
+
 	while (1)
 	{
 
@@ -1752,6 +1775,13 @@ int main(void)
 								duty = PCT80_DUTY_CYCLE;
 							}
 
+							if (vBattery < FLOATV_SEALED_FLOODED)
+							{
+								adsorptionFlag = false;
+								floatFlag = false;
+								adsorptionTime = 0;
+								switchDiagLED(OFF);
+							}
 
 							if ( (warning == HIBATTV) || (warning == DEADBATT) || (vSolarArray < (vBattery + TWO_VOLT) )  )
 							{
@@ -1763,14 +1793,14 @@ int main(void)
 								changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 							}
 
-							if ( (!adsorptionFlag) && (vBattery >= AdsorptionVoltage(tempAmbient) ) )
+							if ( !adsorptionFlag && !adsorptionComplete && !floatFlag && (vBattery >= AdsorptionVoltage(tempAmbient) ) )
 							{
 								adsorptionFlag = true;
 								floatFlag = true;
 								adsorptionTime = 0;
 							}
 
-							if (adsorptionFlag && floatFlag)
+							if (adsorptionFlag && floatFlag && !adsorptionComplete)
 							{
 								if (vBattery >= (AdsorptionVoltage(tempAmbient) + TENTH_VOLT) )
 								{
@@ -1782,7 +1812,7 @@ int main(void)
 									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 								}
 							}
-							else if (!adsorptionFlag && floatFlag)
+							else if (!adsorptionFlag && floatFlag && adsorptionComplete)
 							{
 								if (vBattery >= (FLOATV_SEALED_FLOODED + TENTH_VOLT) )
 								{
@@ -1825,6 +1855,7 @@ int main(void)
 				canCharge = false;
 				isCharging = false;
 				canPulse = 0;
+				adsorptionComplete = false;
 			}
 		} // end if (vBattery > BAT_DROP_DEAD_VOLT)
 
@@ -1835,6 +1866,7 @@ int main(void)
 			canCharge = false;
 			isCharging = false;
 			canPulse = 0;
+			adsorptionComplete = false;
 		}
 	} //end while
 }

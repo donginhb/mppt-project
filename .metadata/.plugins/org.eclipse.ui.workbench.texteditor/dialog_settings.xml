@@ -2,22 +2,23 @@
 <section name="Workbench">
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
 		<item value="true" key="isRegEx"/>
-		<item value="usCounter" key="selection"/>
+		<item value="sendMessage" key="selection"/>
 		<item value="false" key="casesensitive"/>
 		<item value="false" key="incremental"/>
 		<item value="true" key="wrap"/>
 		<item value="false" key="wholeword"/>
 		<list key="findhistory">
-			<item value="usCounter"/>
-			<item value="tim11"/>
-			<item value="delay_5us"/>
+			<item value="sendMessage"/>
+			<item value="writeFlash"/>
 			<item value="pulse"/>
-			<item value="adcConvComplete"/>
-			<item value="toggle"/>
-			<item value="getADCreadings"/>
-			<item value="changePWM_TIM1"/>
+			<item value="myChar"/>
+			<item value="sa_calcvoltage"/>
+			<item value="vDivider"/>
+			<item value=".09"/>
+			<item value="writeflash"/>
 		</list>
 		<list key="replacehistory">
+			<item value=""/>
 			<item value="switch"/>
 		</list>
 	</section>
