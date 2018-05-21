@@ -33,8 +33,8 @@
 #define LOBATTV		2
 #define DEADBATT	3
 
-//#define ADSORPTION_TIME_SEALED	9000 	// 9000 seconds = 150 minutes
-//#define ADSORPTION_TIME_FLOODED	3600 	// 3600 seconds = 60 minutes
+#define ADSORPTION_TIME_SEALED	9000 	// 9000 seconds = 150 minutes
+//#define ADSORPTION_TIME_FLOODED	10800 	// 10800 seconds = 180 minutes
 #define ADSORPTION_TIME_FLOODED	60
 
 #define MIN_DUTY_CYCLE		192		//75% of the TIM1 period
@@ -42,7 +42,7 @@
 #define PCT80_DUTY_CYCLE 	205
 //#define MAX_DUTY_CYCLE  230 	//90% of the TIM1 period
 
-// Time, in seconds, to wait between reading solar array charge current if it's below THRESHOLD_CURRENT
+// Time, in seconds, to wait between reading solar array charge current if it's at or close to THRESHOLD_CURRENT
 // The switching converter is turned off while in timeout, conserving power.
 #define LOW_CHARGE_CURRENT_TIMEOUT	10
 
@@ -123,7 +123,6 @@ static uint16_t duty;
 
 uint16_t battOffsetV, solarOffsetV, battOffsetI, solarOffsetI, loadOffsetI;
 double currentPower, lastPower;
-double vBat, iBat, vSolar, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent;
 
 // adcUnit = Vref / 2^12
 //Vref = 3.3v and 2^12 = 4096 for 12 bits of resolution

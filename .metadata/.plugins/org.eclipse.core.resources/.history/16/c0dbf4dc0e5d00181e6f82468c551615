@@ -59,7 +59,7 @@
 #define FTV_25        		0x827	// 2087 counts = 13.5v
 #define FTV_40      		0x7E3	// 2019 counts = 13.06v
 #define FTV_NEG30			0x9b1	// 2481 counts = 14.87v
-#define FTV_80				0x753	// 1875 counts = 12.13v
+#define FTV_80				0x753	// 1875 counts = 12.13v from
 
 
 //the two rates given below are in counts, and are 10 times larger than actual.
@@ -88,7 +88,7 @@ void HD44780_WriteData(uint8_t, uint8_t, char *, uint8_t);
 void HD44780_WriteCommand(uint8_t);
 void HD44780_GotoXY(uint8_t, uint8_t);
 
-//static double vBat, iBat, vSolar, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent;
+static double vBat, iBat, vSolar, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent;
 
 char *rx;
 uint8_t myChar;
