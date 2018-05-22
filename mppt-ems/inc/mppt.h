@@ -49,16 +49,16 @@
 #define THRESHOLD_CURRENT	0x31	// 49 counts corresponding t0 394 mA
 
 
-// Adsorption Threshold voltage calculations (flooded)
+// Adsorption Threshold voltage values at temperature (flooded)
 #define ATV_25        		0x8b2	// 2226 counts = 14.4v
 #define ATV_40      		0x870	// 2160 counts = 13.97v
 #define ATV_NEG30			0x9b1	// 2497 counts = 16.05v
 #define ATV_80				0x7b9	// 1977 counts = 12.75v
 
-// Float Threshold voltage calculations (flooded)
+// Float Threshold voltage values at temperature (flooded)
 #define FTV_25        		0x827	// 2087 counts = 13.5v
 #define FTV_40      		0x7E3	// 2019 counts = 13.06v
-#define FTV_NEG30			0x9b1	// 2481 counts = 14.87v
+#define FTV_NEG30			0x8fb	// 2299 counts = 14.87v
 #define FTV_80				0x753	// 1875 counts = 12.13v
 
 

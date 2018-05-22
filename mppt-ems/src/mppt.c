@@ -36,6 +36,7 @@
 //#define ADSORPTION_TIME_SEALED	9000 	// 9000 seconds = 150 minutes
 //#define ADSORPTION_TIME_FLOODED	3600 	// 3600 seconds = 60 minutes
 #define ADSORPTION_TIME_FLOODED	60
+#define ADSORPTION_LOCKOUT_TIME 28800
 
 #define MIN_DUTY_CYCLE		192		//75% of the TIM1 period
 #define MAX_DUTY_CYCLE  	218 	//85% of the TIM1 period
@@ -796,6 +797,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 				{
 					adsorptionFlag = false;
 					adsorptionComplete = true;
+					adsorptionTime = 0;
+				}
+			}
+
+			if (adsorptionComplete)
+			{
+				adsorptionTime++;
+
+				if (adsorptionTime >= ADSORPTION_LOCKOUT_TIME)
+				{
+					adsorptionTime = 0;
+					adsorptionComplete = false;
 				}
 			}
 
@@ -1019,7 +1032,7 @@ void getADCreadings (uint8_t howMany)
 		sendMessageCount = 0;
 		// This data is sent to the controller
 	//	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %x, %x, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, flashData, flashData2, flashData3);
-		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, adsorptionFlag, floatFlag);
+		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, adsorptionFlag, floatFlag, AdsorptionVoltage(tempAmbient), FloatVoltage(tempAmbient) );
 		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 //		sendMessage();
 
@@ -1653,15 +1666,16 @@ int main(void)
 				}
 
 				// Batteries need charging?
-				if ( (vBattery < (FloatVoltage(tempAmbient) - HALF_VOLT) ) && (vBattery >= BAT_DROP_DEAD_VOLT) )
+				if ( (vBattery < FloatVoltage(tempAmbient) - HALF_VOLT) )
 				{
 					canCharge = true;
 					adsorptionFlag = false;
+					adsorptionTime = 0;
 					floatFlag = false;
 				}
 
 				// did we charge to the adsorption voltage?
-				else if (adsorptionFlag && floatFlag)
+				else if (adsorptionFlag && floatFlag && !adsorptionComplete)
 				{
 					if (vBattery <= AdsorptionVoltage(tempAmbient) - HALF_VOLT)
 					{
@@ -1675,7 +1689,7 @@ int main(void)
 					}
 				}
 
-				else if (!adsorptionFlag && floatFlag)
+				else if (!adsorptionFlag && floatFlag && adsorptionComplete)
 				{
 					if (vBattery <= FloatVoltage(tempAmbient) - QUARTER_VOLT)
 					{
@@ -1817,7 +1831,13 @@ int main(void)
 								changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 							}
 
-							if ( !adsorptionFlag && !adsorptionComplete && !floatFlag && (vBattery >= AdsorptionVoltage(tempAmbient) ) )
+							if ( !adsorptionFlag && !adsorptionComplete && !floatFlag && (vBattery >= FloatVoltage(tempAmbient) ) )
+							{
+								adsorptionFlag = false;
+								floatFlag = true;
+							}
+
+							if ( !adsorptionFlag && !adsorptionComplete && floatFlag && (vBattery >= AdsorptionVoltage(tempAmbient) ) )
 							{
 								adsorptionFlag = true;
 								floatFlag = true;
@@ -1837,7 +1857,7 @@ int main(void)
 							}
 							else if (!adsorptionFlag && floatFlag && adsorptionComplete)
 							{
-								if (vBattery >= FloatVoltage(tempAmbient) )
+								if (vBattery >= FloatVoltage(tempAmbient) + QUARTER_VOLT )
 								{
 									switchSolarArray(OFF);
 									isCharging = false;
