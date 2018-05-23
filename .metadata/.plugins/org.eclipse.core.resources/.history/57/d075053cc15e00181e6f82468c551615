@@ -1685,7 +1685,6 @@ int main(void)
 					{
 						canCharge = false;
 						switchCharger(OFF);
-						switchSolarArray(OFF);
 						changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 					}
 				}
@@ -1700,7 +1699,6 @@ int main(void)
 					{
 						canCharge = false;
 						switchCharger(OFF);
-						switchSolarArray(OFF);
 						changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 					}
 				}
@@ -1710,7 +1708,6 @@ int main(void)
 				{
 					canCharge = false;
 					switchCharger(OFF);
-					switchSolarArray(OFF);
 					changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 				}
 
@@ -1750,7 +1747,6 @@ int main(void)
 						canCharge = false;
 						isCharging = false;
 						switchCharger(OFF);
-						switchSolarArray(OFF);
 						changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 					}
 
@@ -1883,7 +1879,6 @@ int main(void)
 			else if ( (vSolarArray > vBattery) && (vSolarArray < (vBattery + TWO_VOLT)))
 			{
 				switchCharger(OFF);
-				switchSolarArray(OFF);
 				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 				canCharge = false;
 				isCharging = false;
@@ -1899,7 +1894,6 @@ int main(void)
 			else
 			{
 				switchCharger(OFF);
-				switchSolarArray(OFF);
 				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 				canCharge = false;
 				isCharging = false;
@@ -1913,7 +1907,6 @@ int main(void)
 		else // If batteries are below 8v, just keep these all off
 		{
 			switchCharger(OFF);
-			switchSolarArray(OFF);
 			changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 			canCharge = false;
 			isCharging = false;
