@@ -136,7 +136,7 @@ char logo[] = "SOLAR TECH";
 char version[] = "MPPT EMS VER 1.0";
 char battery[] = "BATTERY BANK";
 char solarArray[] = "SOLAR ARRAY";
-char load[] = "BATTERY LOAD";
+char load[] = "BATTERY LOAD"
 char battHi[] = "HIGH VOLTAGE!";
 char battLo[] = "LOW VOLTAGE!";
 char battDead[] = "BELOW 8 VOLTS!";
@@ -750,12 +750,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			lcdUpdate++;
 			canPulse++;
 
-			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) || (lcdUpdate == 13) )
+			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) )
 				lcdUpdateFlag = 1;
 
 			if (isCharging == 1) // Skip displaying the logo and version while charging
 			{
-				if (lcdUpdate > 16)
+				if (lcdUpdate > 12)
 				{
 					if ( (warning == HIBATTV) || (warning == LOBATTV) )
 						lcdUpdate = 0;
@@ -765,7 +765,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			}
 			else
 			{
-				if (lcdUpdate > 16) // Display everything
+				if (lcdUpdate > 12) // Display everything
 					lcdUpdate = 0;
 			}
 

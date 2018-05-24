@@ -750,7 +750,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			lcdUpdate++;
 			canPulse++;
 
-			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) || (lcdUpdate == 13) )
+			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) )
 				lcdUpdateFlag = 1;
 
 			if (isCharging == 1) // Skip displaying the logo and version while charging

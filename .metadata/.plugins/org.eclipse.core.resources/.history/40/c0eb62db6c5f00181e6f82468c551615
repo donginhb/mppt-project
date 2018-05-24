@@ -136,7 +136,7 @@ char logo[] = "SOLAR TECH";
 char version[] = "MPPT EMS VER 1.0";
 char battery[] = "BATTERY BANK";
 char solarArray[] = "SOLAR ARRAY";
-char load[] = "BATTERY LOAD";
+char load[] = "BATTERY LOAD"
 char battHi[] = "HIGH VOLTAGE!";
 char battLo[] = "LOW VOLTAGE!";
 char battDead[] = "BELOW 8 VOLTS!";
@@ -178,7 +178,6 @@ void switchCapacitors(uint8_t onOff);
 
 void lcdBatteryInfo(void);
 void lcdSolarInfo(void);
-void lcdLoadInfo();
 
 void getADCreadings(uint8_t);
 
@@ -750,12 +749,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			lcdUpdate++;
 			canPulse++;
 
-			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) || (lcdUpdate == 13) )
+			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) )
 				lcdUpdateFlag = 1;
 
 			if (isCharging == 1) // Skip displaying the logo and version while charging
 			{
-				if (lcdUpdate > 16)
+				if (lcdUpdate > 12)
 				{
 					if ( (warning == HIBATTV) || (warning == LOBATTV) )
 						lcdUpdate = 0;
@@ -765,7 +764,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			}
 			else
 			{
-				if (lcdUpdate > 16) // Display everything
+				if (lcdUpdate > 12) // Display everything
 					lcdUpdate = 0;
 			}
 
@@ -1242,16 +1241,6 @@ void lcdSolarInfo(void)
 	HD44780_WriteData(1, 0, tmp_buffer, NO);
 }
 
-void lcdLoadInfo(void)
-{
-	char tmp_buffer[16];
-
-	HD44780_WriteData(0, 0, load, YES);
-	sprintf(tmp_buffer, "%2.2f V %2.2f A", loadVoltage, loadCurrent);
-	HD44780_WriteData(1, 0, tmp_buffer, NO);
-}
-
-
 void updateLCD(uint8_t warning)
 {
 
@@ -1307,10 +1296,6 @@ void updateLCD(uint8_t warning)
 
 		case 9:
 			lcdBatteryInfo();
-			break;
-
-		case 13:
-			lcdLoadInfo();
 			break;
 
 		default:
