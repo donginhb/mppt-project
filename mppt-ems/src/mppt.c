@@ -41,6 +41,8 @@
 #define MIN_DUTY_CYCLE		192		//75% of the TIM1 period
 #define MAX_DUTY_CYCLE  	218 	//85% of the TIM1 period
 #define PCT80_DUTY_CYCLE 	205
+#define PCT90_DUTY_CYCLE 	230
+#define PCT70_DUTY_CYCLE 	179
 //#define MAX_DUTY_CYCLE  230 	//90% of the TIM1 period
 
 // Time, in seconds, to wait between reading solar array charge current if it's below THRESHOLD_CURRENT
@@ -114,6 +116,7 @@ uint8_t lowChargeCurrentTimeout;
 uint8_t sendMessageCount = 0;
 uint8_t getADC = 0;
 uint8_t adcConvComplete = 0;
+int8_t POB_Direction = 1;
 
 uint8_t lcdUpdate = 0;
 uint8_t lcdUpdateFlag = 0;
@@ -125,6 +128,8 @@ static uint16_t duty;
 uint16_t battOffsetV, solarOffsetV, battOffsetI, solarOffsetI, loadOffsetI;
 double currentPower, lastPower;
 double vBat, iBat, vSolar, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent;
+
+double lastVsolar;
 
 // adcUnit = Vref / 2^12
 //Vref = 3.3v and 2^12 = 4096 for 12 bits of resolution
@@ -196,6 +201,7 @@ void writeFlash(uint16_t data);
 
 void calcMPPT(void);
 void calcMPPT_CV(void);
+void calcMPPT_TI(void);
 
 extern void crc16_init(void);
 extern uint16_t crc16(uint8_t[], uint8_t);
@@ -458,7 +464,7 @@ static void MX_TIM1_Init(void)
 //	  }
 
 	  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-	  sConfigOC.Pulse = PCT80_DUTY_CYCLE;
+	  sConfigOC.Pulse = PCT90_DUTY_CYCLE;
 	  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
 	  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
 	  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
@@ -466,7 +472,7 @@ static void MX_TIM1_Init(void)
 	  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
 
 	  sConfigOC2.OCMode = TIM_OCMODE_PWM2;
-	  sConfigOC2.Pulse = 256 - PCT80_DUTY_CYCLE;
+	  sConfigOC2.Pulse = 256 - PCT90_DUTY_CYCLE;
 	  sConfigOC2.OCPolarity = TIM_OCPOLARITY_HIGH;
 	  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_HIGH;
 	  sConfigOC2.OCFastMode = TIM_OCFAST_DISABLE;
@@ -737,8 +743,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance==TIM9)
 	{
 		// Read the ADC and execute the MPPT algorithm in the isCharging loop every 250 mS
-//		if (adcCount == 250)
-		if (adcCount == 100)
+		if (adcCount == 1000)
+//		if (adcCount == 100)
 		{
 			adcCount = 0;
 			getADC = 1;
@@ -887,8 +893,8 @@ void changePWM_TIM1(uint16_t pulse, uint8_t onOffUpdate)
 
 	  if (onOffUpdate == ON)
 	  {
-		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, PCT80_DUTY_CYCLE);
-		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 256 - PCT80_DUTY_CYCLE);
+		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, PCT90_DUTY_CYCLE);
+		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 256 - PCT90_DUTY_CYCLE);
 
 		  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 		  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
@@ -1029,16 +1035,17 @@ void getADCreadings (uint8_t howMany)
 
 	sendMessageCount++;
 
-	if (sendMessageCount >= 150)
-	{
-		sendMessageCount = 0;
+//	if (sendMessageCount >= 150)
+//	{
+//		sendMessageCount = 0;
 		// This data is sent to the controller
 	//	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %x, %x, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, flashData, flashData2, flashData3);
 //		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, adsorptionFlag, floatFlag, AdsorptionVoltage(tempAmbient), FloatVoltage(tempAmbient) );
-//		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
-		sendMessage();
+		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, currentPower, vSolar, duty );
+		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+//		sendMessage();
 
-	}
+//	}
 }
 
 uint16_t AdsorptionVoltage(uint16_t ambTemp)
@@ -1086,20 +1093,50 @@ double calcTemperature(uint16_t ADvalue)
 	return ((ADvalue * adcUnit) / LM335voltage) - kelvin;
 }
 
+void calcMPPT_TI(void)
+{
+	currentPower = vSolar * iSolar;
+
+	if (currentPower < lastPower)
+	{
+		POB_Direction *= -1;
+	}
+
+	if (POB_Direction == 1)
+	{
+		duty--;
+
+		if (duty <= MIN_DUTY_CYCLE)
+			duty = MIN_DUTY_CYCLE;
+
+	}
+	else
+	{
+		duty++;
+
+		if (duty >= MAX_DUTY_CYCLE)
+			duty = MAX_DUTY_CYCLE;
+	}
+
+	lastPower = currentPower;
+	changePWM_TIM1(duty, UPDATE);
+}
+
 void calcMPPT(void)
 {
 
 	currentPower = vSolar * iSolar;
 
-	if (currentPower == lastPower) {
+//	if (currentPower == lastPower) {
 		//do nothing
-	}
+//	}
 
-	else
-	{
+//	else
+//	{
 		if (currentPower > lastPower)
 		{
-			if (vSolarArray > last_vSolarArray)
+//			if (vSolarArray > last_vSolarArray)
+			if (vSolar > lastVsolar)
 			{
 				duty++;
 
@@ -1118,7 +1155,8 @@ void calcMPPT(void)
 		else
 		{
 
-			if (vSolarArray > last_vSolarArray)
+//			if (vSolarArray > last_vSolarArray)
+			if (vSolar > lastVsolar)
 			{
 				duty--;
 
@@ -1133,10 +1171,11 @@ void calcMPPT(void)
 					duty = MAX_DUTY_CYCLE;
 			}
 		}
-	}
+//	}
 
 	lastPower = currentPower;
-	last_vSolarArray = vSolarArray;
+//	last_vSolarArray = vSolarArray;
+	lastVsolar = vSolar;
 	changePWM_TIM1(duty, UPDATE);
 }
 
@@ -1632,7 +1671,7 @@ int main(void)
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 
 	changePWM_TIM5(15000, ON);
-	changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
+	changePWM_TIM1(PCT90_DUTY_CYCLE, OFF);
 
 	getADCreadings(32);
 	lcdBatteryInfo();
@@ -1777,7 +1816,7 @@ int main(void)
 						if (!lowChargeCurrentFlag)
 						{
 
-							changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
+							changePWM_TIM1(PCT90_DUTY_CYCLE, ON);
 							switchCharger(ON);
 
 							HAL_Delay(1000);
@@ -1789,9 +1828,10 @@ int main(void)
 								switchSolarArray(ON);
 								HAL_Delay(10);
 								isCharging = true;
-								currentPower = vSolar * iSolar;
-								last_vSolarArray = vSolarArray;
-								duty = PCT80_DUTY_CYCLE;
+//								currentPower = vSolar * iSolar;
+//								last_vSolarArray = vSolarArray;
+								lastVsolar = vSolar;
+								duty = PCT90_DUTY_CYCLE;
 								lastPower = currentPower;
 							}
 							// Set a flag and wait for LOW_CHARGE_CURRENT_TIMEOUT before trying again
@@ -1813,8 +1853,9 @@ int main(void)
 								getADC = 0;
 								getADCreadings(32);
 
-								calcMPPT();
+//								calcMPPT();
 //		  		  				calcMPPT_CV();
+								calcMPPT_TI();
 							}
 
 							if (lcdUpdateFlag == 1)

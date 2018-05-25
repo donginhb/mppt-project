@@ -1,4 +1,4 @@
- /** mppt.c
+/** mppt.c
  * Top level source file for MPPT EMS (STI assembly number 781-124-033 rev. 0)
  *
  * (c) 2018 Solar Technology Inc.
@@ -33,28 +33,17 @@
 #define LOBATTV		2
 #define DEADBATT	3
 
-#define ADSORPTION_TIME_SEALED	9000 	// 9000 seconds = 150 minutes
-//#define ADSORPTION_TIME_FLOODED	10800 	// 10800 seconds = 180 minutes
+//#define ADSORPTION_TIME_SEALED	9000 	// 9000 seconds = 150 minutes
+//#define ADSORPTION_TIME_FLOODED	3600 	// 3600 seconds = 60 minutes
 #define ADSORPTION_TIME_FLOODED	60
-
-#define ADSORPTIONV_SEALED		0x874 	// 2164 counts = 14.0v
-#define ADSORPTIONV_FLOODED		0x8b2 	// 2226 counts = 14.4v
-
-#define FLOATV_SEALED_FLOODED	0x827 	// 2087 counts = 13.5v
+#define ADSORPTION_LOCKOUT_TIME 28800
 
 #define MIN_DUTY_CYCLE		192		//75% of the TIM1 period
 #define MAX_DUTY_CYCLE  	218 	//85% of the TIM1 period
-
 #define PCT80_DUTY_CYCLE 	205
-#define PCT60_DUTY_CYCLE	154
-
-#define PCT85_DUTY_CYCLE 	218
-#define PCT90_DUTY_CYCLE	230
-#define PCT70_DUTY_CYCLE 	179
-
 //#define MAX_DUTY_CYCLE  230 	//90% of the TIM1 period
 
-// Time, in seconds, to wait between reading solar array charge current if it's at or close to THRESHOLD_CURRENT
+// Time, in seconds, to wait between reading solar array charge current if it's below THRESHOLD_CURRENT
 // The switching converter is turned off while in timeout, conserving power.
 #define LOW_CHARGE_CURRENT_TIMEOUT	10
 
@@ -80,7 +69,7 @@ UART_HandleTypeDef huart1;
 
 
 uint8_t strBuffer[128];
-uint8_t inBuffer[64];
+
 unsigned char sendBuffer[128], escBuffer[128];
 
 /** adcBuffer Description
@@ -106,17 +95,20 @@ uint32_t iLoad;
 uint16_t flashData;
 uint16_t adsorptionTime;
 uint16_t tim9Count, adcCount;
-//uint16_t canPulse;
+uint16_t canPulse;
 
 uint16_t powerCycleTimeout, timerCount;
 uint8_t  powerCycleOffTime, offTimeCount;
 uint8_t  enablePowerCycle;
 
 static bool adsorptionFlag;
+static bool adsorptionComplete;
 static bool floatFlag;
 static bool canCharge;
 static bool isCharging;
 static bool lowChargeCurrentFlag;
+static bool overTempFlag;
+static bool batteryFaultFlag;
 
 uint8_t lowChargeCurrentTimeout;
 uint8_t sendMessageCount = 0;
@@ -127,11 +119,12 @@ uint8_t lcdUpdate = 0;
 uint8_t lcdUpdateFlag = 0;
 uint8_t warning = 0;
 
-//uint8_t pulseInterval = 120;		// 120 second (2 minute) intervals between pulsing the battery bank
+uint8_t pulseInterval = 120;		// 120 second (2 minute) intervals between pulsing the battery bank
 static uint16_t duty;
 
-uint16_t flashData, flashData2, flashData3;
+uint16_t battOffsetV, solarOffsetV, battOffsetI, solarOffsetI, loadOffsetI;
 double currentPower, lastPower;
+double vBat, iBat, vSolar, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent;
 
 // adcUnit = Vref / 2^12
 //Vref = 3.3v and 2^12 = 4096 for 12 bits of resolution
@@ -139,18 +132,19 @@ const double adcUnit = 0.000806;
 const double voltageDividerOutput = 0.0623;		// Voltage Divider ratio gives 0.0623 volts out / volt in
 
 // LCD Strings
-char logo1[] = "MPPT TEST ";
-char logo2[] = "AND CALIBRATION";
+char logo[] = "SOLAR TECH";
+char version[] = "MPPT EMS VER 1.0";
 char battery[] = "BATTERY BANK";
+char solarArray[] = "SOLAR ARRAY";
+char load[] = "BATTERY LOAD";
 char battHi[] = "HIGH VOLTAGE!";
 char battLo[] = "LOW VOLTAGE!";
 char battDead[] = "BELOW 8 VOLTS!";
 char charger1[] = "PLEASE CONNECT";
 char charger2[] = "EXTERNAL CHARGER";
-char solarArray[] = "SOLAR ARRAY";
 
 // Version string sent to the controller in sendMessage()
-//char ver[] = "1.0";
+char ver[] = "A1.0";
 
 
 void SystemClock_Config(void);
@@ -166,8 +160,8 @@ static void MX_USART1_UART_Init(void);
 //static void MX_WWDG_Init(void);
 static void MX_DMA_Init(void);
 
-static void changePWM_TIM5(uint16_t, uint8_t);
-static void changePWM_TIM1(uint16_t, uint8_t);
+void changePWM_TIM5(uint16_t, uint8_t);
+void changePWM_TIM1(uint16_t, uint8_t);
 
 double calcVoltage(uint16_t ADvalue, uint8_t gain);
 double calcCurrent(uint16_t ADvalue);
@@ -184,26 +178,28 @@ void switchCapacitors(uint8_t onOff);
 
 void lcdBatteryInfo(void);
 void lcdSolarInfo(void);
+void lcdLoadInfo();
 
-static void getADCreadings(uint8_t);
-//static uint16_t FloatVoltage(uint16_t);
-static uint16_t AdsorptionVoltage(uint16_t);
+void getADCreadings(uint8_t);
 
-static void updateLCD(uint8_t warning);
+uint16_t AdsorptionVoltage(uint16_t);
+uint16_t FloatVoltage(uint16_t);
 
-//void sendMessage(void);
-//void sendOldMessage(void);	// compatible with past versions of Trafix
+void updateLCD(uint8_t warning);
 
-//static void pulse(void);
+void sendMessage(void);
+void sendOldMessage(void);	// compatible with past versions of Trafix
+
+void pulse(void);
 void delay_us(uint32_t);
-void writeFlash(uint32_t, uint16_t, uint8_t);
+void writeFlash(uint16_t data);
 
 void calcMPPT(void);
 void calcMPPT_CV(void);
 
 extern void crc16_init(void);
 extern uint16_t crc16(uint8_t[], uint8_t);
-//void handleData(void);
+void handleData(void);
 
 
 /** System Clock Configuration
@@ -267,7 +263,7 @@ static void MX_ADC1_Init(void)
     /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
     */
 	hadc1.Instance = ADC1;
-	hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2; // was _DIV4
+	hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4; // was _DIV4
 	hadc1.Init.Resolution = ADC_RESOLUTION_12B;
 	hadc1.Init.ScanConvMode = ENABLE;
 	hadc1.Init.ContinuousConvMode = DISABLE; //DISABLE;
@@ -359,7 +355,7 @@ static void MX_ADC1_Init(void)
 //	MOSFET Temperature
 	sConfig.Channel = ADC_CHANNEL_7;
 	sConfig.Rank = 7;
-	sConfig.SamplingTime = ADC_SAMPLETIME_56CYCLES;
+	sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 // 	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
@@ -741,8 +737,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance==TIM9)
 	{
 		// Read the ADC and execute the MPPT algorithm in the isCharging loop every 250 mS
-//		if (adcCount == 250)
-		if (adcCount == 100)
+		if (adcCount == 1000)
+//		if (adcCount == 100)
 		{
 			adcCount = 0;
 			getADC = 1;
@@ -752,14 +748,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		{
 			tim9Count = 0;
 			lcdUpdate++;
-//			canPulse++;
+			canPulse++;
 
-			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) )
+			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) || (lcdUpdate == 13) )
 				lcdUpdateFlag = 1;
 
 			if (isCharging == 1) // Skip displaying the logo and version while charging
 			{
-				if (lcdUpdate > 12)
+				if (lcdUpdate > 16)
 				{
 					if ( (warning == HIBATTV) || (warning == LOBATTV) )
 						lcdUpdate = 0;
@@ -769,7 +765,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			}
 			else
 			{
-				if (lcdUpdate > 12) // Display everything
+				if (lcdUpdate > 16) // Display everything
 					lcdUpdate = 0;
 			}
 
@@ -800,7 +796,22 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 				adsorptionTime++;
 
 				if (adsorptionTime >= ADSORPTION_TIME_FLOODED)
+				{
 					adsorptionFlag = false;
+					adsorptionComplete = true;
+					adsorptionTime = 0;
+				}
+			}
+
+			if (adsorptionComplete)
+			{
+				adsorptionTime++;
+
+				if (adsorptionTime >= ADSORPTION_LOCKOUT_TIME)
+				{
+					adsorptionTime = 0;
+					adsorptionComplete = false;
+				}
 			}
 
 
@@ -871,7 +882,7 @@ void assert_failed(uint8_t* file, uint32_t line)
 #endif
 
 // Controls the Duty cycle of the switching MOSFETs
-static void changePWM_TIM1(uint16_t pulse, uint8_t onOffUpdate)
+void changePWM_TIM1(uint16_t pulse, uint8_t onOffUpdate)
 {
 
 	  if (onOffUpdate == ON)
@@ -907,7 +918,7 @@ static void changePWM_TIM1(uint16_t pulse, uint8_t onOffUpdate)
 }
 
 // Controls the brightness of the LCD backlight
-static void changePWM_TIM5(uint16_t pulse, uint8_t onOffUpdate)
+void changePWM_TIM5(uint16_t pulse, uint8_t onOffUpdate)
 {
 	 if (onOffUpdate == ON)
 	 {
@@ -931,7 +942,7 @@ static void changePWM_TIM5(uint16_t pulse, uint8_t onOffUpdate)
 	 }
 }
 
-static void getADCreadings (uint8_t howMany)
+void getADCreadings (uint8_t howMany)
 {
 
 	uint8_t i;
@@ -1009,8 +1020,8 @@ static void getADCreadings (uint8_t howMany)
 // Calculate the values and send them to the host controller
 	vBat = calcVoltage(vBattery, 2);
 	vSolar = calcVoltage(vSolarArray, 2);
-	iBat = calcCurrent(iBattery - flashData);
-	iSolar = calcCurrent(iSolarArray - flashData2);
+	iBat = calcCurrent(iBattery);
+	iSolar = calcCurrent(iSolarArray);
 	loadVoltage = calcVoltage(vLoad, 1);
 	ambientTemp = calcTemperature(tempAmbient);
 	mosfetTemp = calcTemperature(tempMOSFETS);
@@ -1018,29 +1029,41 @@ static void getADCreadings (uint8_t howMany)
 
 	sendMessageCount++;
 
-	if (sendMessageCount >= 5)
-	{
-		sendMessageCount = 0;
+//	if (sendMessageCount >= 150)
+//	{
+//		sendMessageCount = 0;
 		// This data is sent to the controller
 	//	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %x, %x, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, flashData, flashData2, flashData3);
-		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, AdsorptionVoltage(tempAmbient), adsorptionFlag);
+//		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, adsorptionFlag, floatFlag, AdsorptionVoltage(tempAmbient), FloatVoltage(tempAmbient) );
+		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, currentPower, lastPower, duty );
 		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
-	//	sendMessage();
-	//  sendOldMessage();
+//		sendMessage();
 
-	}
+//	}
 }
 
-static uint16_t AdsorptionVoltage(uint16_t ambTemp)
+uint16_t AdsorptionVoltage(uint16_t ambTemp)
 {
 	if (ambTemp < TEMP_NEG30)
-		return (TV_NEG30);
+		return (ATV_NEG30);
 
 	else if (ambTemp < TEMP_40)
-		return (TV_NEG30 - ((ambTemp - TEMP_NEG30) * RATE1) / 100);
+		return (ATV_NEG30 - ((ambTemp - TEMP_NEG30) * RATE1) / 100);
 
 	else
-		return (TV_40 - ((ambTemp - TEMP_40) * RATE2) / 100);
+		return (ATV_40 - ((ambTemp - TEMP_40) * RATE2) / 100);
+}
+
+uint16_t FloatVoltage(uint16_t ambTemp)
+{
+	if (ambTemp < TEMP_NEG30)
+		return (FTV_NEG30);
+
+	else if (ambTemp < TEMP_40)
+		return (FTV_NEG30 - ((ambTemp - TEMP_NEG30) * RATE1) / 100);
+
+	else
+		return (FTV_40 - ((ambTemp - TEMP_40) * RATE2) / 100);
 }
 
 double calcVoltage(uint16_t ADvalue, uint8_t gain)
@@ -1069,12 +1092,12 @@ void calcMPPT(void)
 
 	currentPower = vSolar * iSolar;
 
-	if (currentPower == lastPower) {
+//	if (currentPower == lastPower) {
 		//do nothing
-	}
+//	}
 
-	else
-	{
+//	else
+//	{
 		if (currentPower > lastPower)
 		{
 			if (vSolarArray > last_vSolarArray)
@@ -1111,7 +1134,7 @@ void calcMPPT(void)
 					duty = MAX_DUTY_CYCLE;
 			}
 		}
-	}
+//	}
 
 	lastPower = currentPower;
 	last_vSolarArray = vSolarArray;
@@ -1220,7 +1243,17 @@ void lcdSolarInfo(void)
 	HD44780_WriteData(1, 0, tmp_buffer, NO);
 }
 
-static void updateLCD(uint8_t warning)
+void lcdLoadInfo(void)
+{
+	char tmp_buffer[16];
+
+	HD44780_WriteData(0, 0, load, YES);
+	sprintf(tmp_buffer, "%2.2f V %2.2f A", loadVoltage, loadCurrent);
+	HD44780_WriteData(1, 0, tmp_buffer, NO);
+}
+
+
+void updateLCD(uint8_t warning)
 {
 
 	lcdUpdateFlag = 0;
@@ -1253,8 +1286,8 @@ static void updateLCD(uint8_t warning)
 				}
 				else
 				{
-					HD44780_WriteData(0, 0, logo1, YES);
-					HD44780_WriteData(1, 0, logo2, NO);
+					HD44780_WriteData(0, 0, logo, YES);
+					HD44780_WriteData(1, 0, version, NO);
 				}
 
 			break;
@@ -1277,12 +1310,16 @@ static void updateLCD(uint8_t warning)
 			lcdBatteryInfo();
 			break;
 
+		case 13:
+			lcdLoadInfo();
+			break;
+
 		default:
 			break;
 	}
 }
 
-/* static void pulse(void)
+void pulse(void)
 {
 
 	uint8_t i;
@@ -1297,7 +1334,7 @@ static void updateLCD(uint8_t warning)
 
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 	switchCapacitors(ON);
-} */
+}
 
 void delay_us(uint32_t usDelay)
 {
@@ -1307,24 +1344,31 @@ void delay_us(uint32_t usDelay)
 	while ( (__HAL_TIM_GET_COUNTER(&htim11) - initTime < usDelay));
 }
 
-void writeFlash(uint32_t address, uint16_t data, uint8_t erase)
-
+void writeFlash(uint16_t data)
 {
-
 	HAL_FLASH_Unlock();
+//	if (HAL_FLASH_Unlock() != HAL_OK)
+//	{
+//		Error_Handler();
+//	}
+
     __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | FLASH_FLAG_PGSERR );
+      FLASH_Erase_Sector(FLASH_SECTOR_4, VOLTAGE_RANGE_3);
 
-    if (erase == YES)
-    	FLASH_Erase_Sector(FLASH_SECTOR_4, VOLTAGE_RANGE_3);
+      HAL_FLASH_Program(TYPEPROGRAM_HALFWORD, 0x08010000, 0x0004);
+//      if (HAL_FLASH_Program(TYPEPROGRAM_HALFWORD, 0x08010000, data)!= HAL_OK)
+//      {
+//		   	  Error_Handler();
+//      }
 
-    HAL_FLASH_Program(TYPEPROGRAM_HALFWORD, address, data);
+      HAL_FLASH_Program(TYPEPROGRAM_HALFWORD, 0x08010002, 0x0004);
+      HAL_FLASH_Program(TYPEPROGRAM_HALFWORD, 0x08010004, 0x0004);
 
-    HAL_FLASH_Lock();
+      HAL_FLASH_Lock();
 }
 
-
 // this function sends data to the controller
-/* void sendMessage(void)
+void sendMessage(void)
 {
 
 	uint16_t crc = 0xffff;
@@ -1338,46 +1382,62 @@ void writeFlash(uint32_t address, uint16_t data, uint8_t erase)
 	sendBuffer[0] = 0x9a;
 	msgLength++;
 
-	strncpy((char *)&sendBuffer[1], ver, 3);
-	msgLength += 3;
+	strncpy((char *)&sendBuffer[1], ver, 4);
+	msgLength += 4;
 
 	sendBuffer[msgLength] = 0x9e;
 	msgLength++;
 
-	data = vBat * 1000;
+	// Battery Voltage
+	data = vBat * 1000;	// Convert to mV
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
 	msgLength++;
 
+	// Battery current
 	data = iBat * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
 	msgLength++;
 
+	// Solar Array Voltage
 	data = vSolar * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
 	msgLength++;
 
+	// Solar Array Current
 	data = iSolar * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
 	msgLength++;
 
+	// Load Voltage
 	data = loadVoltage * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
 	msgLength++;
 
+	// Load Current
 	data = loadCurrent * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
+	msgLength++;
+
+	// Vbattery flag
+	data = batteryFaultFlag;
+	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
+	msgLength++;
+
+	// Overtemp flag
+	data = overTempFlag;
+	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 
 	crc = crc16(sendBuffer, msgLength);
@@ -1419,9 +1479,9 @@ void writeFlash(uint32_t address, uint16_t data, uint8_t erase)
 	}
 
 	HAL_UART_Transmit(&huart1, escBuffer, j, 0xffff);
-} */
+}
 
-/* void sendOldMessage(void)
+void sendOldMessage(void)
 {
 
 	uint16_t crc = 0xffff;
@@ -1504,10 +1564,10 @@ void writeFlash(uint32_t address, uint16_t data, uint8_t erase)
 	}
 
 	HAL_UART_Transmit(&huart1, escBuffer, j, 0xffff);
-} */
+}
 
 
-/* void handleData()
+void handleData()
 {
 
 	uint8_t commandByte;
@@ -1531,372 +1591,352 @@ void writeFlash(uint32_t address, uint16_t data, uint8_t erase)
 	else {
 		enablePowerCycle = 0;
 	}
-} */
+}
 
 int main(void)
 {
 
-// double SA_MeasuredVoltage;
- uint16_t SA_OffsetVoltage;
- uint8_t tempStr1[16];
- uint8_t i, charCount;
- double expectedSolarV;
+//	uint16_t start_volt;
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+	HAL_Init();
 
-  /* Configure the system clock */
-  SystemClock_Config();
+	/* Configure the system clock */
+	SystemClock_Config();
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_DMA_Init();
-  MX_ADC1_Init();
-  MX_TIM1_Init();
-  MX_TIM5_Init();
-  MX_TIM9_Init();
-  MX_TIM11_Init();
-  MX_USART1_UART_Init();
+	/* Initialize all configured peripherals */
+	MX_GPIO_Init();
+	MX_DMA_Init();
+	MX_ADC1_Init();
+	MX_TIM1_Init();
+	MX_TIM5_Init();
+	MX_TIM9_Init();
+	MX_TIM11_Init();
+	MX_USART1_UART_Init();
 
- // switchDiagLED(ON);
+	crc16_init();
+	HD44780_Init();
 
+	lcdUpdate = 0;
+	canCharge = false;
+	isCharging = false;
 
- //crc16_init();
- HD44780_Init();
- HD44780_WriteData(0, 0, logo1, YES);
- HD44780_WriteData(1, 0, logo2, NO);
+	// switchFan(OFF);
+	switchCharger(OFF);
+	switchSolarArray(OFF); // Enable this only when ready to charge, disable all other times.
+	switchLoad(ON);
+	switchChargeLED(ON);
+	switchCapacitors(ON);
+	switchDiagLED(OFF);
 
- for (i=64; i>0; i--)
-	 HAL_UART_Transmit(&huart1, (uint8_t *)"\r\n", 2, 0xffff);
+	// Ensure that Desulphate MOSFETS are OFF
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 
- memset(strBuffer, (int)NULL, sizeof(strBuffer));
- sprintf((char *)strBuffer, "MPPT EMS Production Test\r\n\r\n");
- HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
- HAL_Delay(2000);
-
-// switchFan(OFF);
- switchCharger(OFF);
- switchSolarArray(OFF); // Enable this only when ready to charge, disable all other times.
- switchLoad(OFF);
- switchChargeLED(ON);
-
- changePWM_TIM5(15000, ON);
- changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-
- // Battery Measurement Offset
- HD44780_WriteData(0, 0, "BATT OFFSET", YES);
-
- memset(strBuffer, (int)NULL, 128);
- sprintf((char *)strBuffer, "BATTERY OFFSET VOLTAGE\r\n");
- HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
-
- sprintf((char *)strBuffer, "Connect J2-2 and J2-3 together\r\n");
- HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
-
- memset(strBuffer, (int)NULL, 128);
- sprintf((char *)strBuffer, "Press SPACEBAR to continue\r\n");
- HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
-
- myChar = 'z';
- while (myChar != ' ');
-
- getADCreadings(32);
-
- memset(strBuffer, (int)NULL, 128);
-
- if (vBattery >= 0x3e) //62d: ADcounts corresponding to 50 mV
- {
-	 sprintf((char *)strBuffer, "Battery offset exceeds 50 mV!\r\n\r\n");
-	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
- }
-
- else
- {
-//	 writeFlash(0x08010000, (uint16_t)vBattery, YES);
-	 sprintf((char *)strBuffer, "Battery offset OK!\r\n\r\n");
-	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
- }
-
-// flashData = *(__IO uint16_t *)0x08010000;
-// sprintf((char *)strBuffer, "Measured Battery Offset: %x\r\n", flashData);
-// HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
-
- //Solar Array Voltage Offset
- 	HD44780_WriteData(0, 0, "SA OFFSET", YES);
-
- 	sprintf((char *)strBuffer, "SOLAR ARRAY VOLTAGE OFFSET\r\n");
- 	HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
-
- 	sprintf((char *)strBuffer, "\r\nConnect J1-1 and J1-3 together\r\n");
- 	HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
-
- 	 sprintf((char *)strBuffer, "Press SPACEBAR to continue\r\n");
- 	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
-
- 	 myChar = 'z';
- 	 while (myChar != ' ');
-
-	memset(strBuffer, (int)NULL, sizeof(strBuffer));
+	changePWM_TIM5(15000, ON);
+	changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
 
 	getADCreadings(32);
+	lcdBatteryInfo();
 
-	memset(strBuffer, (int)NULL, sizeof(strBuffer));
-	sprintf((char *)strBuffer, "\r\n\r\n");
-	HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+//writeFlash(0xaa55);
+	battOffsetV =  *(__IO uint16_t *)0x08010000;
+	solarOffsetV = *(__IO uint16_t *)0x08010002;
+	battOffsetI = *(__IO uint16_t *)0x08010006;
+	solarOffsetI = *(__IO uint16_t *)0x08010004;
+	loadOffsetI = *(__IO uint16_t *)0x08010008;
 
-	if (vSolarArray >  0x3e)
+	lowChargeCurrentFlag = false;
+	lowChargeCurrentTimeout = 0;
+
+	overTempFlag = false;
+	batteryFaultFlag = false;
+	adsorptionComplete = false;
+
+	while (1)
 	{
-		 sprintf((char *)strBuffer, "Solar Array Offset Voltage exceeds 50 mV!\r\n\r\n");
-		 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
-	}
-	else
-	{
-//		writeFlash(0x08010002, SA_OffsetVoltage, NO);
-		sprintf((char *)strBuffer, "Solar Array Offset Voltage OK!\r\n\r\n");
-		HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
-	}
 
-// flashData = *(__IO uint16_t *)0x08010002;
-// sprintf((char *)strBuffer, "\r\nMeasured Solar Array Offset: %x\r\n", flashData);
-// HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+		// Get ADC readings
+		if (getADC == 1)
+		{
+			getADC = 0;
+			getADCreadings(32);
+		}
 
- //Solar Array Current Offset
- HD44780_WriteData(0, 0, " SOLAR  ARRAY", YES);
- HD44780_WriteData(1, 0, "CURRENT OFFSET", NO);
+		// Update the LCD
+		if (lcdUpdateFlag == 1)
+		{
+			lcdUpdateFlag = 0;
+			updateLCD(warning);
+		}
 
- memset(strBuffer, (int)NULL, 128);
- sprintf((char *)strBuffer, "MEASURING SOLAR ARRAY CURRENT SENSE OFFSET VOLTAGE\r\n");
- HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+		if (vBattery >= BAT_DROP_DEAD_VOLT) // We charge only if the battery isn't too dead
+		{
 
- getADCreadings(32);
+			// We have enough solar energy to charge the batteries
+			if (vSolarArray >= (vBattery + TWO_VOLT))
+			{
 
- memset(strBuffer, (int)NULL, 128);
- if (iSolarArray >= 0x3e) //62d: ADcounts corresponding to 50 mV
- {
-	 sprintf((char *)strBuffer, "Solar Array Current Offset Voltage exceeds 50 mV!\r\n\r\n");
-	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
- }
+				if (canPulse == pulseInterval)
+				{
+					pulse();
+					canPulse = 0;
+				}
 
- else
- {
-//	 writeFlash(0x08010004, (uint16_t)iSolarArray, NO);
-	 sprintf((char *)strBuffer, "Solar Array Current Offset Voltage OK!\r\n\r\n");
-	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
- }
+				// Batteries need charging?
+				if ( (vBattery < FloatVoltage(tempAmbient) - HALF_VOLT) )
+				{
+					canCharge = true;
+					adsorptionFlag = false;
+					adsorptionTime = 0;
+					floatFlag = false;
+				}
 
-//  flashData = *(__IO uint16_t *)0x08010008;
-//  sprintf((char *)strBuffer, "Measured Solar Array Current Offset: %x\r\n", flashData);
-//  HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+				// did we charge to the adsorption voltage?
+				else if (adsorptionFlag && floatFlag && !adsorptionComplete)
+				{
+					if (vBattery <= AdsorptionVoltage(tempAmbient) - HALF_VOLT)
+					{
+						canCharge = true;
+					}
+					else
+					{
+						canCharge = false;
+						switchCharger(OFF);
+						switchSolarArray(OFF);
+						changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+					}
+				}
 
+				else if (!adsorptionFlag && floatFlag && adsorptionComplete)
+				{
+					if (vBattery <= FloatVoltage(tempAmbient) - QUARTER_VOLT)
+					{
+						canCharge = true;
+					}
+					else
+					{
+						canCharge = false;
+						switchCharger(OFF);
+						switchSolarArray(OFF);
+						changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+					}
+				}
 
- //Battery Current Offset
-  HD44780_WriteData(0, 3, "BATTERY", YES);
-  HD44780_WriteData(1, 0, "CURRENT OFFSET", NO);
+				// We'll get into here when adsorptionFlag = 0 and vBattery > (float voltage - 0.1v)
+				else
+				{
+					canCharge = false;
+					switchCharger(OFF);
+					switchSolarArray(OFF);
+					changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+				}
 
-  memset(strBuffer, (int)NULL, 128);
-  sprintf((char *)strBuffer, "MEASURING BATTERY CURRENT SENSE OFFSET VOLTAGE\r\n");
-  HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+				while(canCharge)
+				{
 
-  getADCreadings(32);
+					if (canPulse == pulseInterval)
+					{
+						pulse();
+						canPulse = 0;
+					}
 
-  memset(strBuffer, (int)NULL, 128);
-  if (iBattery >= 0x3e) //62d: ADcounts corresponding to 50 mV
-  {
- 	 sprintf((char *)strBuffer, "Solar Array Current Offset Voltage exceeds 50 mV!\r\n\r\n");
- 	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
-  }
+					if (getADC == 1)
+					{
+						getADC = 0;
+						getADCreadings(32);
+					}
 
-  else
-  {
-// 	 writeFlash(0x08010006, (uint16_t)iBattery, NO);
- 	 sprintf((char *)strBuffer, "Battery Current Offset Voltage OK!\r\n\r\n");
- 	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
-  }
+					if (lcdUpdateFlag == 1)
+					{
+						lcdUpdateFlag = 0;
+						updateLCD(warning);
+					}
 
-//   flashData = *(__IO uint16_t *)0x08010006;
-//   sprintf((char *)strBuffer, "Measured Battery Current Offset: %x\r\n", flashData);
-//   HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+					// May not need this here...
+					if (vBattery < (FloatVoltage(tempAmbient) - HALF_VOLT) )
+					{
+						adsorptionFlag = false;
+						floatFlag = false;
+						adsorptionTime = 0;
+					}
 
-  //Load Current Offset
-   HD44780_WriteData(0, 0, "LOAD CURRENT", YES);
-   HD44780_WriteData(1, 3, "OFFSET", NO);
+					// Get out of this loop if we can't charge, no longer need to charge
+					// or, for whatever reason, we drop below our "drop dead" threshold voltage
+					if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBattery >= AdsorptionVoltage(tempAmbient) ) || (vBattery < BAT_DROP_DEAD_VOLT) )
+					{
+						canCharge = false;
+						isCharging = false;
+						switchCharger(OFF);
+						switchSolarArray(OFF);
+						changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+					}
 
-   memset(strBuffer, (int)NULL, 128);
-   sprintf((char *)strBuffer, "MEASURING LOAD CURRENT SENSE OFFSET VOLTAGE\r\n");
-   HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+					else
+					{
 
-   getADCreadings(32);
+						// Check if we have minimum charge current from the PV panels
+						if (!lowChargeCurrentFlag)
+						{
 
-   memset(strBuffer, (int)NULL, 128);
-   if (iLoad >= 0x3e) //62d: ADcounts corresponding to 50 mV
-   {
-  	 sprintf((char *)strBuffer, "Load Current Offset Voltage exceeds 50 mV!\r\n\r\n");
-  	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
-   }
+							changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
+							switchCharger(ON);
 
-   else
-   {
-//  	 writeFlash(0x08010008, (uint16_t)iLoad, NO);
-  	 sprintf((char *)strBuffer, "Load Current Offset Voltage OK!\r\n\r\n");
-  	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
-   }
+							HAL_Delay(1000);
+							getADCreadings(32);
 
-//    flashData = *(__IO uint16_t *)0x0801000a;
-//    sprintf((char *)strBuffer, "Measured Load Current Offset: %x\r\n", flashData);
-//    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+							// Start charging if we have enough current
+							if (iSolarArray >= THRESHOLD_CURRENT)
+							{
+								switchSolarArray(ON);
+								HAL_Delay(10);
+								isCharging = true;
+								currentPower = vSolar * iSolar;
+								last_vSolarArray = vSolarArray;
+								duty = PCT80_DUTY_CYCLE;
+								lastPower = currentPower;
+							}
+							// Set a flag and wait for LOW_CHARGE_CURRENT_TIMEOUT before trying again
+							else
+							{
+								isCharging = false;
+								switchSolarArray(OFF);
+								switchCharger(OFF);
+								changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+								lowChargeCurrentFlag = true;
+							}
+						}
 
-   //Temperature Sensor Checket
-//    HD44780_WriteData(0, 0, "LOAD CURRENT", YES);
-//    HD44780_WriteData(1, 3, "OFFSET", NO);
+						while (isCharging)
+						{
 
-    memset(strBuffer, (int)NULL, 128);
-    sprintf((char *)strBuffer, "READING TEMPERATURE SENSORS\r\n");
-    HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+							if (getADC == 1)
+							{
+								getADC = 0;
+								getADCreadings(32);
 
-    sprintf((char *)strBuffer, "Verify that both temperature readings are within 1 degree of room temperature \r\n");
-    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+								calcMPPT();
+//		  		  				calcMPPT_CV();
+							}
 
-    memset(strBuffer, (int)NULL, 128);
-    sprintf((char *)strBuffer, "After verifying, press SPACEBAR to continue\r\n\r\n");
-    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+							if (lcdUpdateFlag == 1)
+							{
+								lcdUpdateFlag = 0;
+								updateLCD(warning);
+							}
 
-    getADCreadings(32);
+							// We no longer have enough current to charge.
+							if (iSolarArray < THRESHOLD_CURRENT)
+							{
+								switchSolarArray(OFF);
+								isCharging = false;
+							}
 
-    memset(strBuffer, (int)NULL, 128);
-    sprintf((char *)strBuffer, "Ambient Temp: %.2f deg. C	MOSFET Temp: %.2f deg. C\r\n\r\n", ambientTemp, mosfetTemp);
-    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+							if (vSolarArray >= MAX_PV_VOLT)
+							{
+								duty = PCT80_DUTY_CYCLE;
+							}
 
-    sprintf((char *)tempStr1, "Ambient: %.2f C", ambientTemp);
-    HD44780_WriteData(0, 0, (char *)tempStr1, YES);
+							if (vBattery < FloatVoltage(tempAmbient))
+							{
+								adsorptionFlag = false;
+								floatFlag = false;
+								adsorptionTime = 0;
+							}
 
-    sprintf((char *)tempStr1, "MOSFET: %.2f C", mosfetTemp);
-    HD44780_WriteData(1, 0, (char *)tempStr1, NO);
+							if ( (warning == HIBATTV) || (warning == DEADBATT) || (vSolarArray < (vBattery + TWO_VOLT) )  )
+							{
+								switchSolarArray(OFF);
+								isCharging = false;
+								canCharge = false;
+								switchCharger(OFF);
+								changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+							}
 
-    myChar = 'z';
-    while (myChar != ' ');
+							if ( !adsorptionFlag && !adsorptionComplete && !floatFlag && (vBattery >= FloatVoltage(tempAmbient) ) )
+							{
+								adsorptionFlag = false;
+								floatFlag = true;
+							}
 
+							if ( !adsorptionFlag && !adsorptionComplete && floatFlag && (vBattery >= AdsorptionVoltage(tempAmbient) ) )
+							{
+								adsorptionFlag = true;
+								floatFlag = true;
+								adsorptionTime = 0;
+							}
 
-    memset(strBuffer, (int)NULL, 128);
-    sprintf((char *)strBuffer, "Checking Charger Circuit \r\n");
-    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+							if (adsorptionFlag && floatFlag && !adsorptionComplete)
+							{
+								if (vBattery >= AdsorptionVoltage(tempAmbient) )
+								{
+									switchSolarArray(OFF);
+									isCharging = false;
+									canCharge = false;
+									switchCharger(OFF);
+									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+								}
+							}
+							else if (!adsorptionFlag && floatFlag && adsorptionComplete)
+							{
+								if (vBattery >= FloatVoltage(tempAmbient) + QUARTER_VOLT )
+								{
+									switchSolarArray(OFF);
+									isCharging = false;
+									canCharge = false;
+									switchCharger(OFF);
+									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+								}
+							}
+							else
+							{
+								// Do Nothing
+							}
+						} // end while (isCharging)
+					} //end else
+				} //end while (canCharge)
+			} // end if (vSolarArray > (vBattery + TWO_VOLT))
 
-    memset(strBuffer, (int)NULL, 128);
-    sprintf((char *)strBuffer, "Please connect the battery sense terminals on J2 \r\n");
-    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+			// Solar array voltage is high enough to de-sulfate the batteries but not high enough to charge them
+			else if ( (vSolarArray > vBattery) && (vSolarArray < (vBattery + TWO_VOLT)))
+			{
+				switchCharger(OFF);
+				switchSolarArray(OFF);
+				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+				canCharge = false;
+				isCharging = false;
 
-	 sprintf((char *)strBuffer, "When finished, press SPACEBAR to continue\r\n");
-	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+				if (canPulse == pulseInterval)
+				{
+					pulse();
+					canPulse = 0;
+				}
+			}
 
-	 myChar = 'z';
-	 while (myChar != ' ');
+			// Don't do anything if the solar array voltage is below battery voltage.
+			else
+			{
+				switchCharger(OFF);
+				switchSolarArray(OFF);
+				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+				canCharge = false;
+				isCharging = false;
+				canPulse = 0;
+				adsorptionComplete = false;
+				adsorptionFlag = false;
+				floatFlag = false;
+			}
+		} // end if (vBattery > BAT_DROP_DEAD_VOLT)
 
-
-    memset(strBuffer, (int)NULL, 128);
-    sprintf((char *)strBuffer, "Checking Charger Circuit: Test 1... \r\n");
-    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
-
-    getADCreadings(32);
-
-    expectedSolarV = vBat / 0.8;
-
-//    changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
-    changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
-    HAL_Delay(500);
-    changePWM_TIM1(PCT90_DUTY_CYCLE, UPDATE);
-
-    switchSolarArray(ON);
-    switchCharger(ON);
-
-
-    HAL_Delay(1000);
-
-    getADCreadings(32);
-
-    memset(strBuffer, (int)NULL, 128);
-    if ( (vSolar > (expectedSolarV + (expectedSolarV * 0.01) ) ) || (vSolar < (expectedSolarV - (expectedSolarV * 0.01) ) ) )
-    {
-    	sprintf((char *)strBuffer, "Solar Array Voltage %.2f V  Not Within 1 percent of Expected Value %.2f!\r\n", vSolar, expectedSolarV);
-    }
-    else
-    {
-    	sprintf((char *)strBuffer, "Solar Array Voltage %.2f V OK!!\r\n", vSolar);
-    }
-
-    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
-
-    sprintf((char *)tempStr1, "Charger Circuit");
-    HD44780_WriteData(0, 0, (char *)tempStr1, YES);
-    sprintf((char *)tempStr1, "Test 1");
-    HD44780_WriteData(1, 0, (char *)tempStr1, NO);
-
-    /*
-
-    memset(strBuffer, (int)NULL, 128);
-    sprintf((char *)strBuffer, "Checking Charger Circuit: Test 2... \r\n");
-    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
-
-    changePWM_TIM1(PCT60_DUTY_CYCLE, UPDATE);
-
-    HAL_Delay(1000);
-
-    getADCreadings(32);
-
-    expectedSolarV = vBat / 0.6;
-
-    memset(strBuffer, (int)NULL, 128);
-    if ( (vSolar > (expectedSolarV + (expectedSolarV * 0.01) ) ) || (vSolar < (expectedSolarV - (expectedSolarV * 0.01) ) ) )
-    {
-     	sprintf((char *)strBuffer, "Solar Array Voltage %.2f V  Not Within 1 percent of Expected Value %.2f!\r\n", vSolar, expectedSolarV);
-    }
-    else
-    {
-    	sprintf((char *)strBuffer, "Solar Array Voltage %.2f V OK!!\r\n", vSolar);
-    }
-
-    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
-
-    sprintf((char *)tempStr1, "Charger Circuit");
-    HD44780_WriteData(0, 0, (char *)tempStr1, YES);
-    sprintf((char *)tempStr1, "Test 2");
-    HD44780_WriteData(1, 0, (char *)tempStr1, NO);
-
-    changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-    switchSolarArray(OFF);
-    switchCharger(OFF);
-
-    memset(strBuffer, (int)NULL, 128);
-    sprintf((char *)strBuffer, "DONE!! Please reprogram the EMS with the correct version of Production firmware and perform the functional test \r\n");
-    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
-
-    HD44780_WriteData(0, 0, "PRODUCTION TEST", YES);
-    HD44780_WriteData(1, 0, "COMPLETED!", NO);
-
-*/
-
-    while (1)
-    {
-/*
-// Update the LCD
-	  if (lcdUpdateFlag == 1)
-	  {
-		  lcdUpdateFlag = 0;
-		  updateLCD(lcdUpdate, warning);
-	  }
-
-// Get ADC readings
-   if (getADC == 1)
-	  {
-		  getADC = 0;
-		  getADCreadings(32);
-	  }
-// Switch load according to battery voltage condition
-   if ((warning == LOBATTV) || (warning == HIBATTV))
-	   switchLoad(OFF);
-   else
-	   switchLoad(ON);
-
-*/
-   }
-    return 0;
+		else // If batteries are below 8v, just keep these all off
+		{
+			switchCharger(OFF);
+			switchSolarArray(OFF);
+			changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+			canCharge = false;
+			isCharging = false;
+			canPulse = 0;
+			adsorptionComplete = false;
+		}
+	} //end while
 }
 

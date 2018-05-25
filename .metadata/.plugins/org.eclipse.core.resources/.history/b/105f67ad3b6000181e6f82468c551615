@@ -48,7 +48,7 @@
 #define PCT80_DUTY_CYCLE 	205
 #define PCT60_DUTY_CYCLE	154
 
-#define PCT85_DUTY_CYCLE 	218
+#define PCT100_DUTY_CYCLE 	256
 #define PCT90_DUTY_CYCLE	230
 #define PCT70_DUTY_CYCLE 	179
 
@@ -1800,9 +1800,7 @@ int main(void)
     expectedSolarV = vBat / 0.8;
 
 //    changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
-    changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
-    HAL_Delay(500);
-    changePWM_TIM1(PCT90_DUTY_CYCLE, UPDATE);
+    changePWM_TIM1(PCT60_DUTY_CYCLE, ON);
 
     switchSolarArray(ON);
     switchCharger(ON);

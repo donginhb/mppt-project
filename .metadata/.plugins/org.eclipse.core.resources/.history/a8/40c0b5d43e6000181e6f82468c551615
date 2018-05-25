@@ -1802,7 +1802,7 @@ int main(void)
 //    changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
     changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
     HAL_Delay(500);
-    changePWM_TIM1(PCT90_DUTY_CYCLE, UPDATE);
+    changePWM_TIM1(PCT85_DUTY_CYCLE, UPDATE);
 
     switchSolarArray(ON);
     switchCharger(ON);

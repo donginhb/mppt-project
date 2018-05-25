@@ -44,14 +44,8 @@
 
 #define MIN_DUTY_CYCLE		192		//75% of the TIM1 period
 #define MAX_DUTY_CYCLE  	218 	//85% of the TIM1 period
-
 #define PCT80_DUTY_CYCLE 	205
 #define PCT60_DUTY_CYCLE	154
-
-#define PCT85_DUTY_CYCLE 	218
-#define PCT90_DUTY_CYCLE	230
-#define PCT70_DUTY_CYCLE 	179
-
 //#define MAX_DUTY_CYCLE  230 	//90% of the TIM1 period
 
 // Time, in seconds, to wait between reading solar array charge current if it's at or close to THRESHOLD_CURRENT
@@ -1799,11 +1793,7 @@ int main(void)
 
     expectedSolarV = vBat / 0.8;
 
-//    changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
     changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
-    HAL_Delay(500);
-    changePWM_TIM1(PCT90_DUTY_CYCLE, UPDATE);
-
     switchSolarArray(ON);
     switchCharger(ON);
 
