@@ -116,7 +116,8 @@ uint8_t lowChargeCurrentTimeout;
 uint8_t sendMessageCount = 0;
 uint8_t getADC = 0;
 uint8_t adcConvComplete = 0;
-int8_t POB_Direction = 1;
+
+int POB_Direction = 1;
 
 uint8_t lcdUpdate = 0;
 uint8_t lcdUpdateFlag = 0;
@@ -641,7 +642,7 @@ static void MX_USART1_UART_Init(void)
 {
 
 	huart1.Instance = USART1;
-	huart1.Init.BaudRate = 115200;
+	huart1.Init.BaudRate = 9600;
 	huart1.Init.WordLength = UART_WORDLENGTH_8B;
 	huart1.Init.StopBits = UART_STOPBITS_1;
 	huart1.Init.Parity = UART_PARITY_NONE;
@@ -1035,17 +1036,17 @@ void getADCreadings (uint8_t howMany)
 
 	sendMessageCount++;
 
-//	if (sendMessageCount >= 150)
-//	{
-//		sendMessageCount = 0;
+	if (sendMessageCount >= 15)
+	{
+		sendMessageCount = 0;
 		// This data is sent to the controller
 	//	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %x, %x, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, flashData, flashData2, flashData3);
 //		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, adsorptionFlag, floatFlag, AdsorptionVoltage(tempAmbient), FloatVoltage(tempAmbient) );
-		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, currentPower, vSolar, duty );
-		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
-//		sendMessage();
+//		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, currentPower, vSolar, duty, POB_Direction );
+//		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+		sendMessage();
 
-//	}
+	}
 }
 
 uint16_t AdsorptionVoltage(uint16_t ambTemp)
@@ -1816,7 +1817,7 @@ int main(void)
 						if (!lowChargeCurrentFlag)
 						{
 
-							changePWM_TIM1(PCT90_DUTY_CYCLE, ON);
+							changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
 							switchCharger(ON);
 
 							HAL_Delay(1000);
@@ -1831,7 +1832,7 @@ int main(void)
 //								currentPower = vSolar * iSolar;
 //								last_vSolarArray = vSolarArray;
 								lastVsolar = vSolar;
-								duty = PCT90_DUTY_CYCLE;
+								duty = PCT80_DUTY_CYCLE;
 								lastPower = currentPower;
 							}
 							// Set a flag and wait for LOW_CHARGE_CURRENT_TIMEOUT before trying again
@@ -1883,7 +1884,8 @@ int main(void)
 								adsorptionTime = 0;
 							}
 
-							if ( (warning == HIBATTV) || (warning == DEADBATT) || (vSolarArray < (vBattery + TWO_VOLT) )  )
+//							if ( (warning == HIBATTV) || (warning == DEADBATT) || (vSolarArray < (vBattery + TWO_VOLT) )  )
+							if ( (warning == HIBATTV) || (warning == DEADBATT) )
 							{
 								switchSolarArray(OFF);
 								isCharging = false;
