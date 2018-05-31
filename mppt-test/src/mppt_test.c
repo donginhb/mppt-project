@@ -1790,11 +1790,21 @@ int main(void)
 	 myChar = 'z';
 	 while (myChar != ' ');
 
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_SET);
 
     memset(strBuffer, (int)NULL, 128);
     sprintf((char *)strBuffer, "Checking Charger Circuit: Test 1... \r\n");
     HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
 
+	 sprintf((char *)strBuffer, "When finished, press SPACEBAR to continue\r\n");
+	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+	 myChar = 'z';
+	 while (myChar != ' ');
+
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
+
+/*
     getADCreadings(32);
 
     expectedSolarV = vBat / 0.8;
@@ -1828,8 +1838,6 @@ int main(void)
     HD44780_WriteData(0, 0, (char *)tempStr1, YES);
     sprintf((char *)tempStr1, "Test 1");
     HD44780_WriteData(1, 0, (char *)tempStr1, NO);
-
-    /*
 
     memset(strBuffer, (int)NULL, 128);
     sprintf((char *)strBuffer, "Checking Charger Circuit: Test 2... \r\n");

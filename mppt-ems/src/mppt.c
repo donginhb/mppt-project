@@ -33,19 +33,16 @@
 #define LOBATTV		2
 #define DEADBATT	3
 
-//#define ADSORPTION_TIME_SEALED	9000 	// 9000 seconds = 150 minutes
-//#define ADSORPTION_TIME_FLOODED	3600 	// 3600 seconds = 60 minutes
-#define ADSORPTION_TIME_FLOODED	60
-#define ADSORPTION_LOCKOUT_TIME 28800
+#define ADSORPTION_TIME_FLOODED	3600 	// 3600 seconds = 60 minutes
+#define ADSORPTION_LOCKOUT_TIME 28800		// 28800 seconds = 8 hours
 
 #define MIN_DUTY_CYCLE		192		//75% of the TIM1 period
 #define MAX_DUTY_CYCLE  	218 	//85% of the TIM1 period
 #define PCT80_DUTY_CYCLE 	205
 #define PCT90_DUTY_CYCLE 	230
 #define PCT70_DUTY_CYCLE 	179
-//#define MAX_DUTY_CYCLE  230 	//90% of the TIM1 period
 
-// Time, in seconds, to wait between reading solar array charge current if it's below THRESHOLD_CURRENT
+// Time, in seconds, to wait between reading solar array charge current when it's below THRESHOLD_CURRENT
 // The switching converter is turned off while in timeout, conserving power.
 #define LOW_CHARGE_CURRENT_TIMEOUT	10
 
@@ -71,8 +68,7 @@ UART_HandleTypeDef huart1;
 
 
 uint8_t strBuffer[128];
-
-unsigned char sendBuffer[128], escBuffer[128];
+uint8_t sendBuffer[128], escBuffer[128];
 
 /** adcBuffer Description
  * 0: Battery Bank Voltage
@@ -94,14 +90,27 @@ uint32_t vLoad;
 uint32_t tempAmbient;
 uint32_t tempMOSFETS;
 uint32_t iLoad;
+
 uint16_t flashData;
 uint16_t adsorptionTime;
 uint16_t tim9Count, adcCount;
 uint16_t canPulse;
-
 uint16_t powerCycleTimeout, timerCount;
+uint16_t battOffsetV, solarOffsetV, battOffsetI, solarOffsetI, loadOffsetI;
+static uint16_t duty;
+
 uint8_t  powerCycleOffTime, offTimeCount;
 uint8_t  enablePowerCycle;
+uint8_t  maxDutyCycleCount = 0;
+uint8_t  mpptBypassCount = 0;
+uint8_t lowChargeCurrentTimeout;
+uint8_t sendMessageCount = 0;
+uint8_t getADC = 0;
+uint8_t adcConvComplete = 0;
+uint8_t lcdUpdate = 0;
+uint8_t lcdUpdateFlag = 0;
+uint8_t warning = 0;
+uint8_t pulseInterval = 120;		// 120 second (2 minute) intervals between pulsing the battery bank
 
 static bool adsorptionFlag;
 static bool adsorptionComplete;
@@ -111,25 +120,12 @@ static bool isCharging;
 static bool lowChargeCurrentFlag;
 static bool overTempFlag;
 static bool batteryFaultFlag;
-
-uint8_t lowChargeCurrentTimeout;
-uint8_t sendMessageCount = 0;
-uint8_t getADC = 0;
-uint8_t adcConvComplete = 0;
+static bool mpptBypassFlag;
 
 int POB_Direction = 1;
 
-uint8_t lcdUpdate = 0;
-uint8_t lcdUpdateFlag = 0;
-uint8_t warning = 0;
-
-uint8_t pulseInterval = 120;		// 120 second (2 minute) intervals between pulsing the battery bank
-static uint16_t duty;
-
-uint16_t battOffsetV, solarOffsetV, battOffsetI, solarOffsetI, loadOffsetI;
 double currentPower, lastPower;
 double vBat, iBat, vSolar, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent;
-
 double lastVsolar;
 
 // adcUnit = Vref / 2^12
@@ -163,7 +159,6 @@ static void MX_TIM9_Init(void);
 static void MX_TIM11_Init(void);
 
 static void MX_USART1_UART_Init(void);
-//static void MX_WWDG_Init(void);
 static void MX_DMA_Init(void);
 
 void changePWM_TIM5(uint16_t, uint8_t);
@@ -185,25 +180,17 @@ void switchCapacitors(uint8_t onOff);
 void lcdBatteryInfo(void);
 void lcdSolarInfo(void);
 void lcdLoadInfo();
-
 void getADCreadings(uint8_t);
-
 uint16_t AdsorptionVoltage(uint16_t);
 uint16_t FloatVoltage(uint16_t);
-
 void updateLCD(uint8_t warning);
-
 void sendMessage(void);
-void sendOldMessage(void);	// compatible with past versions of Trafix
-
 void pulse(void);
 void delay_us(uint32_t);
 void writeFlash(uint16_t data);
-
 void calcMPPT(void);
-void calcMPPT_CV(void);
 void calcMPPT_TI(void);
-
+void mpptBypass(void);
 extern void crc16_init(void);
 extern uint16_t crc16(uint8_t[], uint8_t);
 void handleData(void);
@@ -744,8 +731,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance==TIM9)
 	{
 		// Read the ADC and execute the MPPT algorithm in the isCharging loop every 250 mS
-		if (adcCount == 1000)
-//		if (adcCount == 100)
+//		if (adcCount == 1000)
+		if (adcCount == 100)
 		{
 			adcCount = 0;
 			getADC = 1;
@@ -1036,12 +1023,10 @@ void getADCreadings (uint8_t howMany)
 
 	sendMessageCount++;
 
-	if (sendMessageCount >= 15)
+	if (sendMessageCount >= 150)
 	{
 		sendMessageCount = 0;
 		// This data is sent to the controller
-	//	 sprintf(strBuffer, "MPPT ADC Value: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %x, %x, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, flashData, flashData2, flashData3);
-//		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, adsorptionFlag, floatFlag, AdsorptionVoltage(tempAmbient), FloatVoltage(tempAmbient) );
 //		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, currentPower, vSolar, duty, POB_Direction );
 //		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 		sendMessage();
@@ -1094,6 +1079,22 @@ double calcTemperature(uint16_t ADvalue)
 	return ((ADvalue * adcUnit) / LM335voltage) - kelvin;
 }
 
+void mpptBypass(void)
+{
+
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_SET);
+
+	mpptBypassCount++;
+
+	if (mpptBypassCount >= 1000)
+	{
+		mpptBypassCount = 0;
+		maxDutyCycleCount = 0;
+		mpptBypassFlag = true;
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
+	}
+}
+
 void calcMPPT_TI(void)
 {
 	currentPower = vSolar * iSolar;
@@ -1109,14 +1110,20 @@ void calcMPPT_TI(void)
 
 		if (duty <= MIN_DUTY_CYCLE)
 			duty = MIN_DUTY_CYCLE;
-
 	}
 	else
 	{
 		duty++;
 
 		if (duty >= MAX_DUTY_CYCLE)
+		{
 			duty = MAX_DUTY_CYCLE;
+			maxDutyCycleCount++;
+		}
+		else
+		{
+			maxDutyCycleCount = 0;
+		}
 	}
 
 	lastPower = currentPower;
@@ -1177,28 +1184,6 @@ void calcMPPT(void)
 	lastPower = currentPower;
 //	last_vSolarArray = vSolarArray;
 	lastVsolar = vSolar;
-	changePWM_TIM1(duty, UPDATE);
-}
-
-// This function calculates Duty Cycle based on battery voltage and on holding the solar array at 17 volts
-// (or whatever it's advertised operating voltage is)
-// Not MPPT, but may be useful for something. May want to delete this later
-void calcMPPT_CV(void)
-{
-
-	uint16_t maxPeriod = 256;
-//	uint8_t solarVoltage = 16;
-//	uint16_t solarVoltage = 0xa44; //2628 counts = 17v
-	uint16_t solarVoltage = 0x9a9; //2473 counts = 16v
-
-	duty = maxPeriod * (vBat / (double)solarVoltage);
-
-	if (duty >= MAX_DUTY_CYCLE)
-		duty = MAX_DUTY_CYCLE;
-
-	if (duty <= MIN_DUTY_CYCLE)
-		duty = MIN_DUTY_CYCLE;
-
 	changePWM_TIM1(duty, UPDATE);
 }
 
@@ -1520,92 +1505,6 @@ void sendMessage(void)
 	HAL_UART_Transmit(&huart1, escBuffer, j, 0xffff);
 }
 
-void sendOldMessage(void)
-{
-
-	uint16_t crc = 0xffff;
-	uint8_t msgLength = 0;
-	uint8_t i, j;
-	uint16_t data;
-
-	memset((void *)sendBuffer, 0, sizeof(sendBuffer));
-	memset((void *)escBuffer, 0, sizeof(escBuffer));
-
-	sendBuffer[0] = 0x9a;
-	msgLength++;
-
-	strncpy((char *)&sendBuffer[1], ver, 3);
-	msgLength += 3;
-
-	sendBuffer[msgLength] = 0x9e;
-	msgLength++;
-
-	data = vBat * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = iBat * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = vSolar * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = iSolar * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	crc = crc16(sendBuffer, msgLength);
-	sendBuffer[msgLength] = (uint8_t)crc & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (crc>>8);
-	msgLength++;
-
-	for (i = 0, j = 0; i < msgLength; i++, j++)
-	{
-
-		switch (sendBuffer[i])
-		{
-
-			case 0x9a:
-
-				if (i != 0)
-				{
-					escBuffer[j++] = 0x9b;
-					escBuffer[j] = 0x01;
-				}
-
-				else
-					escBuffer[j] = sendBuffer[i];
-
-				break;
-
-			case 0x9b:
-
-				escBuffer[j++] = 0x9b;
-				escBuffer[j] = 0x02;
-
-				break;
-
-			default:
-				escBuffer[j] = sendBuffer[i];
-				break;
-		}
-	}
-
-	HAL_UART_Transmit(&huart1, escBuffer, j, 0xffff);
-}
-
-
 void handleData()
 {
 
@@ -1690,6 +1589,7 @@ int main(void)
 	overTempFlag = false;
 	batteryFaultFlag = false;
 	adsorptionComplete = false;
+	mpptBypassFlag = false;
 
 	while (1)
 	{
@@ -1854,9 +1754,26 @@ int main(void)
 								getADC = 0;
 								getADCreadings(32);
 
-//								calcMPPT();
-//		  		  				calcMPPT_CV();
-								calcMPPT_TI();
+								if (maxDutyCycleCount < 100)
+								{
+									if (mpptBypassFlag == true)
+									{
+										switchSolarArray(ON);
+										switchCharger(ON);
+										changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
+										mpptBypassFlag = false;
+									}
+
+//									calcMPPT();
+									calcMPPT_TI();
+								}
+								else if ( (maxDutyCycleCount >= 100) && (mpptBypassCount < 1000) )
+								{
+									switchSolarArray(OFF);
+									switchCharger(OFF);
+									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+									mpptBypass();
+								}
 							}
 
 							if (lcdUpdateFlag == 1)
@@ -1884,7 +1801,6 @@ int main(void)
 								adsorptionTime = 0;
 							}
 
-//							if ( (warning == HIBATTV) || (warning == DEADBATT) || (vSolarArray < (vBattery + TWO_VOLT) )  )
 							if ( (warning == HIBATTV) || (warning == DEADBATT) )
 							{
 								switchSolarArray(OFF);
