@@ -150,7 +150,6 @@ char ver[] = "A1.0";
 
 
 void SystemClock_Config(void);
-//void Error_Handler(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM1_Init(void);
@@ -222,10 +221,6 @@ void SystemClock_Config(void)
 
 	HAL_RCC_OscConfig(&RCC_OscInitStruct);
 
-//  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-//  {
-//    Error_Handler();
-//  }
 
 	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK|RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
 	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
@@ -234,11 +229,6 @@ void SystemClock_Config(void)
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
 	HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_7);
-
-//  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_7) != HAL_OK)
-//   {
-//     Error_Handler();
-//   }
 
 	HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
 
@@ -271,11 +261,6 @@ static void MX_ADC1_Init(void)
 
 	HAL_ADC_Init(&hadc1);
 
-//  if (HAL_ADC_Init(&hadc1) != HAL_OK)
-//  {
-//    Error_Handler();
-//  }
-
 	/**Configure the selected ADC regular channels and their corresponding rank in the sequencer and also their sample time. */
 
 	// Battery Bank Voltage
@@ -285,11 +270,6 @@ static void MX_ADC1_Init(void)
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 
-//	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-// 	{
-//  	 Error_Handler();
-// 	}
-
 	//Solar Array Voltage
 	sConfig.Channel = ADC_CHANNEL_1;
 	sConfig.Rank = 2;
@@ -297,21 +277,12 @@ static void MX_ADC1_Init(void)
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 
-//	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-// 	{
-//  	 Error_Handler();
-// 	}
-
 //	Battery Bank Current
 	sConfig.Channel = ADC_CHANNEL_2;
 	sConfig.Rank = 3;
 	sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
-// 	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-// 	{
-//   	Error_Handler();
-// 	}
 
 //	Solar Array Current
 	sConfig.Channel = ADC_CHANNEL_3;
@@ -319,10 +290,6 @@ static void MX_ADC1_Init(void)
 	sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
-// 	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-// 	{
-//   	Error_Handler();
-// 	}
 
 // 	Load Voltage
 	sConfig.Channel = ADC_CHANNEL_4;
@@ -330,10 +297,6 @@ static void MX_ADC1_Init(void)
 	sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
-// 	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-// 	{
-//   	Error_Handler();
-//	}
 
 //	Ambient Temperature
 	sConfig.Channel = ADC_CHANNEL_6;
@@ -341,10 +304,6 @@ static void MX_ADC1_Init(void)
 	sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES; //ADC_SAMPLETIME_28CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
-// 	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-// 	{
-//   	Error_Handler();
-// 	}
 
 //	MOSFET Temperature
 	sConfig.Channel = ADC_CHANNEL_7;
@@ -352,10 +311,6 @@ static void MX_ADC1_Init(void)
 	sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
-// 	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-// 	{
-//   	Error_Handler();
-// 	}
 
 //	Load Current
 	sConfig.Channel = ADC_CHANNEL_8;
@@ -363,10 +318,6 @@ static void MX_ADC1_Init(void)
 	sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
-// 	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-// 	{
-//   	Error_Handler();
-// 	}
 
 }
 
@@ -400,42 +351,22 @@ static void MX_TIM1_Init(void)
 	  htim1.Init.RepetitionCounter = 0;
 
 	  HAL_TIM_Base_Init(&htim1);
-//	  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
-//	  {
-//	    Error_Handler();
-//	  }
 
 	  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
 
 	  HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig);
-//	  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
-//	  {
-//	    Error_Handler();
-//	  }
 
 	  HAL_TIM_PWM_Init(&htim1);
-//	  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
-//	  {
-//	    Error_Handler();
-//	  }
 
 	  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
 	  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
 
 	  HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig);
-//	  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
-//	  {
-//	    Error_Handler();
-//	  }
 
 	    sSlaveConfig.SlaveMode = TIM_SLAVEMODE_DISABLE;
 	    sSlaveConfig.InputTrigger = TIM_TS_ITR0;
 
 	    HAL_TIM_SlaveConfigSynchronization(&htim1, &sSlaveConfig);
-//	    if (HAL_TIM_SlaveConfigSynchronization(&htim1, &sSlaveConfig) != HAL_OK)
-//	    {
-//	    	Error_Handler();
-//	    }
 
 	  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_ENABLE;
 	  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
@@ -446,10 +377,6 @@ static void MX_TIM1_Init(void)
 	  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
 
 	  HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig);
-//	  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
-//	  {
-//	    Error_Handler();
-//	  }
 
 	  sConfigOC.OCMode = TIM_OCMODE_PWM1;
 	  sConfigOC.Pulse = PCT90_DUTY_CYCLE;
@@ -468,16 +395,8 @@ static void MX_TIM1_Init(void)
 	  sConfigOC2.OCNIdleState = TIM_OCNIDLESTATE_RESET;
 
 	  HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1);
-//	  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-//	  {
-//		  Error_Handler();
-//	  }
 
 	  HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_2);
-//	  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC2, TIM_CHANNEL_2) != HAL_OK)
-//	  {
-//		  Error_Handler();
-//	  }
 
 	 HAL_TIM_MspPostInit(&htim1);
 }
@@ -498,28 +417,16 @@ static void MX_TIM5_Init(void)
   	htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 
   	HAL_TIM_Base_Init(&htim5);
-//  if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
-// {
-//    Error_Handler();
-//  }
 
   	sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
 
   	HAL_TIM_ConfigClockSource(&htim5, &sClockSourceConfig);
-//  if (HAL_TIM_ConfigClockSource(&htim5, &sClockSourceConfig) != HAL_OK)
-//  {
-//    Error_Handler();
-//  }
 
 
   	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
 
   	HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig);
-//  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
-//  {
-//    Error_Handler();
-//  }
 
 	sConfigOC_LCD.OCMode = TIM_OCMODE_PWM1;
 	sConfigOC_LCD.Pulse = 15000;
@@ -528,16 +435,8 @@ static void MX_TIM5_Init(void)
 	sConfigOC_LCD.OCIdleState = TIM_OCIDLESTATE_RESET;
 
 	HAL_TIM_OC_Init(&htim5);
-//	if (HAL_TIM_OC_Init(&htim5) != HAL_OK)
-//	{
-//	 	Error_Handler();
-//	}
 
 	HAL_TIM_OC_ConfigChannel(&htim5, &sConfigOC_LCD, TIM_CHANNEL_1);
-//	if (HAL_TIM_OC_ConfigChannel(&htim5, &sConfigOC_LCD, TIM_CHANNEL_1) != HAL_OK)
-//	{
-//		 Error_Handler();
-//	}
 
 	HAL_TIM_MspPostInit(&htim5);
 }
@@ -555,33 +454,17 @@ static void MX_TIM9_Init(void) {
 	  htim9.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 
 	  HAL_TIM_Base_Init(&htim9);
-//	  if (HAL_TIM_Base_Init(&htim9) != HAL_OK)
-//	  {
-//	    Error_Handler();
-//	  }
 
 	  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
 
 	  HAL_TIM_ConfigClockSource(&htim9, &sClockSourceConfig);
-//	  if (HAL_TIM_ConfigClockSource(&htim9, &sClockSourceConfig) != HAL_OK)
-//	  {
-//	    Error_Handler();
-//	  }
 
 	  HAL_TIM_OC_Init(&htim9);
-//	  if (HAL_TIM_OC_Init(&htim9) != HAL_OK)
-//	  {
-//	    Error_Handler();
-//	  }
 
 	  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
 	  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
 
 	  HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig);
-//	  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
-//	  {
-//	    Error_Handler();
-//	  }
 
 	  HAL_TIM_Base_Start_IT(&htim9);
 }
@@ -599,28 +482,15 @@ static void MX_TIM11_Init(void) {
 	  htim11.Init.ClockDivision = TIM_CLOCKDIVISION_DIV2;
 
 	  HAL_TIM_Base_Init(&htim11);
-//	  if (HAL_TIM_Base_Init(&htim11) != HAL_OK)
-//	  {
-//	    Error_Handler();
-//	  }
 
 	  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_ITR0; //TIM_CLOCKSOURCE_INTERNAL;
 
 	  HAL_TIM_ConfigClockSource(&htim11, &sClockSourceConfig);
-//	  if (HAL_TIM_ConfigClockSource(&htim11, &sClockSourceConfig) != HAL_OK)
-//	  {
-//	    Error_Handler();
-//	  }
 
 	  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
 	  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
 
 	  HAL_TIMEx_MasterConfigSynchronization(&htim11, &sMasterConfig);;
-//	  if (HAL_TIMEx_MasterConfigSynchronization(&htim11, &sMasterConfig) != HAL_OK)
-//	  {
-//	    Error_Handler();
-//	  }
-
 	  HAL_TIM_Base_Start(&htim11);
 }
 
@@ -638,10 +508,6 @@ static void MX_USART1_UART_Init(void)
 	huart1.Init.OverSampling = UART_OVERSAMPLING_16;
 
 	HAL_UART_Init(&huart1);
-//  if (HAL_UART_Init(&huart1) != HAL_OK)
-//  {
-//    Error_Handler();
-//  }
 
 	__HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
 	HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_0);
@@ -712,18 +578,6 @@ static void MX_GPIO_Init(void)
 
 }
 
-
-/**
-  * This function is executed in case of error occurrence.
-  */
-//void Error_Handler(void)
-//{
-//	while(1)
-//	{
-//		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_15);
-//		HAL_Delay(100);
-//	}
-//}
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
@@ -855,26 +709,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc1) {
 
 }
 
-#ifdef USE_FULL_ASSERT
-
-/**
-   * @brief Reports the name of the source file and the source line number
-   * where the assert_param error has occurred.kjjjj
-   * @param file: pointer to the source file name
-   * @param line: assert_param error line source number
-   * @retval None
-   */
-void assert_failed(uint8_t* file, uint32_t line)
-{
-  /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
-    ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-  /* USER CODE END 6 */
-
-}
-
-#endif
-
 // Controls the Duty cycle of the switching MOSFETs
 void changePWM_TIM1(uint16_t pulse, uint8_t onOffUpdate)
 {
@@ -957,9 +791,6 @@ void getADCreadings (uint8_t howMany)
 		adcConvComplete = 0;
 
 		HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adcBuffer, 8);
-//		if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adcBuffer, 8) != HAL_OK)
-//			Error_Handler();
-
 		while(!adcConvComplete);
 	}
 
@@ -1371,19 +1202,11 @@ void delay_us(uint32_t usDelay)
 void writeFlash(uint16_t data)
 {
 	HAL_FLASH_Unlock();
-//	if (HAL_FLASH_Unlock() != HAL_OK)
-//	{
-//		Error_Handler();
-//	}
 
     __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | FLASH_FLAG_PGSERR );
       FLASH_Erase_Sector(FLASH_SECTOR_4, VOLTAGE_RANGE_3);
 
       HAL_FLASH_Program(TYPEPROGRAM_HALFWORD, 0x08010000, 0x0004);
-//      if (HAL_FLASH_Program(TYPEPROGRAM_HALFWORD, 0x08010000, data)!= HAL_OK)
-//      {
-//		   	  Error_Handler();
-//      }
 
       HAL_FLASH_Program(TYPEPROGRAM_HALFWORD, 0x08010002, 0x0004);
       HAL_FLASH_Program(TYPEPROGRAM_HALFWORD, 0x08010004, 0x0004);
@@ -1754,20 +1577,31 @@ int main(void)
 								getADC = 0;
 								getADCreadings(32);
 
-								if (maxDutyCycleCount < 100)
+								if (iBattery < MAX_CHARGE_CURRENT)
 								{
-									if (mpptBypassFlag == true)
-									{
-										switchSolarArray(ON);
-										switchCharger(ON);
-										changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
-										mpptBypassFlag = false;
-									}
 
-//									calcMPPT();
-									calcMPPT_TI();
+									if (maxDutyCycleCount < 100)
+									{
+										if (mpptBypassFlag == true)
+										{
+											switchSolarArray(ON);
+											switchCharger(ON);
+											changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
+											mpptBypassFlag = false;
+										}
+
+//										calcMPPT();
+										calcMPPT_TI();
+									}
+									else if ( (maxDutyCycleCount >= 100) && (mpptBypassCount < 1000) )
+									{
+										switchSolarArray(OFF);
+										switchCharger(OFF);
+										changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+										mpptBypass();
+									}
 								}
-								else if ( (maxDutyCycleCount >= 100) && (mpptBypassCount < 1000) )
+								else
 								{
 									switchSolarArray(OFF);
 									switchCharger(OFF);
