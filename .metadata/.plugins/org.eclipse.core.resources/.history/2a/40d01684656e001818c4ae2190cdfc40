@@ -129,7 +129,6 @@ int POB_Direction = 1;
 double currentPower, lastPower, lastVsolar;
 double vBat, iBat, vSolar, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent;
 double vBatAve, iBatAve, vSolarAve, iSolarAve, loadVoltageAve, loadCurrentAve;
-double vBatOut, iBatOut, vSolarOut, iSolarOut, loadVoltageOut, loadCurrentOut;
 
 // adcUnit = Vref / 2^12
 //Vref = 3.3v and 2^12 = 4096 for 12 bits of resolution
@@ -600,18 +599,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			tim9Count = 0;
 			lcdUpdate++;
 			canPulse++;
+			aveCount++;
 
-			if (aveCount <= 5)
+			if (aveCount <= AVERAGE_INTERVAL)
 			{
-				if (aveCount == 0)
-				{
-					vBatAve = 0;
-					iBatAve = 0;
-					vSolarAve = 0;
-					iSolarAve = 0;
-					loadVoltageAve = 0;
-					loadCurrentAve = 0;
-				}
 
 				vBatAve += vBat;
 				iBatAve += iBat;
@@ -620,18 +611,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 				loadVoltageAve += loadVoltage;
 				loadCurrentAve += loadCurrent;
 
-				aveCount++;
-
-				if (aveCount == 5)
+				if (aveCount == AVERAGE_INTERVAL)
 				{
 					aveCount = 0;
 
-					vBatOut = vBatAve / 5;
-					iBatOut = iBatAve / 5;
-					vSolarOut = vSolarAve / 5;
-					iSolarOut = iSolarAve / 5;
-					loadVoltageOut = loadVoltageAve / 5;
-					loadCurrentOut = loadCurrentAve / 5;
+					vBatAve /= AVERAGE_INTERVAL;
+					iBatAve /= AVERAGE_INTERVAL;
+					vSolarAve /= AVERAGE_INTERVAL;
+					iSolarAve /= AVERAGE_INTERVAL;
+					loadVoltageAve /= AVERAGE_INTERVAL;
+					loadCurrentAve /= AVERAGE_INTERVAL;
 				}
 
 			}
@@ -1131,7 +1120,7 @@ void lcdBatteryInfo(void)
 
 	HD44780_WriteData(0, 0, battery, YES);
 //	sprintf(tmp_buffer, "%2.2f V %2.2f A", vBat, iBat);
-	sprintf(tmp_buffer, "%2.2f V %2.2f A", vBatOut, iBatOut);
+	sprintf(tmp_buffer, "%2.2f V %2.2f A", vBatAve, iBatAve);
 	HD44780_WriteData(1, 0, tmp_buffer, NO);
 }
 
@@ -1141,7 +1130,7 @@ void lcdSolarInfo(void)
 
 	HD44780_WriteData(0, 0, solarArray, YES);
 //	sprintf(tmp_buffer, "%2.2f V %2.2f A", vSolar, iSolar);
-	sprintf(tmp_buffer, "%2.2f V %2.2f A", vSolarOut, iSolarOut);
+	sprintf(tmp_buffer, "%2.2f V %2.2f A", vSolarAve, iSolarAve);
 	HD44780_WriteData(1, 0, tmp_buffer, NO);
 }
 
@@ -1151,7 +1140,7 @@ void lcdLoadInfo(void)
 
 	HD44780_WriteData(0, 0, load, YES);
 //	sprintf(tmp_buffer, "%2.2f V %2.2f A", loadVoltage, loadCurrent);
-	sprintf(tmp_buffer, "%2.2f V %2.2f A", loadVoltageOut, loadCurrentOut);
+	sprintf(tmp_buffer, "%2.2f V %2.2f A", loadVoltageAve, loadCurrentAve);
 	HD44780_WriteData(1, 0, tmp_buffer, NO);
 }
 
@@ -1285,7 +1274,7 @@ void sendMessage(void)
 
 	// Battery Voltage
 //	data = vBat * 1000;	// Convert to mV
-	data = vBatOut * 1000;	// Convert to mV
+	data = vBatAve * 1000;	// Convert to mV
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
@@ -1293,7 +1282,7 @@ void sendMessage(void)
 
 	// Battery current
 //	data = iBat * 1000;
-	data = iBatOut * 1000;
+	data = iBatAve * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
@@ -1301,7 +1290,7 @@ void sendMessage(void)
 
 	// Solar Array Voltage
 //	data = vSolar * 1000;
-	data = vSolarOut * 1000;
+	data = vSolarAve * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
@@ -1309,7 +1298,7 @@ void sendMessage(void)
 
 	// Solar Array Current
 //	data = iSolar * 1000;
-	data = iSolarOut * 1000;
+	data = iSolarAve * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
@@ -1317,7 +1306,7 @@ void sendMessage(void)
 
 	// Load Voltage
 //	data = loadVoltage * 1000;
-	data = loadVoltageOut * 1000;
+	data = loadVoltageAve * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
@@ -1325,7 +1314,7 @@ void sendMessage(void)
 
 	// Load Current
 //	data = loadCurrent * 1000;
-	data = loadCurrentOut * 1000;
+	data = loadCurrentAve * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);

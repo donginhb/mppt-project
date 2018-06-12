@@ -45,7 +45,6 @@
 // Time, in seconds, to wait between reading solar array charge current when it's below THRESHOLD_CURRENT
 // The switching converter is turned off while in timeout, conserving power.
 #define LOW_CHARGE_CURRENT_TIMEOUT	10
-#define AVERAGE_INTERVAL	15
 
 #define min(a,b) 	((a) < (b)) ? (a) : (b);
 
@@ -112,7 +111,6 @@ uint8_t lcdUpdate = 0;
 uint8_t lcdUpdateFlag = 0;
 uint8_t warning = 0;
 uint8_t pulseInterval = 120;		// 120 second (2 minute) intervals between pulsing the battery bank
-uint8_t aveCount;
 
 static bool adsorptionFlag;
 static bool adsorptionComplete;
@@ -129,7 +127,6 @@ int POB_Direction = 1;
 double currentPower, lastPower, lastVsolar;
 double vBat, iBat, vSolar, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent;
 double vBatAve, iBatAve, vSolarAve, iSolarAve, loadVoltageAve, loadCurrentAve;
-double vBatOut, iBatOut, vSolarOut, iSolarOut, loadVoltageOut, loadCurrentOut;
 
 // adcUnit = Vref / 2^12
 //Vref = 3.3v and 2^12 = 4096 for 12 bits of resolution
@@ -600,41 +597,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			tim9Count = 0;
 			lcdUpdate++;
 			canPulse++;
-
-			if (aveCount <= 5)
-			{
-				if (aveCount == 0)
-				{
-					vBatAve = 0;
-					iBatAve = 0;
-					vSolarAve = 0;
-					iSolarAve = 0;
-					loadVoltageAve = 0;
-					loadCurrentAve = 0;
-				}
-
-				vBatAve += vBat;
-				iBatAve += iBat;
-				vSolarAve += vSolar;
-				iSolarAve  += iSolar;
-				loadVoltageAve += loadVoltage;
-				loadCurrentAve += loadCurrent;
-
-				aveCount++;
-
-				if (aveCount == 5)
-				{
-					aveCount = 0;
-
-					vBatOut = vBatAve / 5;
-					iBatOut = iBatAve / 5;
-					vSolarOut = vSolarAve / 5;
-					iSolarOut = iSolarAve / 5;
-					loadVoltageOut = loadVoltageAve / 5;
-					loadCurrentOut = loadCurrentAve / 5;
-				}
-
-			}
 
 			// used in updateLCD to display different messages at these intervals. Add more intervals to add more messages
 			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) || (lcdUpdate == 13) )
@@ -1130,8 +1092,7 @@ void lcdBatteryInfo(void)
 	char tmp_buffer[16];
 
 	HD44780_WriteData(0, 0, battery, YES);
-//	sprintf(tmp_buffer, "%2.2f V %2.2f A", vBat, iBat);
-	sprintf(tmp_buffer, "%2.2f V %2.2f A", vBatOut, iBatOut);
+	sprintf(tmp_buffer, "%2.2f V %2.2f A", vBat, iBat);
 	HD44780_WriteData(1, 0, tmp_buffer, NO);
 }
 
@@ -1140,8 +1101,7 @@ void lcdSolarInfo(void)
 	char tmp_buffer[16];
 
 	HD44780_WriteData(0, 0, solarArray, YES);
-//	sprintf(tmp_buffer, "%2.2f V %2.2f A", vSolar, iSolar);
-	sprintf(tmp_buffer, "%2.2f V %2.2f A", vSolarOut, iSolarOut);
+	sprintf(tmp_buffer, "%2.2f V %2.2f A", vSolar, iSolar);
 	HD44780_WriteData(1, 0, tmp_buffer, NO);
 }
 
@@ -1150,8 +1110,7 @@ void lcdLoadInfo(void)
 	char tmp_buffer[16];
 
 	HD44780_WriteData(0, 0, load, YES);
-//	sprintf(tmp_buffer, "%2.2f V %2.2f A", loadVoltage, loadCurrent);
-	sprintf(tmp_buffer, "%2.2f V %2.2f A", loadVoltageOut, loadCurrentOut);
+	sprintf(tmp_buffer, "%2.2f V %2.2f A", loadVoltage, loadCurrent);
 	HD44780_WriteData(1, 0, tmp_buffer, NO);
 }
 
@@ -1284,48 +1243,42 @@ void sendMessage(void)
 	msgLength++;
 
 	// Battery Voltage
-//	data = vBat * 1000;	// Convert to mV
-	data = vBatOut * 1000;	// Convert to mV
+	data = vBat * 1000;	// Convert to mV
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
 	msgLength++;
 
 	// Battery current
-//	data = iBat * 1000;
-	data = iBatOut * 1000;
+	data = iBat * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
 	msgLength++;
 
 	// Solar Array Voltage
-//	data = vSolar * 1000;
-	data = vSolarOut * 1000;
+	data = vSolar * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
 	msgLength++;
 
 	// Solar Array Current
-//	data = iSolar * 1000;
-	data = iSolarOut * 1000;
+	data = iSolar * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
 	msgLength++;
 
 	// Load Voltage
-//	data = loadVoltage * 1000;
-	data = loadVoltageOut * 1000;
+	data = loadVoltage * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
 	msgLength++;
 
 	// Load Current
-//	data = loadCurrent * 1000;
-	data = loadCurrentOut * 1000;
+	data = loadCurrent * 1000;
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (data>>8);
@@ -1470,7 +1423,6 @@ int main(void)
 
 	adsorptionTime = 0;
 	adsorptionCompleteTime = 0;
-	aveCount = 0;
 
 	while (1)
 	{

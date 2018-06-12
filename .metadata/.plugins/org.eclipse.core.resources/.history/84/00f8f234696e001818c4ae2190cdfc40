@@ -622,16 +622,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 				aveCount++;
 
-				if (aveCount == 5)
+				if (aveCount == 6)
 				{
 					aveCount = 0;
 
-					vBatOut = vBatAve / 5;
-					iBatOut = iBatAve / 5;
-					vSolarOut = vSolarAve / 5;
-					iSolarOut = iSolarAve / 5;
-					loadVoltageOut = loadVoltageAve / 5;
-					loadCurrentOut = loadCurrentAve / 5;
+					vBatOut = vBatAve / 6;
+					iBatOut = iBatAve / 6;
+					vSolarOut = vSolarAve / 6;
+					iSolarOut = iSolarAve / 6;
+					loadVoltageOut = loadVoltageAve / 6;
+					loadCurrentOut = loadCurrentAve / 6;
 				}
 
 			}

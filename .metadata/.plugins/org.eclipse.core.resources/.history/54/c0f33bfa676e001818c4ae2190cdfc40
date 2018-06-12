@@ -600,8 +600,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			tim9Count = 0;
 			lcdUpdate++;
 			canPulse++;
+			aveCount++;
 
-			if (aveCount <= 5)
+			if (aveCount <= AVERAGE_INTERVAL)
 			{
 				if (aveCount == 0)
 				{
@@ -620,18 +621,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 				loadVoltageAve += loadVoltage;
 				loadCurrentAve += loadCurrent;
 
-				aveCount++;
-
-				if (aveCount == 5)
+				if (aveCount == AVERAGE_INTERVAL)
 				{
 					aveCount = 0;
 
-					vBatOut = vBatAve / 5;
-					iBatOut = iBatAve / 5;
-					vSolarOut = vSolarAve / 5;
-					iSolarOut = iSolarAve / 5;
-					loadVoltageOut = loadVoltageAve / 5;
-					loadCurrentOut = loadCurrentAve / 5;
+					vBatOut = vBatAve / 16;
+					iBatOut = iBatAve / 16;
+					vSolarOut = vSolarAve / 16;
+					iSolarOut = iSolarAve / 16;
+					loadVoltageOut = loadVoltageAve / 16;
+					loadCurrentOut = loadCurrentAve / 16;
 				}
 
 			}
