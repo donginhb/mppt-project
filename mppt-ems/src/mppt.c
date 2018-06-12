@@ -33,7 +33,8 @@
 #define LOBATTV		2
 #define DEADBATT	3
 
-#define ADSORPTION_TIME_FLOODED	3600 	// 3600 seconds = 60 minutes
+//#define ADSORPTION_TIME_FLOODED	3600 	// 3600 seconds = 60 minutes
+#define ADSORPTION_TIME_FLOODED	60
 #define ADSORPTION_LOCKOUT_TIME 28800		// 28800 seconds = 8 hours
 
 #define MIN_DUTY_CYCLE		192		//75% of the TIM1 period
@@ -92,7 +93,7 @@ uint32_t tempMOSFETS;
 uint32_t iLoad;
 
 uint16_t flashData;
-uint16_t adsorptionTime;
+uint16_t adsorptionTime, adsorptionCompleteTime;
 uint16_t tim9Count, adcCount;
 uint16_t canPulse;
 uint16_t powerCycleTimeout, timerCount;
@@ -321,7 +322,7 @@ static void MX_ADC1_Init(void)
 
 }
 
-// Generates 4 PWN channels that switch the DC-DC MOSFETs
+// Generates 4 PWM channels that switch the DC-DC MOSFETs
 // These timer settings are chosen to give a 196 KHz switching frequency and
 // complementary switching of the high and low side MOSFETS
 // that is 180 deg phase shifted to give interleaved switching between the 2 sides (phases) of the bridge.
@@ -363,10 +364,10 @@ static void MX_TIM1_Init(void)
 
 	  HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig);
 
-	    sSlaveConfig.SlaveMode = TIM_SLAVEMODE_DISABLE;
-	    sSlaveConfig.InputTrigger = TIM_TS_ITR0;
+	  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_DISABLE;
+	  sSlaveConfig.InputTrigger = TIM_TS_ITR0;
 
-	    HAL_TIM_SlaveConfigSynchronization(&htim1, &sSlaveConfig);
+	  HAL_TIM_SlaveConfigSynchronization(&htim1, &sSlaveConfig);
 
 	  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_ENABLE;
 	  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
@@ -598,6 +599,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			lcdUpdate++;
 			canPulse++;
 
+			// used in updateLCD to display different messages at these intervals. Add more intervals to add more messages
 			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) || (lcdUpdate == 13) )
 				lcdUpdateFlag = 1;
 
@@ -617,7 +619,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 					lcdUpdate = 0;
 			}
 
-			// This flag get set in the canCharge loop
+			// Time interval to wait between checking for minimum charge current. This flag get set in the canCharge loop
 			if (lowChargeCurrentFlag)
 			{
 				lowChargeCurrentTimeout++;
@@ -633,12 +635,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 				lowChargeCurrentTimeout = 0;
 			}
 
-			// Flash the charge LED to indicate charging is active
+			// Flash the charge LED when charging is active
 			if (isCharging == 0)
 				toggleChargeLED();
 			else
 				switchChargeLED(ON);
 
+
+			// Adsorption voltage (Va) timer.
 			if (adsorptionFlag)
 			{
 				adsorptionTime++;
@@ -651,18 +655,22 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 				}
 			}
 
+			// Va lockout timer. After charging to Va and holding for ADSORPTION_TIME_FLOODED, wait for ADSORPTION_LOCKOUT_TIME
+			// before allowing to charge up to Va again
 			if (adsorptionComplete)
 			{
-				adsorptionTime++;
+				adsorptionCompleteTime++;
 
-				if (adsorptionTime >= ADSORPTION_LOCKOUT_TIME)
+				if (adsorptionCompleteTime >= ADSORPTION_LOCKOUT_TIME)
 				{
-					adsorptionTime = 0;
+					adsorptionCompleteTime = 0;
 					adsorptionComplete = false;
 				}
 			}
 
 
+			// Power cycle watchdog timer: set by the host controller over the UART to power cycle the load after a programmed time
+			// (powerCycleTimeout) and holds the load off for powercycleOffTime before restoring power to the load.
 			if (enablePowerCycle == 1)
 			{
 				timerCount++;
@@ -854,13 +862,14 @@ void getADCreadings (uint8_t howMany)
 
 	sendMessageCount++;
 
-	if (sendMessageCount >= 150)
+//	if (sendMessageCount >= 150)
+	if (sendMessageCount >= 10)
 	{
 		sendMessageCount = 0;
 		// This data is sent to the controller
-//		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, currentPower, vSolar, duty, POB_Direction );
-//		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
-		sendMessage();
+		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, adsorptionFlag, floatFlag, adsorptionComplete );
+		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+//		sendMessage();
 
 	}
 }
@@ -1414,6 +1423,9 @@ int main(void)
 	adsorptionComplete = false;
 	mpptBypassFlag = false;
 
+	adsorptionTime = 0;
+	adsorptionCompleteTime = 0;
+
 	while (1)
 	{
 
@@ -1444,7 +1456,7 @@ int main(void)
 					canPulse = 0;
 				}
 
-				// Batteries need charging?
+				// Batteries need bulk charging?
 				if ( (vBattery < FloatVoltage(tempAmbient) - HALF_VOLT) )
 				{
 					canCharge = true;
@@ -1453,7 +1465,7 @@ int main(void)
 					floatFlag = false;
 				}
 
-				// did we charge to the adsorption voltage?
+				// did we charge to the adsorption voltage (Va) but didn't hold it for ADSORPTION_TIME_FLOODED?
 				else if (adsorptionFlag && floatFlag && !adsorptionComplete)
 				{
 					if (vBattery <= AdsorptionVoltage(tempAmbient) - HALF_VOLT)
@@ -1469,6 +1481,7 @@ int main(void)
 					}
 				}
 
+				// Did we charge to Va and hold it for ADSORPTION_TIME_FLOODED?
 				else if (!adsorptionFlag && floatFlag && adsorptionComplete)
 				{
 					if (vBattery <= FloatVoltage(tempAmbient) - QUARTER_VOLT)
@@ -1484,7 +1497,6 @@ int main(void)
 					}
 				}
 
-				// We'll get into here when adsorptionFlag = 0 and vBattery > (float voltage - 0.1v)
 				else
 				{
 					canCharge = false;
@@ -1558,7 +1570,7 @@ int main(void)
 								duty = PCT80_DUTY_CYCLE;
 								lastPower = currentPower;
 							}
-							// Set a flag and wait for LOW_CHARGE_CURRENT_TIMEOUT before trying again
+							// If we don't have minimum charge current, set a flag and wait for LOW_CHARGE_CURRENT_TIMEOUT before trying again
 							else
 							{
 								isCharging = false;
@@ -1644,9 +1656,10 @@ int main(void)
 								changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 							}
 
-							if ( !adsorptionFlag && !adsorptionComplete && !floatFlag && (vBattery >= FloatVoltage(tempAmbient) ) )
+//							if ( !adsorptionFlag && !adsorptionComplete && !floatFlag && (vBattery >= FloatVoltage(tempAmbient) ) )
+							if (vBattery >= FloatVoltage(tempAmbient) )
 							{
-								adsorptionFlag = false;
+//								adsorptionFlag = false;
 								floatFlag = true;
 							}
 
@@ -1713,9 +1726,6 @@ int main(void)
 				canCharge = false;
 				isCharging = false;
 				canPulse = 0;
-				adsorptionComplete = false;
-				adsorptionFlag = false;
-				floatFlag = false;
 			}
 		} // end if (vBattery > BAT_DROP_DEAD_VOLT)
 

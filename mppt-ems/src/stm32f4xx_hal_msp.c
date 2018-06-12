@@ -28,8 +28,6 @@
 
 extern DMA_HandleTypeDef hdma_adc1;
 
-//extern void Error_Handler(void);
-
 /**
   * Initializes the Global MSP.
   */
@@ -100,10 +98,6 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
       hdma_adc1.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
 
       HAL_DMA_Init(&hdma_adc1);
-//      if (HAL_DMA_Init(&hdma_adc1) != HAL_OK)
-//      {
-//        Error_Handler();
-//      }
 
       __HAL_LINKDMA(hadc,DMA_Handle,hdma_adc1);
 

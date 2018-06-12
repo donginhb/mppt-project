@@ -2,20 +2,20 @@
 <section name="Workbench">
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
 		<item value="true" key="isRegEx"/>
-		<item value="PCT80_DUTY_CYCLE" key="selection"/>
+		<item value="adsorptionComplete" key="selection"/>
 		<item value="false" key="casesensitive"/>
 		<item value="false" key="incremental"/>
 		<item value="true" key="wrap"/>
 		<item value="false" key="wholeword"/>
 		<list key="findhistory">
+			<item value="adsorptionComplete"/>
+			<item value="error"/>
+			<item value="getADCreadings"/>
+			<item value="getADC"/>
+			<item value="MX_WWDG_Init"/>
+			<item value="POB_Direction"/>
 			<item value="PCT80_DUTY_CYCLE"/>
 			<item value="MIN_DUTY_CYCLE"/>
-			<item value="changePWM_TIM1"/>
-			<item value="PCT80_DUTY_CYCLE "/>
-			<item value="writeFlash"/>
-			<item value="lcdSolarInfo"/>
-			<item value="sendmessage"/>
-			<item value="adsorptionvoltage"/>
 		</list>
 		<list key="replacehistory">
 			<item value=""/>

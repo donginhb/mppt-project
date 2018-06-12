@@ -11,7 +11,7 @@
  * without prior written authorization.
  *
  * HOST PROCESSOR: STM32F410RBT6
- * TARGET DISPLAY: Newhaven Display NHD-0216HZ-FSW-FBW-33V3C (should also be compatible with any HC44780 based display)
+ * TARGET DISPLAY: New Haven Display NHD-0216HZ-FSW-FBW-33V3C (should also be compatible with any HC44780 based display) in 4 bit mode
  * Developed using STM32CubeF4 HAL and API version 1.18.0
  *
  *

@@ -47,6 +47,7 @@
 
 //#define THRESHOLD_CURRENT	0x1F	// 31 counts corresponding t0 250 mA
 #define THRESHOLD_CURRENT	0x31	// 49 counts corresponding t0 394 mA
+#define MAX_CHARGE_CURRENT	0xEBA	// 3722 counts = 30 amps
 
 
 // Adsorption Threshold voltage values at temperature (flooded)
