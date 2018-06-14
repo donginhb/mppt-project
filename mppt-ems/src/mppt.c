@@ -633,7 +633,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 					loadVoltageOut = loadVoltageAve / 5;
 					loadCurrentOut = loadCurrentAve / 5;
 				}
-
 			}
 
 			// used in updateLCD to display different messages at these intervals. Add more intervals to add more messages
@@ -1528,7 +1527,7 @@ int main(void)
 				}
 
 				// Did we charge to Va and hold it for ADSORPTION_TIME_FLOODED?
-				else if (!adsorptionFlag && floatFlag && adsorptionComplete)
+				else if ( (!adsorptionFlag && floatFlag && adsorptionComplete) || (!adsorptionFlag && !floatFlag && adsorptionComplete) )
 				{
 					if (vBattery <= FloatVoltage(tempAmbient) - QUARTER_VOLT)
 					{
