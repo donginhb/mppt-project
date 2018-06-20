@@ -192,7 +192,7 @@ void delay_us(uint32_t);
 void writeFlash(uint16_t data);
 void calcMPPT(void);
 void calcMPPT_TI(void);
-void mpptBypass(void);
+void mpptBypass(uint8_t);
 extern void crc16_init(void);
 extern uint16_t crc16(uint8_t[], uint8_t);
 void handleData(void);
@@ -954,19 +954,30 @@ double calcTemperature(uint16_t ADvalue)
 	return ((ADvalue * adcUnit) / LM335voltage) - kelvin;
 }
 
-void mpptBypass(void)
+void mpptBypass(uint8_t onOff)
 {
 
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_SET);
-
-	mpptBypassCount++;
-
-	if (mpptBypassCount >= 1000)
+	if (onOff == ON)
 	{
-		mpptBypassCount = 0;
-		maxDutyCycleCount = 0;
-		mpptBypassFlag = true;
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_SET);
+
+		mpptBypassCount++;
+
+		if (mpptBypassCount >= 1000)
+		{
+			mpptBypassCount = 0;
+			maxDutyCycleCount = 0;
+			mpptBypassFlag = true;
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
+		}
+
+		else
+		{
+			mpptBypassCount = 0;
+			maxDutyCycleCount = 0;
+			mpptBypassFlag = false;
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
+		}
 	}
 }
 
@@ -1435,6 +1446,8 @@ int main(void)
 	canCharge = false;
 	isCharging = false;
 
+	mpptBypass(OFF);
+
 	// switchFan(OFF);
 	switchCharger(OFF);
 	switchSolarArray(OFF); // Enable this only when ready to charge, disable all other times.
@@ -1645,6 +1658,7 @@ int main(void)
 											switchCharger(ON);
 											changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
 											mpptBypassFlag = false;
+											mpptBypass(OFF);
 										}
 
 //										calcMPPT();
@@ -1655,7 +1669,7 @@ int main(void)
 										switchSolarArray(OFF);
 										switchCharger(OFF);
 										changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-										mpptBypass();
+										mpptBypass(ON);
 									}
 								}
 								else
@@ -1663,7 +1677,7 @@ int main(void)
 									switchSolarArray(OFF);
 									switchCharger(OFF);
 									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-									mpptBypass();
+									mpptBypass(ON);
 								}
 							}
 
@@ -1678,6 +1692,7 @@ int main(void)
 							{
 								switchSolarArray(OFF);
 								isCharging = false;
+								mpptBypass(OFF);
 							}
 
 							if (vSolarArray >= MAX_PV_VOLT)
@@ -1699,6 +1714,7 @@ int main(void)
 								canCharge = false;
 								switchCharger(OFF);
 								changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+								mpptBypass(OFF);
 							}
 
 //							if ( !adsorptionFlag && !adsorptionComplete && !floatFlag && (vBattery >= FloatVoltage(tempAmbient) ) )
@@ -1724,6 +1740,7 @@ int main(void)
 									canCharge = false;
 									switchCharger(OFF);
 									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+									mpptBypass(OFF);
 								}
 							}
 							else if (!adsorptionFlag && floatFlag && adsorptionComplete)
@@ -1735,6 +1752,7 @@ int main(void)
 									canCharge = false;
 									switchCharger(OFF);
 									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+									mpptBypass(OFF);
 								}
 							}
 							else
@@ -1754,6 +1772,7 @@ int main(void)
 				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 				canCharge = false;
 				isCharging = false;
+				mpptBypass(OFF);
 
 				if (canPulse == pulseInterval)
 				{
@@ -1768,6 +1787,7 @@ int main(void)
 				switchCharger(OFF);
 				switchSolarArray(OFF);
 				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+				mpptBypass(OFF);
 				canCharge = false;
 				isCharging = false;
 				canPulse = 0;
@@ -1779,10 +1799,13 @@ int main(void)
 			switchCharger(OFF);
 			switchSolarArray(OFF);
 			changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+			mpptBypass(OFF);
 			canCharge = false;
 			isCharging = false;
 			canPulse = 0;
 			adsorptionComplete = false;
+			adsorptionFlag = false;
+			floatFlag = false;
 		}
 	} //end while
 }
