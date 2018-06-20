@@ -970,14 +970,14 @@ void mpptBypass(uint8_t onOff)
 			mpptBypassFlag = true;
 			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 		}
-	}
 
-	else
-	{
-		mpptBypassCount = 0;
-		maxDutyCycleCount = 0;
-		mpptBypassFlag = false;
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
+		else
+		{
+			mpptBypassCount = 0;
+			maxDutyCycleCount = 0;
+			mpptBypassFlag = false;
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
+		}
 	}
 }
 
