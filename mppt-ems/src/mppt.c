@@ -601,6 +601,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			lcdUpdate++;
 			canPulse++;
 
+			if (canPulse > pulseInterval)
+				canPulse = 0;
+
 			if (aveCount <= 5)
 			{
 				if (aveCount == 0)

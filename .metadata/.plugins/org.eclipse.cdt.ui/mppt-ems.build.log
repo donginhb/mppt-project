@@ -1,23 +1,7 @@
-15:45:23 **** Incremental Build of configuration Debug for project mppt-ems ****
-make all 
-Building file: ../src/mppt.c
-Invoking: MCU GCC Compiler
-C:\Work\GitHub\mppt-project\mppt-ems\Debug
-arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -DSTM32 -DNUCLEO_F410RB -DSTM32F4 -DSTM32F410RBTx -DDEBUG -DSTM32F410Rx -DUSE_HAL_DRIVER -I"C:/Work/GitHub/mppt-project/mppt-ems/HAL_Driver/Inc/Legacy" -I"C:/Work/GitHub/mppt-project/mppt-ems/inc" -I"C:/Work/GitHub/mppt-project/mppt-ems/CMSIS/device" -I"C:/Work/GitHub/mppt-project/mppt-ems/CMSIS/core" -I"C:/Work/GitHub/mppt-project/mppt-ems/HAL_Driver/Inc" -O0 -g3 -Wall -fmessage-length=0 -Wformat-extra-args -ffunction-sections -c -MMD -MP -MF"src/mppt.d" -MT"src/mppt.o" -o "src/mppt.o" "../src/mppt.c"
-Finished building: ../src/mppt.c
- 
-Building target: mppt-ems.elf
-Invoking: MCU GCC Linker
-arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -u _printf_float -T"C:\Work\GitHub\mppt-project\mppt-ems\LinkerScript.ld" -Wl,-Map=output.map -Wl,--gc-sections -o "mppt-ems.elf" @"objects.list"   -lm
-Finished building target: mppt-ems.elf
- 
-make --no-print-directory post-build
-Generating binary and Printing size information:
-arm-none-eabi-objcopy -O binary "mppt-ems.elf" "mppt-ems.bin"
-arm-none-eabi-size --format=berkeley -B "mppt-ems.elf"
-   text	   data	    bss	    dec	    hex	filename
-  47408	   2668	   2928	  53004	   cf0c	mppt-ems.elf
+15:33:10 **** Clean-only build of configuration Debug for project mppt-ems ****
+make clean 
+rm -rf *
  
 
-15:45:26 Build Finished (took 2s.680ms)
+15:33:11 Build Finished (took 372ms)
 
