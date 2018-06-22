@@ -51,36 +51,30 @@
 
 
 // Adsorption Threshold voltage values at temperature (flooded)
-#define ATV_25        		0x8b2	// 2226 counts = 14.4v
-#define ATV_40      		0x870	// 2160 counts = 13.97v
-#define ATV_NEG30			0x9b1	// 2497 counts = 16.05v
-#define ATV_80				0x7b9	// 1977 counts = 12.75v
+#define ATV_25        		14.4
+#define ATV_40      		13.97
+#define ATV_NEG30			16.05
+#define ATV_80				12.75
 
 // Float Threshold voltage values at temperature (flooded)
-#define FTV_25        		0x827	// 2087 counts = 13.5v
-#define FTV_40      		0x7E3	// 2019 counts = 13.06v
-#define FTV_NEG30			0x8fb	// 2299 counts = 14.87v
-#define FTV_80				0x753	// 1875 counts = 12.13v
+#define FTV_25        		13.5
+#define FTV_40      		13.06
+#define FTV_NEG30			14.87
+#define FTV_80				12.13
 
+// Rate, in volts/degC,  at which battery voltage declines with increasing temperature.
+// Used in floatVoltage() and adsorptionVoltage() calculations
+#define RATE1				.029
 
-//the two rates given below are in counts, and are 10 times larger than actual.
-//#define RATE1       		54		// TV rate between 0C and 40C (-35 mV/degree)
-#define RATE1				46		// TV rate between -30C and 40C (-30 mV/degree)
-#define RATE2       		15		// TV rate above 40C (-10 mV/degree)
-
-#define MSRATE				45		// -29 mV/degC... almost identical to RATE2 so we'll just use RATE2 for now
-
-
-
-#define TEMP_0      		0xd3d	// 3389 count corrensponding to 0 C
-#define TEMP_40	    		0xf2d	// 3885 count corrensponding to 40 C
-#define TEMP_NEG30			0xbc9	// 3017 counts = -30 C
+// Ambient temperature values
+#define TEMP_0      		0
+#define TEMP_40	    		40
+#define TEMP_80				80
+#define TEMP_NEG30			-30
 
 /* This is the MOSFET temperatures at which the fan is switched on or off. Change as necessary */
 #define FAN_ON_TEMP			0xfa9 	// 4009 counts for 50 C / 122 deg F
 #define FAN_OFF_TEMP		0xf14	// 3860 counts for 38 C / 100.4 deg F
-
-#define MAX_TEMP
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 void HD44780_Init(void);

@@ -183,8 +183,10 @@ void lcdBatteryInfo(void);
 void lcdSolarInfo(void);
 void lcdLoadInfo();
 void getADCreadings(uint8_t);
-uint16_t AdsorptionVoltage(uint16_t);
-uint16_t FloatVoltage(uint16_t);
+
+double AdsorptionVoltage(double);
+double FloatVoltage(double);
+
 void updateLCD(uint8_t warning);
 void sendMessage(void);
 void pulse(void);
@@ -901,39 +903,40 @@ void getADCreadings (uint8_t howMany)
 
 	sendMessageCount++;
 
-	if (sendMessageCount >= 150)
+//	if (sendMessageCount >= 150)
+	if (sendMessageCount >= 15)
 	{
 		sendMessageCount = 0;
 		// This data is sent to the controller
-//		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, adsorptionFlag, floatFlag, adsorptionComplete );
-//		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
-		sendMessage();
+		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %2.2f, %2.2f, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, canCharge, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp), tempAmbient);
+		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+//		sendMessage();
 
 	}
 }
 
-uint16_t AdsorptionVoltage(uint16_t ambTemp)
+double AdsorptionVoltage(double ambTemp)
 {
 	if (ambTemp < TEMP_NEG30)
 		return (ATV_NEG30);
 
-	else if (ambTemp < TEMP_40)
-		return (ATV_NEG30 - ((ambTemp - TEMP_NEG30) * RATE1) / 100);
+	else if ( (ambTemp > TEMP_NEG30) && (ambTemp < TEMP_40) )
+		return (ATV_NEG30 - ( (ambTemp - TEMP_NEG30) * (double)RATE1) );
 
 	else
-		return (ATV_40 - ((ambTemp - TEMP_40) * RATE2) / 100);
+		return (ATV_40);
 }
 
-uint16_t FloatVoltage(uint16_t ambTemp)
+double FloatVoltage(double ambTemp)
 {
-	if (ambTemp < TEMP_NEG30)
+	if (ambTemp <= TEMP_NEG30)
 		return (FTV_NEG30);
 
-	else if (ambTemp < TEMP_40)
-		return (FTV_NEG30 - ((ambTemp - TEMP_NEG30) * RATE1) / 100);
+	else if ( (ambTemp > TEMP_NEG30) && (ambTemp < TEMP_40) )
+		return (FTV_NEG30 - ( (ambTemp - TEMP_NEG30) * (double)RATE1) );
 
 	else
-		return (FTV_40 - ((ambTemp - TEMP_40) * RATE2) / 100);
+		return (FTV_40);
 }
 
 double calcVoltage(uint16_t ADvalue, uint8_t gain)
@@ -1518,7 +1521,8 @@ int main(void)
 				}
 
 				// Batteries need bulk charging?
-				if ( (vBattery < FloatVoltage(tempAmbient) - HALF_VOLT) )
+//				if ( (vBattery < FloatVoltage(tempAmbient) - HALF_VOLT) )
+				if ( (vBat < FloatVoltage(ambientTemp) - (double)0.25) )
 				{
 					canCharge = true;
 					adsorptionFlag = false;
@@ -1529,7 +1533,8 @@ int main(void)
 				// did we charge to the adsorption voltage (Va) but didn't hold it for ADSORPTION_TIME_FLOODED?
 				else if (adsorptionFlag && floatFlag && !adsorptionComplete)
 				{
-					if (vBattery <= AdsorptionVoltage(tempAmbient) - HALF_VOLT)
+//					if (vBattery <= AdsorptionVoltage(tempAmbient) - HALF_VOLT)
+					if (vBat <= AdsorptionVoltage(ambientTemp) - (double)0.5)
 					{
 						canCharge = true;
 					}
@@ -1545,7 +1550,8 @@ int main(void)
 				// Did we charge to Va and hold it for ADSORPTION_TIME_FLOODED?
 				else if ( (!adsorptionFlag && floatFlag && adsorptionComplete) || (!adsorptionFlag && !floatFlag && adsorptionComplete) )
 				{
-					if (vBattery <= FloatVoltage(tempAmbient) - QUARTER_VOLT)
+//					if (vBattery <= FloatVoltage(tempAmbient) - QUARTER_VOLT)
+					if (vBat <= FloatVoltage(ambientTemp) - (double)(0.25))
 					{
 						canCharge = true;
 					}
@@ -1588,7 +1594,8 @@ int main(void)
 					}
 
 					// May not need this here...
-					if (vBattery < (FloatVoltage(tempAmbient) - HALF_VOLT) )
+//					if (vBattery < (FloatVoltage(tempAmbient) - HALF_VOLT) )
+					if (vBat < (FloatVoltage(ambientTemp) - (double)0.25) )
 					{
 						adsorptionFlag = false;
 						floatFlag = false;
@@ -1597,7 +1604,8 @@ int main(void)
 
 					// Get out of this loop if we can't charge, no longer need to charge
 					// or, for whatever reason, we drop below our "drop dead" threshold voltage
-					if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBattery >= AdsorptionVoltage(tempAmbient) ) || (vBattery < BAT_DROP_DEAD_VOLT) )
+//					if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBattery >= AdsorptionVoltage(tempAmbient) ) || (vBattery < BAT_DROP_DEAD_VOLT) )
+					if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBat >= AdsorptionVoltage(ambientTemp) ) || (vBattery < BAT_DROP_DEAD_VOLT) )
 					{
 						canCharge = false;
 						isCharging = false;
@@ -1703,7 +1711,8 @@ int main(void)
 								duty = PCT80_DUTY_CYCLE;
 							}
 
-							if (vBattery < FloatVoltage(tempAmbient))
+//							if (vBattery < FloatVoltage(tempAmbient))
+							if (vBat < FloatVoltage(ambientTemp))
 							{
 								adsorptionFlag = false;
 								floatFlag = false;
@@ -1721,13 +1730,15 @@ int main(void)
 							}
 
 //							if ( !adsorptionFlag && !adsorptionComplete && !floatFlag && (vBattery >= FloatVoltage(tempAmbient) ) )
-							if (vBattery >= FloatVoltage(tempAmbient) )
+//							if (vBattery >= FloatVoltage(tempAmbient) )
+							if (vBat >= FloatVoltage(ambientTemp) )
 							{
 //								adsorptionFlag = false;
 								floatFlag = true;
 							}
 
-							if ( !adsorptionFlag && !adsorptionComplete && floatFlag && (vBattery >= AdsorptionVoltage(tempAmbient) ) )
+//							if ( !adsorptionFlag && !adsorptionComplete && floatFlag && (vBattery >= AdsorptionVoltage(tempAmbient) ) )
+							if ( !adsorptionFlag && !adsorptionComplete && floatFlag && (vBat >= AdsorptionVoltage(ambientTemp) ) )
 							{
 								adsorptionFlag = true;
 								floatFlag = true;
@@ -1736,7 +1747,8 @@ int main(void)
 
 							if (adsorptionFlag && floatFlag && !adsorptionComplete)
 							{
-								if (vBattery >= AdsorptionVoltage(tempAmbient) )
+//								if (vBattery >= AdsorptionVoltage(tempAmbient) )
+								if (vBat >= AdsorptionVoltage(ambientTemp) )
 								{
 									switchSolarArray(OFF);
 									isCharging = false;
@@ -1748,7 +1760,8 @@ int main(void)
 							}
 							else if (!adsorptionFlag && floatFlag && adsorptionComplete)
 							{
-								if (vBattery >= FloatVoltage(tempAmbient) + QUARTER_VOLT )
+//								if (vBattery >= FloatVoltage(tempAmbient) + QUARTER_VOLT )
+								if (vBat >= FloatVoltage(ambientTemp) + (double)0.25 )
 								{
 									switchSolarArray(OFF);
 									isCharging = false;
