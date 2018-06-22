@@ -21,7 +21,7 @@
  * 1.0: 12/27/2017	Created By Nicholas C. Ipri (NCI) nipri@solartechnology.com
  */
 
-#define DEBUG2
+#define DEBUG
 
 #define ON		1
 #define OFF		0
@@ -35,7 +35,7 @@
 #define LOBATTV		2
 #define DEADBATT	3
 
-#define ADSORPTION_TIME_FLOODED	3600 		// 3600 seconds = 60 minutes
+#define ADSORPTION_TIME_FLOODED	3600 	// 3600 seconds = 60 minutes
 #define ADSORPTION_LOCKOUT_TIME 28800		// 28800 seconds = 8 hours
 
 #define MIN_DUTY_CYCLE		192		//75% of the TIM1 period
@@ -905,25 +905,40 @@ void getADCreadings (uint8_t howMany)
 
 	sendMessageCount++;
 
-#ifdef DEBUG2
-
+#ifdef DEBUG
 	if (sendMessageCount >= 15)		// Output a line every second (debugging)
 	{
 		sendMessageCount = 0;
-		// This data is sent to a terminal like puTTY
+		// This data is sent to the controller
 		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %2.2f, %2.2f, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, canCharge, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp), tempAmbient);
 		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+//		sendMessage();
 	}
 
 #else
-		if (sendMessageCount >= 150)	// Output a line every 15 seconds
+	//	if (sendMessageCount >= 150)	// Output a line every 15 seconds
+		if (sendMessageCount >= 15)		// Output a line every second (debugging)
 		{
 			sendMessageCount = 0;
-			sendMessage();
+			// This data is sent to the controller
+			 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %2.2f, %2.2f, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, canCharge, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp), tempAmbient);
+			 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+	//		sendMessage();
+
 		}
 
 #endif
 
+//	if (sendMessageCount >= 150)	// Output a line every 15 seconds
+	if (sendMessageCount >= 15)		// Output a line every second (debugging)
+	{
+		sendMessageCount = 0;
+		// This data is sent to the controller
+		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %2.2f, %2.2f, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, canCharge, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp), tempAmbient);
+		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+//		sendMessage();
+
+	}
 }
 
 double AdsorptionVoltage(double ambTemp)
@@ -1532,6 +1547,7 @@ int main(void)
 				}
 
 				// Batteries need bulk charging?
+//				if ( (vBattery < FloatVoltage(tempAmbient) - HALF_VOLT) )
 				if ( (vBat < FloatVoltage(ambientTemp) - (double)0.25) )
 				{
 					canCharge = true;
@@ -1543,6 +1559,7 @@ int main(void)
 				// did we charge to the adsorption voltage (Va) but didn't hold it for ADSORPTION_TIME_FLOODED?
 				else if (adsorptionFlag && floatFlag && !adsorptionComplete)
 				{
+//					if (vBattery <= AdsorptionVoltage(tempAmbient) - HALF_VOLT)
 					if (vBat <= AdsorptionVoltage(ambientTemp) - (double)0.5)
 					{
 						canCharge = true;
@@ -1559,6 +1576,7 @@ int main(void)
 				// Did we charge to Va and hold it for ADSORPTION_TIME_FLOODED?
 				else if ( (!adsorptionFlag && floatFlag && adsorptionComplete) || (!adsorptionFlag && !floatFlag && adsorptionComplete) )
 				{
+//					if (vBattery <= FloatVoltage(tempAmbient) - QUARTER_VOLT)
 					if (vBat <= FloatVoltage(ambientTemp) - (double)(0.25))
 					{
 						canCharge = true;
@@ -1602,6 +1620,7 @@ int main(void)
 					}
 
 					// May not need this here...
+//					if (vBattery < (FloatVoltage(tempAmbient) - HALF_VOLT) )
 					if (vBat < (FloatVoltage(ambientTemp) - (double)0.25) )
 					{
 						adsorptionFlag = false;
@@ -1611,6 +1630,7 @@ int main(void)
 
 					// Get out of this loop if we can't charge, no longer need to charge
 					// or, for whatever reason, we drop below our "drop dead" threshold voltage
+//					if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBattery >= AdsorptionVoltage(tempAmbient) ) || (vBattery < BAT_DROP_DEAD_VOLT) )
 					if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBat >= AdsorptionVoltage(ambientTemp) ) || (vBattery < BAT_DROP_DEAD_VOLT) )
 					{
 						canCharge = false;
@@ -1717,6 +1737,7 @@ int main(void)
 								duty = PCT80_DUTY_CYCLE;
 							}
 
+//							if (vBattery < FloatVoltage(tempAmbient))
 							if (vBat < FloatVoltage(ambientTemp))
 							{
 								adsorptionFlag = false;
@@ -1734,13 +1755,15 @@ int main(void)
 								mpptBypass(OFF);
 							}
 
+//							if ( !adsorptionFlag && !adsorptionComplete && !floatFlag && (vBattery >= FloatVoltage(tempAmbient) ) )
+//							if (vBattery >= FloatVoltage(tempAmbient) )
 							if (vBat >= FloatVoltage(ambientTemp) )
 							{
 //								adsorptionFlag = false;
 								floatFlag = true;
 							}
 
-
+//							if ( !adsorptionFlag && !adsorptionComplete && floatFlag && (vBattery >= AdsorptionVoltage(tempAmbient) ) )
 							if ( !adsorptionFlag && !adsorptionComplete && floatFlag && (vBat >= AdsorptionVoltage(ambientTemp) ) )
 							{
 								adsorptionFlag = true;
@@ -1750,7 +1773,7 @@ int main(void)
 
 							if (adsorptionFlag && floatFlag && !adsorptionComplete)
 							{
-
+//								if (vBattery >= AdsorptionVoltage(tempAmbient) )
 								if (vBat >= AdsorptionVoltage(ambientTemp) )
 								{
 									switchSolarArray(OFF);
@@ -1763,7 +1786,7 @@ int main(void)
 							}
 							else if (!adsorptionFlag && floatFlag && adsorptionComplete)
 							{
-
+//								if (vBattery >= FloatVoltage(tempAmbient) + QUARTER_VOLT )
 								if (vBat >= FloatVoltage(ambientTemp) + (double)0.25 )
 								{
 									switchSolarArray(OFF);
