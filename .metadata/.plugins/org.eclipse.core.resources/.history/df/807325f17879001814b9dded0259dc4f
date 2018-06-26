@@ -1539,6 +1539,7 @@ int main(void)
 
 		if ((warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 5.0))
 		{
+			cycleLoadTime = 0;
 			cycleLoadPower = true;
 			switchLoad(OFF);
 		}
@@ -1628,6 +1629,7 @@ int main(void)
 
 					if ((warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 5.0))
 					{
+						cycleLoadTime = 0;
 						cycleLoadPower = true;
 						switchLoad(OFF);
 					}
@@ -1737,6 +1739,7 @@ int main(void)
 
 							if ((warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 5.0))
 							{
+								cycleLoadTime = 0;
 								cycleLoadPower = true;
 								switchLoad(OFF);
 							}
