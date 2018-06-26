@@ -35,8 +35,6 @@
 #define LOBATTV		2
 #define DEADBATT	3
 
-#define CYCLE_LOAD_TIMEOUT	5
-
 #define ADSORPTION_TIME_FLOODED	3600 		// 3600 seconds = 60 minutes
 #define ADSORPTION_LOCKOUT_TIME 28800		// 28800 seconds = 8 hours
 
@@ -105,7 +103,6 @@ uint16_t battOffsetV, solarOffsetV, battOffsetI, solarOffsetI, loadOffsetI;
 static uint16_t duty;
 
 uint8_t  powerCycleOffTime, offTimeCount;
-uint8_t cycleLoadTime = 0;
 uint8_t  enablePowerCycle;
 uint8_t  maxDutyCycleCount = 0;
 uint8_t  mpptBypassCount = 0;
@@ -128,7 +125,6 @@ static bool lowChargeCurrentFlag;
 static bool overTempFlag;
 static bool batteryFaultFlag;
 static bool mpptBypassFlag;
-static bool cycleLoadPower;
 
 int POB_Direction = 1;
 
@@ -739,19 +735,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 					offTimeCount = 0;
 					switchLoad(ON);
 				}
-			}
-
-			if (cycleLoadPower)
-			{
-				cycleLoadTime++;
-
-				if (cycleLoadTime >= CYCLE_LOAD_TIMEOUT)
-				{
-					cycleLoadTime = 0;
-					cycleLoadPower = false;
-					switchLoad(ON);
-				}
-
 			}
 		}
 
@@ -1452,7 +1435,6 @@ void handleData()
 	}
 }
 
-
 int main(void)
 {
 
@@ -1514,7 +1496,6 @@ int main(void)
 	batteryFaultFlag = false;
 	adsorptionComplete = false;
 	mpptBypassFlag = false;
-	cycleLoadPower = false;
 
 	adsorptionTime = 0;
 	adsorptionCompleteTime = 0;
@@ -1535,13 +1516,6 @@ int main(void)
 		{
 			lcdUpdateFlag = 0;
 			updateLCD(warning);
-		}
-
-		if ((warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 5.0))
-		{
-			cycleLoadTime = 0;
-			cycleLoadPower = true;
-			switchLoad(OFF);
 		}
 
 		if (vBattery >= BAT_DROP_DEAD_VOLT) // We charge only if the battery isn't too dead
@@ -1625,13 +1599,6 @@ int main(void)
 					{
 						lcdUpdateFlag = 0;
 						updateLCD(warning);
-					}
-
-					if ((warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 5.0))
-					{
-						cycleLoadTime = 0;
-						cycleLoadPower = true;
-						switchLoad(OFF);
 					}
 
 					// May not need this here...
@@ -1735,13 +1702,6 @@ int main(void)
 							{
 								lcdUpdateFlag = 0;
 								updateLCD(warning);
-							}
-
-							if ((warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 5.0))
-							{
-								cycleLoadTime = 0;
-								cycleLoadPower = true;
-								switchLoad(OFF);
 							}
 
 							// We no longer have enough current to charge.
@@ -1850,8 +1810,8 @@ int main(void)
 				canCharge = false;
 				isCharging = false;
 				canPulse = 0;
-//				adsorptionFlag = false;
-//				adsorptionComplete = false;
+				adsorptionFlag = false;
+				adsorptionComplete = false;
 			}
 		} // end if (vBattery > BAT_DROP_DEAD_VOLT)
 

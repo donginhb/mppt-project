@@ -21,7 +21,7 @@
  * 1.0: 12/27/2017	Created By Nicholas C. Ipri (NCI) nipri@solartechnology.com
  */
 
-//#define DEBUG2
+#define DEBUG2
 
 #define ON		1
 #define OFF		0
@@ -743,6 +743,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 			if (cycleLoadPower)
 			{
+
 				cycleLoadTime++;
 
 				if (cycleLoadTime >= CYCLE_LOAD_TIMEOUT)

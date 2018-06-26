@@ -21,7 +21,7 @@
  * 1.0: 12/27/2017	Created By Nicholas C. Ipri (NCI) nipri@solartechnology.com
  */
 
-//#define DEBUG2
+#define DEBUG2
 
 #define ON		1
 #define OFF		0
@@ -34,8 +34,6 @@
 #define HIBATTV 	1
 #define LOBATTV		2
 #define DEADBATT	3
-
-#define CYCLE_LOAD_TIMEOUT	5
 
 #define ADSORPTION_TIME_FLOODED	3600 		// 3600 seconds = 60 minutes
 #define ADSORPTION_LOCKOUT_TIME 28800		// 28800 seconds = 8 hours
@@ -743,9 +741,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 			if (cycleLoadPower)
 			{
+
 				cycleLoadTime++;
 
-				if (cycleLoadTime >= CYCLE_LOAD_TIMEOUT)
+				if (cycleLoadTime >= 5)
 				{
 					cycleLoadTime = 0;
 					cycleLoadPower = false;
