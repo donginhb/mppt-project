@@ -21,7 +21,12 @@
  * 1.0: 12/27/2017	Created By Nicholas C. Ipri (NCI) nipri@solartechnology.com
  */
 
+
 //#define DEBUG2
+
+// Uncomment this to utilize the MPPT Incremental Conductance algorithm
+// Leave commented to implement the Perturb and Observe method.
+#define INC_COND
 
 #define ON		1
 #define OFF		0
@@ -72,7 +77,7 @@ TIM_HandleTypeDef htim11;
 UART_HandleTypeDef huart1;
 
 
-uint8_t strBuffer[128];
+uint8_t strBuffer[256];
 uint8_t sendBuffer[128], escBuffer[128];
 
 /** adcBuffer Description
@@ -102,13 +107,13 @@ uint16_t tim9Count, adcCount;
 uint16_t canPulse;
 uint16_t powerCycleTimeout, timerCount;
 uint16_t battOffsetV, solarOffsetV, battOffsetI, solarOffsetI, loadOffsetI;
-static uint16_t duty;
+uint16_t  mpptBypassCount = 0;
+uint16_t duty;
 
 uint8_t  powerCycleOffTime, offTimeCount;
 uint8_t cycleLoadTime = 0;
-uint8_t  enablePowerCycle;
 uint8_t  maxDutyCycleCount = 0;
-uint8_t  mpptBypassCount = 0;
+
 uint8_t lowChargeCurrentTimeout;
 uint8_t sendMessageCount = 0;
 uint8_t getADC = 0;
@@ -129,13 +134,17 @@ static bool overTempFlag;
 static bool batteryFaultFlag;
 static bool mpptBypassFlag;
 static bool cycleLoadPower;
+static bool  enablePowerCycle;
 
 int POB_Direction = 1;
 
-double currentPower, lastPower, lastVsolar;
+double dV, dI;
+double currentPower, lastPower, lastVsolar, lastIsolar;
 double vBat, iBat, vSolar, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent;
 double vBatAve, iBatAve, vSolarAve, iSolarAve, loadVoltageAve, loadCurrentAve;
 double vBatOut, iBatOut, vSolarOut, iSolarOut, loadVoltageOut, loadCurrentOut;
+
+double conductance, tryme;
 
 // adcUnit = Vref / 2^12
 //Vref = 3.3v and 2^12 = 4096 for 12 bits of resolution
@@ -198,8 +207,13 @@ void sendMessage(void);
 void pulse(void);
 void delay_us(uint32_t);
 void writeFlash(uint16_t data);
+
 void calcMPPT(void);
 void calcMPPT_TI(void);
+
+void calcMPPT_IC(void);
+
+
 void mpptBypass(uint8_t);
 extern void crc16_init(void);
 extern uint16_t crc16(uint8_t[], uint8_t);
@@ -718,13 +732,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 			// Power cycle watchdog timer: set by the host controller over the UART to power cycle the load after a programmed time
 			// (powerCycleTimeout) and holds the load off for powercycleOffTime before restoring power to the load.
-			if (enablePowerCycle == 1)
+			if (enablePowerCycle)
 			{
 				timerCount++;
 
 				if (timerCount >= powerCycleTimeout)
 				{
-					enablePowerCycle = 0;
+					enablePowerCycle = false;
 					offTimeCount++;
 					switchLoad(OFF);
 				}
@@ -928,7 +942,7 @@ void getADCreadings (uint8_t howMany)
 	{
 		sendMessageCount = 0;
 		// This data is sent to a terminal like puTTY
-		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %2.2f, %2.2f, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, canCharge, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp), tempAmbient);
+		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %2.2f, %2.2f, %d, %f, %f\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, canCharge, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp), duty, tryme, conductance);
 		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 	}
 
@@ -1015,6 +1029,78 @@ void mpptBypass(uint8_t onOff)
 	}
 }
 
+void calcMPPT_IC(void)
+{
+//	double conductance;
+
+	dV = vSolar - lastVsolar;
+	dI = iSolar - lastIsolar;
+
+	if (dV != 0)
+	{
+		conductance  = (double)dI / (double)dV;
+		tryme = -((double)iSolar/(double)vSolar);
+	}
+
+	if (dV != 0)
+	{
+
+//		if ((iSolar + (conductance * vSolar)) == 0)
+		if (conductance == tryme)
+		{
+
+		}
+
+//		else if ((iSolar + (conductance * vSolar)) > 0)
+		else if (conductance > tryme)
+		{
+			duty++;
+
+			if (duty >= MAX_DUTY_CYCLE)
+			{
+				duty = MAX_DUTY_CYCLE;
+				maxDutyCycleCount++;
+			}
+		}
+
+		else
+		{
+			duty--;
+
+			if (duty <= MIN_DUTY_CYCLE)
+				duty = MIN_DUTY_CYCLE;
+		}
+
+	}
+
+	else if (dI != 0)
+	{
+		if (dI > 0)
+		{
+			duty--;
+
+			if (duty <= MIN_DUTY_CYCLE)
+				duty = MIN_DUTY_CYCLE;
+		}
+
+		else
+		{
+			duty++;
+
+			if (duty >= MAX_DUTY_CYCLE)
+			{
+				duty = MAX_DUTY_CYCLE;
+				maxDutyCycleCount++;
+			}
+		}
+
+	}
+
+	lastVsolar = vSolar;
+	lastIsolar = iSolar;
+	changePWM_TIM1(duty, UPDATE);
+}
+
 void calcMPPT_TI(void)
 {
 	currentPower = vSolar * iSolar;
@@ -1066,17 +1152,17 @@ void calcMPPT(void)
 //			if (vSolarArray > last_vSolarArray)
 			if (vSolar > lastVsolar)
 			{
-				duty++;
-
-				if (duty >= MAX_DUTY_CYCLE)
-					duty = MAX_DUTY_CYCLE;
-			}
-			else
-			{
 				duty--;
 
 				if (duty <= MIN_DUTY_CYCLE)
 					duty = MIN_DUTY_CYCLE;
+			}
+			else
+			{
+				duty++;
+
+				if (duty >= MAX_DUTY_CYCLE)
+					duty = MAX_DUTY_CYCLE;
 			}
 		}
 
@@ -1086,17 +1172,17 @@ void calcMPPT(void)
 //			if (vSolarArray > last_vSolarArray)
 			if (vSolar > lastVsolar)
 			{
-				duty--;
-
-				if (duty <= MIN_DUTY_CYCLE)
-					duty = MIN_DUTY_CYCLE;
-			}
-			else
-			{
 				duty++;
 
 				if (duty >= MAX_DUTY_CYCLE)
 					duty = MAX_DUTY_CYCLE;
+			}
+			else
+			{
+				duty--;
+
+				if (duty <= MIN_DUTY_CYCLE)
+					duty = MIN_DUTY_CYCLE;
 			}
 		}
 //	}
@@ -1442,13 +1528,13 @@ void handleData()
 	powerCycleOffTime = inBuff[4];
 
 	if ((powerCycleTimeout >= 1) && (powerCycleTimeout < 0xffff)) {
-		enablePowerCycle = 1;
+		enablePowerCycle = true;
 		timerCount = 0;
 		offTimeCount = 0;
 	}
 
 	else {
-		enablePowerCycle = 0;
+		enablePowerCycle = false;
 	}
 }
 
@@ -1476,6 +1562,7 @@ int main(void)
 
 	crc16_init();
 	HD44780_Init();
+	HD44780_WriteData(0, 0, "INITIALIZING!", YES);
 
 	lcdUpdate = 0;
 	canCharge = false;
@@ -1497,8 +1584,8 @@ int main(void)
 	changePWM_TIM5(15000, ON);
 	changePWM_TIM1(PCT90_DUTY_CYCLE, OFF);
 
-	getADCreadings(32);
-	lcdBatteryInfo();
+//	getADCreadings(32);
+//	lcdBatteryInfo();
 
 //writeFlash(0xaa55);
 	battOffsetV =  *(__IO uint16_t *)0x08010000;
@@ -1537,7 +1624,7 @@ int main(void)
 			updateLCD(warning);
 		}
 
-		if ((warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 5.0))
+		if ((!enablePowerCycle) && (warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 5.0))
 		{
 			cycleLoadPower = true;
 			switchLoad(OFF);
@@ -1626,7 +1713,7 @@ int main(void)
 						updateLCD(warning);
 					}
 
-					if ((warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 5.0))
+					if ((!enablePowerCycle) && (warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 5.0))
 					{
 						cycleLoadPower = true;
 						switchLoad(OFF);
@@ -1675,6 +1762,8 @@ int main(void)
 								lastVsolar = vSolar;
 								duty = PCT80_DUTY_CYCLE;
 								lastPower = currentPower;
+								lastVsolar = vSolar;
+								lastIsolar = iSolar;
 							}
 							// If we don't have minimum charge current, set a flag and wait for LOW_CHARGE_CURRENT_TIMEOUT before trying again
 							else
@@ -1709,8 +1798,12 @@ int main(void)
 											mpptBypass(OFF);
 										}
 
-//										calcMPPT();
-										calcMPPT_TI();
+#ifdef INC_COND
+										calcMPPT_IC();
+#else
+										calcMPPT();
+#endif
+//										calcMPPT_TI();
 									}
 									else if ( (maxDutyCycleCount >= 100) && (mpptBypassCount < 1000) )
 									{
@@ -1722,10 +1815,11 @@ int main(void)
 								}
 								else
 								{
-									switchSolarArray(OFF);
-									switchCharger(OFF);
-									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-									mpptBypass(ON);
+									switchSolarArray(ON);
+									switchCharger(ON);
+									changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
+									mpptBypassFlag = false;
+									mpptBypass(OFF);
 								}
 							}
 
@@ -1735,7 +1829,7 @@ int main(void)
 								updateLCD(warning);
 							}
 
-							if ((warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 5.0))
+							if ((!enablePowerCycle) && (warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 5.0))
 							{
 								cycleLoadPower = true;
 								switchLoad(OFF);
