@@ -60,10 +60,13 @@
 #define MIN_DUTY_CYCLE		192		//75% of the TIM1 period
 #define MAX_DUTY_CYCLE  	218 	//85% of the TIM1 period
 #define PCT80_DUTY_CYCLE 	205
+//#define PCT90_DUTY_CYCLE 	230
+//#define PCT70_DUTY_CYCLE 	179
 
 // Time, in seconds, to wait between reading solar array charge current when it's below THRESHOLD_CURRENT
 // The switching converter is turned off while in timeout, conserving power.
 #define LOW_CHARGE_CURRENT_TIMEOUT	10
+#define AVERAGE_INTERVAL	15
 
 #define min(a,b) 	((a) < (b)) ? (a) : (b);
 

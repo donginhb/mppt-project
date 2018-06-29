@@ -21,28 +21,21 @@
  * 1.0: 12/27/2017	Created By Nicholas C. Ipri (NCI) nipri@solartechnology.com
  */
 
-/** Console Output for Debugging
- * Used in getADCReadings()
- * Uncomment #define DEBUG2 to get a string of formatted, human readable ADC data to a terminal program.
- * DEFAULT: Leave commented to send the real data packet to the controller.
- */
+
 //#define DEBUG2
 
-/** MPPT Algorithm Selection
-*Uncomment #define INC_COND to utilize the MPPT Incremental Conductance algorithm.
-*DEFAULT: Leave commented to implement the Perturb and Observe (P&O) method.
-*NOTE: The P&O Algorithm is more efficient!
-*/
-//#define INC_COND
+// Uncomment this to utilize the MPPT Incremental Conductance algorithm
+// Leave commented to implement the Perturb and Observe method.
+#define INC_COND
 
 // Used to control timer functionality
-#define ON		1	// Start the timer
-#define OFF		0	// Stop the timer
-#define UPDATE	2	// Update the duty cycle
+#define ON		1
+#define OFF		0
+#define UPDATE	2
 
 // Used to clear, or not clear, the LCD
-#define YES		1	// Clear
-#define NO		0	// Don't clear
+#define YES		1
+#define NO		0
 
 // Battery warning indicators
 #define NORMALBATTV	0
@@ -60,10 +53,13 @@
 #define MIN_DUTY_CYCLE		192		//75% of the TIM1 period
 #define MAX_DUTY_CYCLE  	218 	//85% of the TIM1 period
 #define PCT80_DUTY_CYCLE 	205
+#define PCT90_DUTY_CYCLE 	230
+#define PCT70_DUTY_CYCLE 	179
 
 // Time, in seconds, to wait between reading solar array charge current when it's below THRESHOLD_CURRENT
 // The switching converter is turned off while in timeout, conserving power.
 #define LOW_CHARGE_CURRENT_TIMEOUT	10
+#define AVERAGE_INTERVAL	15
 
 #define min(a,b) 	((a) < (b)) ? (a) : (b);
 
@@ -116,12 +112,12 @@ uint16_t tim9Count, adcCount;
 uint16_t canPulse;
 uint16_t powerCycleTimeout, timerCount;
 uint16_t battOffsetV, solarOffsetV, battOffsetI, solarOffsetI, loadOffsetI;
-uint16_t mpptBypassCount = 0;
+uint16_t  mpptBypassCount = 0;
 uint16_t duty;
 
-uint8_t powerCycleOffTime, offTimeCount;
+uint8_t  powerCycleOffTime, offTimeCount;
 uint8_t cycleLoadTime = 0;
-uint8_t maxDutyCycleCount = 0;
+uint8_t  maxDutyCycleCount = 0;
 
 uint8_t lowChargeCurrentTimeout;
 uint8_t sendMessageCount = 0;
@@ -413,7 +409,7 @@ static void MX_TIM1_Init(void)
 	  HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig);
 
 	  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-	  sConfigOC.Pulse = PCT80_DUTY_CYCLE;
+	  sConfigOC.Pulse = PCT90_DUTY_CYCLE;
 	  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
 	  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
 	  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
@@ -421,7 +417,7 @@ static void MX_TIM1_Init(void)
 	  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
 
 	  sConfigOC2.OCMode = TIM_OCMODE_PWM2;
-	  sConfigOC2.Pulse = 256 - PCT80_DUTY_CYCLE;
+	  sConfigOC2.Pulse = 256 - PCT90_DUTY_CYCLE;
 	  sConfigOC2.OCPolarity = TIM_OCPOLARITY_HIGH;
 	  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_HIGH;
 	  sConfigOC2.OCFastMode = TIM_OCFAST_DISABLE;
@@ -806,8 +802,8 @@ void changePWM_TIM1(uint16_t pulse, uint8_t onOffUpdate)
 
 	  if (onOffUpdate == ON)
 	  {
-		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, PCT80_DUTY_CYCLE);
-		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 256 - PCT80_DUTY_CYCLE);
+		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, PCT90_DUTY_CYCLE);
+		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 256 - PCT90_DUTY_CYCLE);
 
 		  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 		  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
@@ -1591,7 +1587,7 @@ int main(void)
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 
 	changePWM_TIM5(15000, ON);
-	changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+	changePWM_TIM1(PCT90_DUTY_CYCLE, OFF);
 
 //	getADCreadings(32);
 //	lcdBatteryInfo();
@@ -1811,9 +1807,8 @@ int main(void)
 										calcMPPT_IC();
 #else
 										calcMPPT();
-//										calcMPPT_TI();
 #endif
-
+//										calcMPPT_TI();
 									}
 									else if ( (maxDutyCycleCount >= 100) && (mpptBypassCount < 1000) )
 									{

@@ -24,7 +24,15 @@
 #define MPPT_H_
 
 // voltage related constants
+// The ones that are commented out are not used in rev 4.3
+#define TENTH_VOLT			0x0f
+#define QUARTER_VOLT		0x27	// 39 counts = 0.25 volts
+#define HALF_VOLT      		0x4d	// 77 counts = 0.5 V
+#define ONE_VOLT			0x9b	// 155 counts
 #define TWO_VOLT       		0x135	// 309 counts = 2.0 Volts
+#define ONE_AND_HALF_VOLT 	0xe8	// 232 counts = 1.5 Volts
+#define LOW_BATTERY2   		0x695	// 1685 counts = 10.9 Volts
+//#define LOW_BATTERY1   		0x6a5	// 1701 counts = 11.0 Volts
 #define V_MIN_LOAD_ON       0x73f	// 1855 counts = 12 Volts
 #define V_MAX_LOAD_ON       0x93d	// 2365 counts = 15.3 Volts
 #define V_MIN_LOAD_OFF 		0x676	// 1654 counts = 10.7 Volts
@@ -58,29 +66,35 @@
 // Used in floatVoltage() and adsorptionVoltage() calculations
 #define RATE1				.029
 
-// Ambient temperature values in deg Celsius
+// Ambient temperature values
 #define TEMP_0      		0
 #define TEMP_40	    		40
 #define TEMP_80				80
 #define TEMP_NEG30			-30
 
-/* This is the MOSFET temperatures in deg Celsius at which the fan is switched on or off. Change as necessary */
-#define FAN_ON_TEMP			50
-#define FAN_OFF_TEMP		38
+/* This is the MOSFET temperatures at which the fan is switched on or off. Change as necessary */
+#define FAN_ON_TEMP			0xfa9 	// 4009 counts for 50 C / 122 deg F
+#define FAN_OFF_TEMP		0xf14	// 3860 counts for 38 C / 100.4 deg F
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 void HD44780_Init(void);
+//void HD44780_WriteData(uint8_t row, uint8_t col, char *data);
 void HD44780_WriteData(uint8_t, uint8_t, char *, uint8_t);
 void HD44780_WriteCommand(uint8_t);
 void HD44780_GotoXY(uint8_t, uint8_t);
 
+//static double vBat, iBat, vSolar, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent;
 
 char *rx;
+uint8_t myChar;
 uint8_t inBuff[16];
 uint8_t rxBuff[16];
 
 uint8_t rxByteCount;
 uint8_t inByteCount;
+uint32_t usCounter;
 
+
+//double vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp;
 
 #endif /* MPPT_H_ */

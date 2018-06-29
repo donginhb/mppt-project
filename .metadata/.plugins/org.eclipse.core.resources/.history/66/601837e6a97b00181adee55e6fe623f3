@@ -24,7 +24,15 @@
 #define MPPT_H_
 
 // voltage related constants
+// The ones that are commented out are not used in rev 4.3
+//#define TENTH_VOLT			0x0f
+//#define QUARTER_VOLT		0x27	// 39 counts = 0.25 volts
+//#define HALF_VOLT      		0x4d	// 77 counts = 0.5 V
+//#define ONE_VOLT			0x9b	// 155 counts
 #define TWO_VOLT       		0x135	// 309 counts = 2.0 Volts
+//#define ONE_AND_HALF_VOLT 	0xe8	// 232 counts = 1.5 Volts
+//#define LOW_BATTERY2   		0x695	// 1685 counts = 10.9 Volts
+//#define LOW_BATTERY1   		0x6a5	// 1701 counts = 11.0 Volts
 #define V_MIN_LOAD_ON       0x73f	// 1855 counts = 12 Volts
 #define V_MAX_LOAD_ON       0x93d	// 2365 counts = 15.3 Volts
 #define V_MIN_LOAD_OFF 		0x676	// 1654 counts = 10.7 Volts

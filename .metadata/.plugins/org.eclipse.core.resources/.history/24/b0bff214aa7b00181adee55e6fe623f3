@@ -25,7 +25,6 @@
 
 // voltage related constants
 #define TWO_VOLT       		0x135	// 309 counts = 2.0 Volts
-#define V_MIN_LOAD_ON       0x73f	// 1855 counts = 12 Volts
 #define V_MAX_LOAD_ON       0x93d	// 2365 counts = 15.3 Volts
 #define V_MIN_LOAD_OFF 		0x676	// 1654 counts = 10.7 Volts
 #define V_MAX_LOAD_OFF 		0x95c	// 2396 counts = 15.5 Volts

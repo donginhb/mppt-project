@@ -60,10 +60,13 @@
 #define MIN_DUTY_CYCLE		192		//75% of the TIM1 period
 #define MAX_DUTY_CYCLE  	218 	//85% of the TIM1 period
 #define PCT80_DUTY_CYCLE 	205
+#define PCT90_DUTY_CYCLE 	230
+#define PCT70_DUTY_CYCLE 	179
 
 // Time, in seconds, to wait between reading solar array charge current when it's below THRESHOLD_CURRENT
 // The switching converter is turned off while in timeout, conserving power.
 #define LOW_CHARGE_CURRENT_TIMEOUT	10
+#define AVERAGE_INTERVAL	15
 
 #define min(a,b) 	((a) < (b)) ? (a) : (b);
 
@@ -413,7 +416,7 @@ static void MX_TIM1_Init(void)
 	  HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig);
 
 	  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-	  sConfigOC.Pulse = PCT80_DUTY_CYCLE;
+	  sConfigOC.Pulse = PCT90_DUTY_CYCLE;
 	  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
 	  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
 	  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
@@ -421,7 +424,7 @@ static void MX_TIM1_Init(void)
 	  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
 
 	  sConfigOC2.OCMode = TIM_OCMODE_PWM2;
-	  sConfigOC2.Pulse = 256 - PCT80_DUTY_CYCLE;
+	  sConfigOC2.Pulse = 256 - PCT90_DUTY_CYCLE;
 	  sConfigOC2.OCPolarity = TIM_OCPOLARITY_HIGH;
 	  sConfigOC2.OCNPolarity = TIM_OCNPOLARITY_HIGH;
 	  sConfigOC2.OCFastMode = TIM_OCFAST_DISABLE;
@@ -806,8 +809,8 @@ void changePWM_TIM1(uint16_t pulse, uint8_t onOffUpdate)
 
 	  if (onOffUpdate == ON)
 	  {
-		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, PCT80_DUTY_CYCLE);
-		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 256 - PCT80_DUTY_CYCLE);
+		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, PCT90_DUTY_CYCLE);
+		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 256 - PCT90_DUTY_CYCLE);
 
 		  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 		  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
@@ -1591,7 +1594,7 @@ int main(void)
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 
 	changePWM_TIM5(15000, ON);
-	changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+	changePWM_TIM1(PCT90_DUTY_CYCLE, OFF);
 
 //	getADCreadings(32);
 //	lcdBatteryInfo();
