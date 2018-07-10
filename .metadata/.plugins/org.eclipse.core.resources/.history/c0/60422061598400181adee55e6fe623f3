@@ -26,7 +26,7 @@
  * Uncomment #define DEBUG2 to get a string of formatted, human readable ADC data to a terminal program.
  * DEFAULT: Leave commented to send the real data packet to the controller.
  */
-#define DEBUG2
+//#define DEBUG2
 
 /** MPPT Algorithm Selection
 *Uncomment #define INC_COND to utilize the MPPT Incremental Conductance algorithm.
@@ -144,7 +144,6 @@ static bool batteryFaultFlag;
 static bool mpptBypassFlag;
 static bool cycleLoadPower;
 static bool enablePowerCycle;
-static bool fanStatus;
 
 int POB_Direction = 1;
 
@@ -870,6 +869,7 @@ void getADCreadings (uint8_t howMany)
 {
 
 	uint8_t i;
+	bool fanStatus;
 
 	vBattery = 0;
 	vSolarArray = 0;
@@ -951,10 +951,11 @@ void getADCreadings (uint8_t howMany)
 
 	if ( (!fanStatus) && (mosfetTemp >= FAN_ON_TEMP) )
 		fanStatus = switchFan(ON);
-	else if ( (fanStatus) && (mosfetTemp <= FAN_OFF_TEMP))
+	else if ( (fanStatus) && (mosfetTemp>= FAN_OFF_TEMP))
 		fanStatus = switchFan(OFF);
 	else
-		//do nothing
+		fanStatus = switchFan(ON);
+
 
 	sendMessageCount++;
 
@@ -1599,6 +1600,8 @@ int main(void)
 	lcdUpdate = 0;
 	canCharge = false;
 	isCharging = false;
+	fanStatus = false;
+
 	mpptBypass(OFF);
 
 	fanStatus = switchFan(OFF);

@@ -26,7 +26,7 @@
  * Uncomment #define DEBUG2 to get a string of formatted, human readable ADC data to a terminal program.
  * DEFAULT: Leave commented to send the real data packet to the controller.
  */
-#define DEBUG2
+//#define DEBUG2
 
 /** MPPT Algorithm Selection
 *Uncomment #define INC_COND to utilize the MPPT Incremental Conductance algorithm.
@@ -143,8 +143,7 @@ static bool overTempFlag;
 static bool batteryFaultFlag;
 static bool mpptBypassFlag;
 static bool cycleLoadPower;
-static bool enablePowerCycle;
-static bool fanStatus;
+static bool  enablePowerCycle;
 
 int POB_Direction = 1;
 
@@ -195,7 +194,7 @@ double calcVoltage(uint16_t ADvalue, uint8_t gain);
 double calcCurrent(uint16_t ADvalue);
 double calcTemperature(uint16_t value);
 
-bool switchFan(uint8_t onOff);
+void switchFan(uint8_t onOff);
 void switchSolarArray(uint8_t onOff);
 void switchLoad(uint8_t onOff);
 void switchCharger(uint8_t onOff);
@@ -900,7 +899,7 @@ void getADCreadings (uint8_t howMany)
 	tempMOSFETS /= howMany;
 	iLoad /= howMany;
 
-// Check for any problems with battery voltage
+// Check for any problems
 	if (vBattery >= V_MAX_LOAD_OFF )
 	{
 		warning = HIBATTV;
@@ -937,6 +936,7 @@ void getADCreadings (uint8_t howMany)
 		switchLoad(ON);
 	}
 
+
 // Calculate the values and send them to the host controller
 	vBat = calcVoltage(vBattery, 2);
 	vSolar = calcVoltage(vSolarArray, 2);
@@ -946,15 +946,6 @@ void getADCreadings (uint8_t howMany)
 	ambientTemp = calcTemperature(tempAmbient);
 	mosfetTemp = calcTemperature(tempMOSFETS);
 	loadCurrent = calcCurrent(iLoad);
-
-	//check MOSFET temperature and switch fan on or off as needed
-
-	if ( (!fanStatus) && (mosfetTemp >= FAN_ON_TEMP) )
-		fanStatus = switchFan(ON);
-	else if ( (fanStatus) && (mosfetTemp <= FAN_OFF_TEMP))
-		fanStatus = switchFan(OFF);
-	else
-		//do nothing
 
 	sendMessageCount++;
 
@@ -1215,22 +1206,12 @@ void calcMPPT(void)
 	changePWM_TIM1(duty, UPDATE);
 }
 
-bool switchFan(uint8_t onOff)
+void switchFan(uint8_t onOff)
 {
-	bool isFanOn;
-
 	if (onOff == ON)
-	{
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);
-		isFanOn = true;
-	}
 	else
-	{
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET);
-		isFanOn = false;
-	}
-
-	return isFanOn;
 }
 
 void switchSolarArray(uint8_t onOff)
@@ -1599,9 +1580,10 @@ int main(void)
 	lcdUpdate = 0;
 	canCharge = false;
 	isCharging = false;
+
 	mpptBypass(OFF);
 
-	fanStatus = switchFan(OFF);
+	// switchFan(OFF);
 	switchCharger(OFF);
 	switchSolarArray(OFF); // Enable this only when ready to charge, disable all other times.
 	switchLoad(ON);

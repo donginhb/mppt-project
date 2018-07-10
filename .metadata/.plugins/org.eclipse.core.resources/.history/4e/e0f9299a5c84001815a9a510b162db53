@@ -951,10 +951,11 @@ void getADCreadings (uint8_t howMany)
 
 	if ( (!fanStatus) && (mosfetTemp >= FAN_ON_TEMP) )
 		fanStatus = switchFan(ON);
-	else if ( (fanStatus) && (mosfetTemp <= FAN_OFF_TEMP))
+	else if ( (fanStatus) && (mosfetTemp>= FAN_OFF_TEMP))
 		fanStatus = switchFan(OFF);
 	else
-		//do nothing
+		fanStatus = switchFan(ON);
+
 
 	sendMessageCount++;
 
