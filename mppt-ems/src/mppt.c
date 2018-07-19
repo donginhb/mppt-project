@@ -58,7 +58,7 @@
 #define ADSORPTION_LOCKOUT_TIME 28800		// 28800 seconds = 8 hours
 
 #define MIN_DUTY_CYCLE		192		//75% of the TIM1 period
-#define MAX_DUTY_CYCLE  	218 	//85% of the TIM1 period
+#define MAX_DUTY_CYCLE  	235 	//92% of the TIM1 period
 #define PCT80_DUTY_CYCLE 	205
 
 // Time, in seconds, to wait between reading solar array charge current when it's below THRESHOLD_CURRENT
@@ -149,7 +149,7 @@ static bool fanStatus;
 int POB_Direction = 1;
 
 double dV, dI;
-double currentPower, lastPower, lastVsolar, lastIsolar;
+double currentPower, lastPower, lastVsolar, lastIsolar, lastIbattery;
 double vBat, iBat, vSolar, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent;
 double vBatAve, iBatAve, vSolarAve, iSolarAve, loadVoltageAve, loadCurrentAve;
 double vBatOut, iBatOut, vSolarOut, iSolarOut, loadVoltageOut, loadCurrentOut;
@@ -964,7 +964,7 @@ void getADCreadings (uint8_t howMany)
 	{
 		sendMessageCount = 0;
 		// This data is sent to a terminal like puTTY
-		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %2.2f, %2.2f, %d, %f, %f\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, canCharge, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp), duty, tryme, conductance);
+		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, canCharge, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp), duty, maxDutyCycleCount);
 		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 	}
 
@@ -1033,7 +1033,7 @@ void mpptBypass(uint8_t onOff)
 
 		mpptBypassCount++;
 
-		if (mpptBypassCount >= 1000)
+		if ( (mpptBypassCount >= 600) || (iSolar < lastIbattery) )
 		{
 			mpptBypassCount = 0;
 			maxDutyCycleCount = 0;
@@ -1148,10 +1148,10 @@ void calcMPPT_TI(void)
 			duty = MAX_DUTY_CYCLE;
 			maxDutyCycleCount++;
 		}
-		else
-		{
-			maxDutyCycleCount = 0;
-		}
+//		else
+//		{
+//			maxDutyCycleCount = 0;
+//		}
 	}
 
 	lastPower = currentPower;
@@ -1830,15 +1830,19 @@ int main(void)
 										}
 
 #ifdef INC_COND
-										calcMPPT_IC();
+//										calcMPPT_IC();
 #else
-										calcMPPT();
-//										calcMPPT_TI();
+//										calcMPPT();
+										calcMPPT_TI();
 #endif
 
 									}
-									else if ( (maxDutyCycleCount >= 100) && (mpptBypassCount < 1000) )
+									else if ( (maxDutyCycleCount >= 100) && (mpptBypassCount < 600) )
 									{
+
+										if (mpptBypassCount == 0)
+											lastIbattery = iBat;
+
 										switchSolarArray(OFF);
 										switchCharger(OFF);
 										changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
