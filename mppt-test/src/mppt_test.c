@@ -291,7 +291,7 @@ static void MX_ADC1_Init(void)
 	// Battery Bank Voltage
 	sConfig.Channel = ADC_CHANNEL_0;
 	sConfig.Rank = 1;
-	sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
+	sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 
@@ -303,7 +303,7 @@ static void MX_ADC1_Init(void)
 	//Solar Array Voltage
 	sConfig.Channel = ADC_CHANNEL_1;
 	sConfig.Rank = 2;
-	sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
+	sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 
@@ -337,7 +337,7 @@ static void MX_ADC1_Init(void)
 // 	Load Voltage
 	sConfig.Channel = ADC_CHANNEL_4;
 	sConfig.Rank = 5;
-	sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
+	sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 // 	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
@@ -348,7 +348,7 @@ static void MX_ADC1_Init(void)
 //	Ambient Temperature
 	sConfig.Channel = ADC_CHANNEL_6;
 	sConfig.Rank = 6;
-	sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES; //ADC_SAMPLETIME_28CYCLES;
+	sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES; //ADC_SAMPLETIME_28CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 // 	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
@@ -359,7 +359,7 @@ static void MX_ADC1_Init(void)
 //	MOSFET Temperature
 	sConfig.Channel = ADC_CHANNEL_7;
 	sConfig.Rank = 7;
-	sConfig.SamplingTime = ADC_SAMPLETIME_56CYCLES;
+	sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 // 	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
@@ -639,7 +639,7 @@ static void MX_USART1_UART_Init(void)
 {
 
 	huart1.Instance = USART1;
-	huart1.Init.BaudRate = 115200;
+	huart1.Init.BaudRate = 9600;
 	huart1.Init.WordLength = UART_WORDLENGTH_8B;
 	huart1.Init.StopBits = UART_STOPBITS_1;
 	huart1.Init.Parity = UART_PARITY_NONE;
@@ -790,10 +790,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			}
 
 			// Flash the charge LED to indicate charging is active
-			if (isCharging == 0)
-				toggleChargeLED();
-			else
-				switchChargeLED(ON);
+//			if (isCharging == 0)
+//				toggleChargeLED();
+//			else
+//				switchChargeLED(ON);
 
 			if (adsorptionFlag)
 			{
@@ -1323,190 +1323,6 @@ void writeFlash(uint32_t address, uint16_t data, uint8_t erase)
 }
 
 
-// this function sends data to the controller
-/* void sendMessage(void)
-{
-
-	uint16_t crc = 0xffff;
-	uint8_t msgLength = 0;
-	uint8_t i, j;
-	uint16_t data;
-
-	memset((void *)sendBuffer, 0, sizeof(sendBuffer));
-	memset((void *)escBuffer, 0, sizeof(escBuffer));
-
-	sendBuffer[0] = 0x9a;
-	msgLength++;
-
-	strncpy((char *)&sendBuffer[1], ver, 3);
-	msgLength += 3;
-
-	sendBuffer[msgLength] = 0x9e;
-	msgLength++;
-
-	data = vBat * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = iBat * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = vSolar * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = iSolar * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = loadVoltage * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = loadCurrent * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	crc = crc16(sendBuffer, msgLength);
-	sendBuffer[msgLength] = (uint8_t)crc & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (crc>>8);
-	msgLength++;
-
-	for (i = 0, j = 0; i < msgLength; i++, j++)
-	{
-
-		switch (sendBuffer[i])
-		{
-
-			case 0x9a:
-
-				if (i != 0)
-				{
-					escBuffer[j++] = 0x9b;
-					escBuffer[j] = 0x01;
-				}
-
-				else
-					escBuffer[j] = sendBuffer[i];
-
-				break;
-
-			case 0x9b:
-
-				escBuffer[j++] = 0x9b;
-				escBuffer[j] = 0x02;
-
-				break;
-
-			default:
-				escBuffer[j] = sendBuffer[i];
-				break;
-		}
-	}
-
-	HAL_UART_Transmit(&huart1, escBuffer, j, 0xffff);
-} */
-
-/* void sendOldMessage(void)
-{
-
-	uint16_t crc = 0xffff;
-	uint8_t msgLength = 0;
-	uint8_t i, j;
-	uint16_t data;
-
-	memset((void *)sendBuffer, 0, sizeof(sendBuffer));
-	memset((void *)escBuffer, 0, sizeof(escBuffer));
-
-	sendBuffer[0] = 0x9a;
-	msgLength++;
-
-	strncpy((char *)&sendBuffer[1], ver, 3);
-	msgLength += 3;
-
-	sendBuffer[msgLength] = 0x9e;
-	msgLength++;
-
-	data = vBat * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = iBat * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = vSolar * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	data = iSolar * 1000;
-	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (data>>8);
-	msgLength++;
-
-	crc = crc16(sendBuffer, msgLength);
-	sendBuffer[msgLength] = (uint8_t)crc & 0x00ff;
-	msgLength++;
-	sendBuffer[msgLength] = (uint8_t) (crc>>8);
-	msgLength++;
-
-	for (i = 0, j = 0; i < msgLength; i++, j++)
-	{
-
-		switch (sendBuffer[i])
-		{
-
-			case 0x9a:
-
-				if (i != 0)
-				{
-					escBuffer[j++] = 0x9b;
-					escBuffer[j] = 0x01;
-				}
-
-				else
-					escBuffer[j] = sendBuffer[i];
-
-				break;
-
-			case 0x9b:
-
-				escBuffer[j++] = 0x9b;
-				escBuffer[j] = 0x02;
-
-				break;
-
-			default:
-				escBuffer[j] = sendBuffer[i];
-				break;
-		}
-	}
-
-	HAL_UART_Transmit(&huart1, escBuffer, j, 0xffff);
-} */
-
-
 /* void handleData()
 {
 
@@ -1557,8 +1373,7 @@ int main(void)
   MX_TIM9_Init();
   MX_TIM11_Init();
   MX_USART1_UART_Init();
-
- // switchDiagLED(ON);
+  switchDiagLED(ON);
 
 
  //crc16_init();
@@ -1574,7 +1389,7 @@ int main(void)
  HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
  HAL_Delay(2000);
 
-// switchFan(OFF);
+ switchFan(OFF);
  switchCharger(OFF);
  switchSolarArray(OFF); // Enable this only when ready to charge, disable all other times.
  switchLoad(OFF);
@@ -1612,14 +1427,14 @@ int main(void)
 
  else
  {
-//	 writeFlash(0x08010000, (uint16_t)vBattery, YES);
+	 writeFlash(0x08010000, (uint16_t)vBattery, YES);
 	 sprintf((char *)strBuffer, "Battery offset OK!\r\n\r\n");
 	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
  }
 
-// flashData = *(__IO uint16_t *)0x08010000;
-// sprintf((char *)strBuffer, "Measured Battery Offset: %x\r\n", flashData);
-// HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+ flashData = *(__IO uint16_t *)0x08010000;
+ sprintf((char *)strBuffer, "Measured Battery Offset: %x\r\n", flashData);
+ HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
 
  //Solar Array Voltage Offset
  	HD44780_WriteData(0, 0, "SA OFFSET", YES);
@@ -1630,11 +1445,11 @@ int main(void)
  	sprintf((char *)strBuffer, "\r\nConnect J1-1 and J1-3 together\r\n");
  	HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
 
- 	 sprintf((char *)strBuffer, "Press SPACEBAR to continue\r\n");
- 	 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+ 	sprintf((char *)strBuffer, "Press SPACEBAR to continue\r\n");
+ 	HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 
- 	 myChar = 'z';
- 	 while (myChar != ' ');
+ 	myChar = 'z';
+ 	while (myChar != ' ');
 
 	memset(strBuffer, (int)NULL, sizeof(strBuffer));
 
@@ -1644,21 +1459,23 @@ int main(void)
 	sprintf((char *)strBuffer, "\r\n\r\n");
 	HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
 
-	if (vSolarArray >  0x3e)
+	if (vSolarArray >  0x310)
 	{
-		 sprintf((char *)strBuffer, "Solar Array Offset Voltage exceeds 50 mV!\r\n\r\n");
+		 sprintf((char *)strBuffer, "Solar Array Offset Voltage exceeds 250 mV!\r\n\r\n");
 		 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
 	}
 	else
 	{
-//		writeFlash(0x08010002, SA_OffsetVoltage, NO);
+		writeFlash(0x08010002, (uint16_t)vSolarArray, NO);
 		sprintf((char *)strBuffer, "Solar Array Offset Voltage OK!\r\n\r\n");
 		HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
 	}
 
-// flashData = *(__IO uint16_t *)0x08010002;
-// sprintf((char *)strBuffer, "\r\nMeasured Solar Array Offset: %x\r\n", flashData);
-// HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+	flashData = *(__IO uint16_t *)0x08010002;
+	sprintf((char *)strBuffer, "\r\nMeasured Solar Array Offset: %x\r\n", flashData);
+	HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+
+
 
  //Solar Array Current Offset
  HD44780_WriteData(0, 0, " SOLAR  ARRAY", YES);
@@ -1679,14 +1496,14 @@ int main(void)
 
  else
  {
-//	 writeFlash(0x08010004, (uint16_t)iSolarArray, NO);
+	 writeFlash(0x08010004, (uint16_t)iSolarArray, NO);
 	 sprintf((char *)strBuffer, "Solar Array Current Offset Voltage OK!\r\n\r\n");
 	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
  }
 
-//  flashData = *(__IO uint16_t *)0x08010008;
-//  sprintf((char *)strBuffer, "Measured Solar Array Current Offset: %x\r\n", flashData);
-//  HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+  flashData = *(__IO uint16_t *)0x08010008;
+  sprintf((char *)strBuffer, "Measured Solar Array Current Offset: %x\r\n", flashData);
+  HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
 
 
  //Battery Current Offset
@@ -1708,14 +1525,14 @@ int main(void)
 
   else
   {
-// 	 writeFlash(0x08010006, (uint16_t)iBattery, NO);
+ 	 writeFlash(0x08010006, (uint16_t)iBattery, NO);
  	 sprintf((char *)strBuffer, "Battery Current Offset Voltage OK!\r\n\r\n");
  	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
   }
 
-//   flashData = *(__IO uint16_t *)0x08010006;
-//   sprintf((char *)strBuffer, "Measured Battery Current Offset: %x\r\n", flashData);
-//   HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+   flashData = *(__IO uint16_t *)0x08010006;
+   sprintf((char *)strBuffer, "Measured Battery Current Offset: %x\r\n", flashData);
+   HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
 
   //Load Current Offset
    HD44780_WriteData(0, 0, "LOAD CURRENT", YES);
@@ -1736,19 +1553,20 @@ int main(void)
 
    else
    {
-//  	 writeFlash(0x08010008, (uint16_t)iLoad, NO);
+  	 writeFlash(0x08010008, (uint16_t)iLoad, NO);
   	 sprintf((char *)strBuffer, "Load Current Offset Voltage OK!\r\n\r\n");
   	 HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
    }
 
-//    flashData = *(__IO uint16_t *)0x0801000a;
-//    sprintf((char *)strBuffer, "Measured Load Current Offset: %x\r\n", flashData);
-//    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
+    flashData = *(__IO uint16_t *)0x0801000a;
+    sprintf((char *)strBuffer, "Measured Load Current Offset: %x\r\n", flashData);
+    HAL_UART_Transmit(&huart1, (uint8_t *)strBuffer, sizeof(strBuffer), 0xffff);
 
    //Temperature Sensor Checket
 //    HD44780_WriteData(0, 0, "LOAD CURRENT", YES);
 //    HD44780_WriteData(1, 3, "OFFSET", NO);
 
+   // Reading temperatures
     memset(strBuffer, (int)NULL, 128);
     sprintf((char *)strBuffer, "READING TEMPERATURE SENSORS\r\n");
     HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
@@ -1775,6 +1593,30 @@ int main(void)
     myChar = 'z';
     while (myChar != ' ');
 
+
+    //Load test
+    HD44780_WriteData(0, 0, "LOAD TEST", YES);
+
+    memset(strBuffer, (int)NULL, 128);
+    sprintf((char *)strBuffer, "press SPACEBAR to switch the load on\r\n");
+    HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+    myChar = 'z';
+    while (myChar != ' ');
+
+    switchLoad(ON);
+
+    memset(strBuffer, (int)NULL, 128);
+    sprintf((char *)strBuffer, "press SPACEBAR to switch the load off\r\n");
+    HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+    myChar = 'z';
+    while (myChar != ' ');
+
+    switchLoad(OFF);
+
+// Charger circuit test
+    HD44780_WriteData(0, 0, "CHARGER TEST", YES);
 
     memset(strBuffer, (int)NULL, 128);
     sprintf((char *)strBuffer, "Checking Charger Circuit \r\n");
@@ -1804,7 +1646,6 @@ int main(void)
 
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 
-/*
     getADCreadings(32);
 
     expectedSolarV = vBat / 0.8;
@@ -1868,6 +1709,29 @@ int main(void)
     sprintf((char *)tempStr1, "Test 2");
     HD44780_WriteData(1, 0, (char *)tempStr1, NO);
 
+
+    //Fan test
+     HD44780_WriteData(0, 0, "FAN TEST", YES);
+
+     memset(strBuffer, (int)NULL, 128);
+     sprintf((char *)strBuffer, "press SPACEBAR to start the fan\r\n");
+     HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+     myChar = 'z';
+     while (myChar != ' ');
+
+     switchFan(ON);
+
+     memset(strBuffer, (int)NULL, 128);
+     sprintf((char *)strBuffer, "press SPACEBAR to stop the fan\r\n");
+     HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
+
+     myChar = 'z';
+     while (myChar != ' ');
+
+     switchFan(OFF);
+
+
     changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
     switchSolarArray(OFF);
     switchCharger(OFF);
@@ -1879,31 +1743,15 @@ int main(void)
     HD44780_WriteData(0, 0, "PRODUCTION TEST", YES);
     HD44780_WriteData(1, 0, "COMPLETED!", NO);
 
-*/
-
     while (1)
     {
-/*
-// Update the LCD
-	  if (lcdUpdateFlag == 1)
-	  {
-		  lcdUpdateFlag = 0;
-		  updateLCD(lcdUpdate, warning);
-	  }
-
-// Get ADC readings
-   if (getADC == 1)
-	  {
-		  getADC = 0;
-		  getADCreadings(32);
-	  }
-// Switch load according to battery voltage condition
-   if ((warning == LOBATTV) || (warning == HIBATTV))
-	   switchLoad(OFF);
-   else
-	   switchLoad(ON);
-
-*/
+    	// Indicates end of test...gotta make it obvious!
+    	switchDiagLED(ON);
+    	switchChargeLED(OFF);
+   		HAL_Delay(250);
+   		switchDiagLED(OFF);
+   		switchChargeLED(ON);
+   		HAL_Delay(250);
    }
     return 0;
 }

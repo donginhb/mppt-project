@@ -2,20 +2,20 @@
 <section name="Workbench">
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
 		<item value="true" key="isRegEx"/>
-		<item value="adsorptionComplete" key="selection"/>
+		<item value="writeFlash" key="selection"/>
 		<item value="false" key="casesensitive"/>
 		<item value="false" key="incremental"/>
 		<item value="true" key="wrap"/>
 		<item value="false" key="wholeword"/>
 		<list key="findhistory">
+			<item value="writeFlash"/>
+			<item value="GPIO_PIN_2"/>
+			<item value="switchFan"/>
+			<item value="GPIOB"/>
+			<item value="gpiob_2"/>
 			<item value="adsorptionComplete"/>
 			<item value="error"/>
 			<item value="getADCreadings"/>
-			<item value="getADC"/>
-			<item value="MX_WWDG_Init"/>
-			<item value="POB_Direction"/>
-			<item value="PCT80_DUTY_CYCLE"/>
-			<item value="MIN_DUTY_CYCLE"/>
 		</list>
 		<list key="replacehistory">
 			<item value=""/>

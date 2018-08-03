@@ -29,13 +29,14 @@
 //#define DEBUG2
 
 /** MPPT Algorithm Selection
-*Uncomment #define INC_COND to utilize the MPPT Incremental Conductance algorithm.
+*Uncomment #define INC_COND to utilize the MPPT Incremental Conductance (IC) algorithm.
 *DEFAULT: Leave commented to implement the Perturb and Observe (P&O) method.
-*NOTE: The P&O Algorithm is more efficient!
+*
+*NOTE: THE IC ALGORITHM IS UNVERIFIED FOR PRODUCTION USE IN VERSION 1.0!
 */
 //#define INC_COND
 
-// Used to control timer functionality
+// Used to control timer and fan functionality
 #define ON		1	// Start the timer
 #define OFF		0	// Stop the timer
 #define UPDATE	2	// Update the duty cycle
@@ -133,18 +134,18 @@ uint8_t warning = 0;
 uint8_t pulseInterval = 120;		// 120 second (2 minute) intervals between pulsing the battery bank
 uint8_t aveCount;
 
-static bool adsorptionFlag;
-static bool adsorptionComplete;
-static bool floatFlag;
-static bool canCharge;
-static bool isCharging;
-static bool lowChargeCurrentFlag;
-static bool overTempFlag;
-static bool batteryFaultFlag;
-static bool mpptBypassFlag;
-static bool cycleLoadPower;
-static bool enablePowerCycle;
-static bool fanStatus;
+bool adsorptionFlag;
+bool adsorptionComplete;
+bool floatFlag;
+bool canCharge;
+bool isCharging;
+bool lowChargeCurrentFlag;
+bool overTempFlag;
+bool batteryFaultFlag;
+bool mpptBypassFlag;
+bool cycleLoadPower;
+bool enablePowerCycle;
+bool fanStatus;
 
 int POB_Direction = 1;
 
@@ -153,8 +154,6 @@ double currentPower, lastPower, lastVsolar, lastIsolar, lastIbattery;
 double vBat, iBat, vSolar, iSolar, loadVoltage, ambientTemp, mosfetTemp, loadCurrent;
 double vBatAve, iBatAve, vSolarAve, iSolarAve, loadVoltageAve, loadCurrentAve;
 double vBatOut, iBatOut, vSolarOut, iSolarOut, loadVoltageOut, loadCurrentOut;
-
-double conductance, tryme;
 
 // adcUnit = Vref / 2^12
 //Vref = 3.3v and 2^12 = 4096 for 12 bits of resolution
@@ -191,18 +190,18 @@ static void MX_DMA_Init(void);
 void changePWM_TIM5(uint16_t, uint8_t);
 void changePWM_TIM1(uint16_t, uint8_t);
 
-double calcVoltage(uint16_t ADvalue, uint8_t gain);
-double calcCurrent(uint16_t ADvalue);
-double calcTemperature(uint16_t value);
+double calcVoltage(uint16_t, uint8_t);
+double calcCurrent(uint16_t );
+double calcTemperature(uint16_t);
 
-bool switchFan(uint8_t onOff);
-void switchSolarArray(uint8_t onOff);
-void switchLoad(uint8_t onOff);
-void switchCharger(uint8_t onOff);
-void switchChargeLED(uint8_t onOff);
+bool switchFan(uint8_t);
+void switchSolarArray(uint8_t);
+void switchLoad(uint8_t);
+void switchCharger(uint8_t);
+void switchChargeLED(uint8_t);
 void toggleChargeLED(void);
-void switchDiagLED(uint8_t onOff);
-void switchCapacitors(uint8_t onOff);
+void switchDiagLED(uint8_t);
+void switchCapacitors(uint8_t);
 
 void lcdBatteryInfo(void);
 void lcdSolarInfo(void);
@@ -212,22 +211,22 @@ void getADCreadings(uint8_t);
 double AdsorptionVoltage(double);
 double FloatVoltage(double);
 
-void updateLCD(uint8_t warning);
+void updateLCD(uint8_t);
 void sendMessage(void);
 void pulse(void);
 void delay_us(uint32_t);
-void writeFlash(uint16_t data);
+void writeFlash(uint16_t);
 
 void calcMPPT(void);
 void calcMPPT_TI(void);
 
 void calcMPPT_IC(void);
 
-
 void mpptBypass(uint8_t);
+void handleData(void);
+
 extern void crc16_init(void);
 extern uint16_t crc16(uint8_t[], uint8_t);
-void handleData(void);
 
 
 /** System Clock Configuration
@@ -361,12 +360,13 @@ static void MX_ADC1_Init(void)
  *These timer settings are chosen to give a 196 KHz switching frequency and
  *complementary switching of the high and low side MOSFETS
  *that is 180 deg phase shifted to give interleaved switching between the 2 sides (phases) of the bridge.
- *The DeadTime parameter was determined and optimized using an oscilloscope with
+ *The DeadTime parameter was optimized using an oscilloscope with
  *2 channels connected to the gates of the HI and LOW side MOSFETS on one side of the bridge.
- *The DeadTime parameter below gives about 50 nS dead time between switching the HI and LOW
- *side MOSFETS. The proper setting of this parameter is very important to prevent shoot-through.
+ *The DeadTime parameter below gives about 50 nS of dead time between switching the HI and LOW
+ *side MOSFETS. The proper setting of this parameter is very important to prevent shoot-through, a condition where both
+ *hi and lo side MOSFETS are on at the same time which would short the battery to ground... a very nasty situation indeed
  *
- *DO NOT change these settings without a thorough understanding of how the switching converter operates else you risk
+ *DO NOT CHANGE THESE SETTINGS without a thorough understanding of how the switching converter operates, else you risk
  *damage to the switching MOSFETS, processor, 3.3v supply and other components on the PCB.
 */
 
@@ -557,7 +557,7 @@ static void MX_USART1_UART_Init(void)
 
 
 /**
-  * Enable DMA controller clock
+  * Enable DMA controller clock and interrupt
   */
 static void MX_DMA_Init(void)
 {
@@ -571,16 +571,9 @@ static void MX_DMA_Init(void)
 
 }
 
-/** Configure pins as 
-        * Analog 
-        * Input 
-        * Output
-        * EVENT_OUT
-        * EXTI
-*/
 
 /* GPIOs for digital functions are configured here */
-/* GPIOs for alternate functions are configured in stm32f4xx_hal_msp.h */
+/* GPIOs for alternate functions are configured in stm32f4xx_hal_msp.c */
 static void MX_GPIO_Init(void)
 {
 
@@ -947,8 +940,7 @@ void getADCreadings (uint8_t howMany)
 	mosfetTemp = calcTemperature(tempMOSFETS);
 	loadCurrent = calcCurrent(iLoad);
 
-	//check MOSFET temperature and switch fan on or off as needed
-
+//check MOSFET temperature and switch fan on or off as needed
 	if ( (!fanStatus) && (mosfetTemp >= FAN_ON_TEMP) )
 		fanStatus = switchFan(ON);
 	else if ( (fanStatus) && (mosfetTemp <= FAN_OFF_TEMP))
@@ -964,7 +956,7 @@ void getADCreadings (uint8_t howMany)
 	{
 		sendMessageCount = 0;
 		// This data is sent to a terminal like puTTY
-		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, canCharge, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp), duty, maxDutyCycleCount);
+		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, canCharge, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp), floatFlag, adsorptionFlag);
 		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 	}
 
@@ -1053,7 +1045,7 @@ void mpptBypass(uint8_t onOff)
 
 void calcMPPT_IC(void)
 {
-//	double conductance;
+	double conductance;
 
 	dV = vSolar - lastVsolar;
 	dI = iSolar - lastIsolar;
@@ -1061,20 +1053,19 @@ void calcMPPT_IC(void)
 	if (dV != 0)
 	{
 		conductance  = (double)dI / (double)dV;
-		tryme = -((double)iSolar/(double)vSolar);
 	}
 
 	if (dV != 0)
 	{
 
 //		if ((iSolar + (conductance * vSolar)) == 0)
-		if (conductance == tryme)
+		if (conductance == -((double)iSolar/(double)vSolar))
 		{
 
 		}
 
 //		else if ((iSolar + (conductance * vSolar)) > 0)
-		else if (conductance > tryme)
+		else if (conductance > -((double)iSolar/(double)vSolar))
 		{
 			duty++;
 
@@ -1184,7 +1175,10 @@ void calcMPPT(void)
 				duty++;
 
 				if (duty >= MAX_DUTY_CYCLE)
+				{
 					duty = MAX_DUTY_CYCLE;
+					maxDutyCycleCount++;
+				}
 			}
 		}
 
@@ -1197,7 +1191,10 @@ void calcMPPT(void)
 				duty++;
 
 				if (duty >= MAX_DUTY_CYCLE)
+				{
 					duty = MAX_DUTY_CYCLE;
+					maxDutyCycleCount++;
+				}
 			}
 			else
 			{
@@ -1800,8 +1797,8 @@ int main(void)
 							else
 							{
 								isCharging = false;
-								switchSolarArray(OFF);
 								switchCharger(OFF);
+								switchSolarArray(OFF);
 								changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 								lowChargeCurrentFlag = true;
 							}
@@ -1815,48 +1812,38 @@ int main(void)
 								getADC = 0;
 								getADCreadings(32);
 
-								if (iBattery < MAX_CHARGE_CURRENT)
-								{
 
-									if (maxDutyCycleCount < 100)
+								if (maxDutyCycleCount < 100)
+								{
+									if (mpptBypassFlag == true)
 									{
-										if (mpptBypassFlag == true)
-										{
-											switchSolarArray(ON);
-											switchCharger(ON);
-											changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
-											mpptBypassFlag = false;
-											mpptBypass(OFF);
-										}
+										switchSolarArray(ON);
+										switchCharger(ON);
+										changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
+										mpptBypassFlag = false;
+										mpptBypass(OFF);
+									}
 
 #ifdef INC_COND
-//										calcMPPT_IC();
+//									calcMPPT_IC();
 #else
-//										calcMPPT();
-										calcMPPT_TI();
+									calcMPPT();
+//									calcMPPT_TI();
 #endif
 
-									}
-									else if ( (maxDutyCycleCount >= 100) && (mpptBypassCount < 600) )
-									{
-
-										if (mpptBypassCount == 0)
-											lastIbattery = iBat;
-
-										switchSolarArray(OFF);
-										switchCharger(OFF);
-										changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-										mpptBypass(ON);
-									}
 								}
-								else
+								else if ( (maxDutyCycleCount >= 100) && (mpptBypassCount < 600) )
 								{
-									switchSolarArray(ON);
-									switchCharger(ON);
-									changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
-									mpptBypassFlag = false;
-									mpptBypass(OFF);
+
+									if (mpptBypassCount == 0)
+										lastIbattery = iBat;
+
+									switchCharger(OFF);
+									switchSolarArray(OFF);
+									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
+									mpptBypass(ON);
 								}
+
 							}
 
 							if (lcdUpdateFlag == 1)
@@ -1874,6 +1861,7 @@ int main(void)
 							// We no longer have enough current to charge.
 							if (iSolarArray < THRESHOLD_CURRENT)
 							{
+								switchCharger(OFF);
 								switchSolarArray(OFF);
 								isCharging = false;
 								mpptBypass(OFF);
@@ -1893,20 +1881,16 @@ int main(void)
 
 							if ( (warning == HIBATTV) || (warning == DEADBATT) )
 							{
-								switchSolarArray(OFF);
 								isCharging = false;
 								canCharge = false;
 								switchCharger(OFF);
+								switchSolarArray(OFF);
 								changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 								mpptBypass(OFF);
 							}
 
 							if (vBat >= FloatVoltage(ambientTemp) )
-							{
-//								adsorptionFlag = false;
 								floatFlag = true;
-							}
-
 
 							if ( !adsorptionFlag && !adsorptionComplete && floatFlag && (vBat >= AdsorptionVoltage(ambientTemp) ) )
 							{
@@ -1920,10 +1904,10 @@ int main(void)
 
 								if (vBat >= AdsorptionVoltage(ambientTemp) )
 								{
-									switchSolarArray(OFF);
 									isCharging = false;
 									canCharge = false;
 									switchCharger(OFF);
+									switchSolarArray(OFF);
 									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 									mpptBypass(OFF);
 								}
@@ -1933,10 +1917,10 @@ int main(void)
 
 								if (vBat >= FloatVoltage(ambientTemp) + (double)0.25 )
 								{
-									switchSolarArray(OFF);
 									isCharging = false;
 									canCharge = false;
 									switchCharger(OFF);
+									switchSolarArray(OFF);
 									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 									mpptBypass(OFF);
 								}
