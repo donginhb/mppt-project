@@ -821,10 +821,6 @@ void changePWM_TIM1(uint16_t pulse, uint8_t onOffUpdate)
 
 		  HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
 		  HAL_TIMEx_PWMN_Stop(&htim1, TIM_CHANNEL_2);
-
-//		  HAL_TIM_GenerateEvent(&htim1, TIM_EVENTSOURCE_BREAK);
-
-
 	  }
 
 	  else if (onOffUpdate == UPDATE)
@@ -1604,7 +1600,7 @@ int main(void)
 
 	fanStatus = switchFan(OFF);
 	switchCharger(OFF);
-	switchSolarArray(OFF); // Enable this only when ready to charge, disable all other times.
+	switchSolarArray(ON); // Enable this only when ready to charge, disable all other times.
 	switchLoad(ON);
 	switchChargeLED(ON);
 	switchCapacitors(ON);
@@ -1668,8 +1664,7 @@ int main(void)
 			// We have enough solar energy to charge the batteries
 			if (vSolarArray >= (vBattery + TWO_VOLT))
 			{
-				switchSolarArray(ON);
-				switchCharger(ON);
+//				switchSolarArray(ON);
 
 				if (canPulse == pulseInterval)
 				{
@@ -1696,7 +1691,7 @@ int main(void)
 					else
 					{
 						canCharge = false;
-//						switchCharger(OFF);
+						switchCharger(OFF);
 //						switchSolarArray(OFF);
 						changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 					}
@@ -1712,7 +1707,7 @@ int main(void)
 					else
 					{
 						canCharge = false;
-//						switchCharger(OFF);
+						switchCharger(OFF);
 //						switchSolarArray(OFF);
 						changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 					}
@@ -1721,7 +1716,7 @@ int main(void)
 				else
 				{
 					canCharge = false;
-//					switchCharger(OFF);
+					switchCharger(OFF);
 //					switchSolarArray(OFF);
 					changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 				}
@@ -1767,7 +1762,7 @@ int main(void)
 					{
 						canCharge = false;
 						isCharging = false;
-//						switchCharger(OFF);
+						switchCharger(OFF);
 //						switchSolarArray(OFF);
 						changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 					}
@@ -1780,7 +1775,7 @@ int main(void)
 						{
 
 							changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
-//							switchCharger(ON);
+							switchCharger(ON);
 
 							HAL_Delay(1000);
 							getADCreadings(32);
@@ -1803,7 +1798,7 @@ int main(void)
 							else
 							{
 								isCharging = false;
-//								switchCharger(OFF);
+								switchCharger(OFF);
 //								switchSolarArray(OFF);
 								changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 								lowChargeCurrentFlag = true;
@@ -1824,7 +1819,7 @@ int main(void)
 									if (mpptBypassFlag == true)
 									{
 //										switchSolarArray(ON);
-//										switchCharger(ON);
+										switchCharger(ON);
 										changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
 										mpptBypassFlag = false;
 										mpptBypass(OFF);
@@ -1844,7 +1839,7 @@ int main(void)
 									if (mpptBypassCount == 0)
 										lastIbattery = iBat;
 
-//									switchCharger(OFF);
+									switchCharger(OFF);
 //									switchSolarArray(OFF);
 									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 									mpptBypass(ON);
@@ -1867,7 +1862,7 @@ int main(void)
 							// We no longer have enough current to charge.
 							if (iSolarArray < THRESHOLD_CURRENT)
 							{
-//								switchCharger(OFF);
+								switchCharger(OFF);
 //								switchSolarArray(OFF);
 								isCharging = false;
 								mpptBypass(OFF);
@@ -1889,7 +1884,7 @@ int main(void)
 							{
 								isCharging = false;
 								canCharge = false;
-//								switchCharger(OFF);
+								switchCharger(OFF);
 //								switchSolarArray(OFF);
 								changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 								mpptBypass(OFF);
@@ -1912,7 +1907,7 @@ int main(void)
 								{
 									isCharging = false;
 									canCharge = false;
-//									switchCharger(OFF);
+									switchCharger(OFF);
 //									switchSolarArray(OFF);
 									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 									mpptBypass(OFF);
@@ -1925,7 +1920,7 @@ int main(void)
 								{
 									isCharging = false;
 									canCharge = false;
-//									switchCharger(OFF);
+									switchCharger(OFF);
 //									switchSolarArray(OFF);
 									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 									mpptBypass(OFF);
@@ -1944,7 +1939,7 @@ int main(void)
 			else if ( (vSolarArray > vBattery) && (vSolarArray < (vBattery + TWO_VOLT)))
 			{
 				switchCharger(OFF);
-				switchSolarArray(ON);
+//				switchSolarArray(ON);
 				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 				canCharge = false;
 				isCharging = false;
@@ -1961,7 +1956,7 @@ int main(void)
 			else
 			{
 				switchCharger(OFF);
-				switchSolarArray(OFF);
+//				switchSolarArray(OFF);
 				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 				mpptBypass(OFF);
 				canCharge = false;
@@ -1975,7 +1970,7 @@ int main(void)
 		else // If batteries are below 8v, just keep these all off
 		{
 			switchCharger(OFF);
-			switchSolarArray(OFF);
+//			switchSolarArray(OFF);
 			changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 			mpptBypass(OFF);
 			canCharge = false;
