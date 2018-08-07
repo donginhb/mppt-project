@@ -821,9 +821,6 @@ void changePWM_TIM1(uint16_t pulse, uint8_t onOffUpdate)
 		  HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
 		  HAL_TIMEx_PWMN_Stop(&htim1, TIM_CHANNEL_2);
 
-		  // Explicitly write the bits CC1E / CC1NE and CC2E / CC2NE to zero after stopping Timer 1.
-		  // This provides added insurance that these timer output channels (that drive the switching MOSFET gates) are disabled and in a LOW state
-		  // so we may avoid leaving one or more of those MOSFETS turned on
 		  tim1_ccer = *(__IO uint16_t *)0x40010020;
 		  TIM1->CCER = tim1_ccer & 0x3faa;
 
@@ -962,7 +959,7 @@ void getADCreadings (uint8_t howMany)
 	{
 		sendMessageCount = 0;
 		// This data is sent to a terminal like puTTY
-		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %2.2f, %2.2f, %d, %d, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, canCharge, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp), floatFlag, adsorptionFlag, tim1_ccer);
+		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %2.2f, %2.2f, %d, %d, %x, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, canCharge, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp), floatFlag, adsorptionFlag, registerVal, registerVal2);
 		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 	}
 
@@ -1634,7 +1631,8 @@ int main(void)
 			getADC = 0;
 			getADCreadings(32);
 
-			tim1_ccer = *(__IO uint16_t *)0x40010020;
+			registerVal = *(__IO uint32_t *)0x40010044;
+			registerVal2 = *(__IO uint16_t *)0x40010020;
 		}
 
 		// Update the LCD
@@ -1793,7 +1791,9 @@ int main(void)
 								getADC = 0;
 								getADCreadings(32);
 
-								tim1_ccer = *(__IO uint16_t *)0x40010020;
+								registerVal = *(__IO uint32_t *)0x40010044;
+								registerVal2 = *(__IO uint16_t *)0x40010020;
+
 
 								if (maxDutyCycleCount < 100)
 								{
