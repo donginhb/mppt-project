@@ -37,7 +37,7 @@ extern TIM_HandleTypeDef htim11;
 
 uint8_t calculateCRC(void);
 void advancePointer(void);
-extern uint16_t crc16(uint8_t[], uint8_t);
+extern uint16_t crc16(uint8_t[], uint8_t, uint16_t);
 extern void handleData(void);
 
 /******************************************************************************/
@@ -143,15 +143,17 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void) {
 
 void USART1_IRQHandler(void) {
 
+	uint8_t packetOK;
+
 	HAL_UART_Receive(&huart1, &rxBuff[rxByteCount], 1, 0);
 	advancePointer();
 
-	if (rxByteCount >= 6) {
-		calculateCRC();
+	if (rxByteCount > 6) {
+		packetOK = calculateCRC();
 		rxByteCount = 0;
 		inByteCount = 0;
 
-		if (calculateCRC() == 1)
+		if (packetOK)
 			handleData();
 	}
 
@@ -227,13 +229,14 @@ uint8_t calculateCRC(void)
 	uint8_t i;
 	uint8_t crcBuff[16];
 	uint16_t crc, rxCRC;
+	uint8_t buff[64];
 
-	rxCRC = (inBuff[inByteCount - 1] << 8) | inBuff[inByteCount - 2];
+	rxCRC = (inBuff[inByteCount-1] << 8) | inBuff[inByteCount-2];
 
-	for (i = 0; i < (inByteCount-3); i++)
+	for (i = 0; i <= (inByteCount-3); i++)
 			crcBuff[i] = inBuff[i];
 
-	crc = crc16(crcBuff, i);
+	crc = crc16(crcBuff, i, 0x0000);
 
 	if (crc == rxCRC)
 		return 1;

@@ -226,7 +226,7 @@ void mpptBypass(uint8_t);
 void handleData(void);
 
 extern void crc16_init(void);
-extern uint16_t crc16(uint8_t[], uint8_t);
+extern uint16_t crc16(uint8_t[], uint8_t, uint16_t);
 
 
 /** System Clock Configuration
@@ -962,7 +962,7 @@ void getADCreadings (uint8_t howMany)
 	{
 		sendMessageCount = 0;
 		// This data is sent to a terminal like puTTY
-		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %2.2f, %2.2f, %d, %d, %x\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, canCharge, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp), floatFlag, adsorptionFlag, tim1_ccer);
+		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, canCharge, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp), floatFlag, adsorptionFlag);
 		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 	}
 
@@ -1492,7 +1492,7 @@ void sendMessage(void)
 	sendBuffer[msgLength] = (uint8_t)data & 0x00ff;
 	msgLength++;
 
-	crc = crc16(sendBuffer, msgLength);
+	crc = crc16(sendBuffer, msgLength, 0xffff);
 	sendBuffer[msgLength] = (uint8_t)crc & 0x00ff;
 	msgLength++;
 	sendBuffer[msgLength] = (uint8_t) (crc>>8);
