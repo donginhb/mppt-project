@@ -26,7 +26,7 @@
  * Uncomment #define DEBUG2 to get a string of formatted, human readable ADC data to a terminal program.
  * DEFAULT: Leave commented to send the real data packet to the controller.
  */
-//#define DEBUG2
+#define DEBUG2
 
 /** MPPT Algorithm Selection
 *Uncomment #define INC_COND to utilize the MPPT Incremental Conductance (IC) algorithm.
