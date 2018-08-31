@@ -229,13 +229,17 @@ uint8_t calculateCRC(void)
 	uint8_t i;
 	uint8_t crcBuff[16];
 	uint16_t crc, rxCRC;
+	uint8_t buff[64];
 
 	rxCRC = (inBuff[inByteCount-1] << 8) | inBuff[inByteCount-2];
 
 	for (i = 0; i <= (inByteCount-3); i++)
 			crcBuff[i] = inBuff[i];
 
-	crc = crc16(crcBuff, i, 0x0000);
+	crc = crc16(crcBuff, i, 0xffff);
+
+	sprintf(buff, "CRC: %x, RXCRC: %x/r/n", crc,rxCRC);
+	HAL_UART_Transmit(&huart1, buff, sizeof(buff), 0xffff);
 
 	if (crc == rxCRC)
 		return 1;

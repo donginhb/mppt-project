@@ -229,6 +229,7 @@ uint8_t calculateCRC(void)
 	uint8_t i;
 	uint8_t crcBuff[16];
 	uint16_t crc, rxCRC;
+	uint8_t buff[64];
 
 	rxCRC = (inBuff[inByteCount-1] << 8) | inBuff[inByteCount-2];
 
