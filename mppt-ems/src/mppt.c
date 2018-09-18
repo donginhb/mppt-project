@@ -26,7 +26,7 @@
  * Uncomment #define DEBUG2 to get a string of formatted, human readable ADC data to a terminal program.
  * DEFAULT: Leave commented to send the real data packet to the controller.
  */
-//#define DEBUG2
+#define DEBUG2
 
 /** MPPT Algorithm Selection
 *Uncomment #define INC_COND to utilize the MPPT Incremental Conductance (IC) algorithm.
@@ -146,7 +146,6 @@ bool batteryFaultFlag;
 bool mpptBypassFlag;
 bool cycleLoadPower;
 bool enablePowerCycle;
-bool fanStatus;
 
 int POB_Direction = 1;
 
@@ -196,6 +195,8 @@ double calcCurrent(uint16_t );
 double calcTemperature(uint16_t);
 
 bool switchFan(uint8_t);
+
+
 void switchSolarArray(uint8_t);
 void switchLoad(uint8_t);
 void switchCharger(uint8_t);
@@ -300,14 +301,14 @@ static void MX_ADC1_Init(void)
 	// Battery Bank Voltage
 	sConfig.Channel = ADC_CHANNEL_0;
 	sConfig.Rank = 1;
-	sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
+	sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 
 	//Solar Array Voltage
 	sConfig.Channel = ADC_CHANNEL_1;
 	sConfig.Rank = 2;
-	sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
+	sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 
@@ -322,20 +323,19 @@ static void MX_ADC1_Init(void)
 	sConfig.Channel = ADC_CHANNEL_3;
 	sConfig.Rank = 4;
 	sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
-
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 
 // 	Load Voltage
 	sConfig.Channel = ADC_CHANNEL_4;
 	sConfig.Rank = 5;
-	sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES;
+	sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 
 //	Ambient Temperature
 	sConfig.Channel = ADC_CHANNEL_6;
 	sConfig.Rank = 6;
-	sConfig.SamplingTime = ADC_SAMPLETIME_144CYCLES; //ADC_SAMPLETIME_28CYCLES;
+	sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
 
 	HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 
@@ -947,12 +947,10 @@ void getADCreadings (uint8_t howMany)
 	loadCurrent = calcCurrent(iLoad);
 
 //check MOSFET temperature and switch fan on or off as needed
-	if ( (!fanStatus) && (mosfetTemp >= FAN_ON_TEMP) )
-		fanStatus = switchFan(ON);
-	else if ( (fanStatus) && (mosfetTemp <= FAN_OFF_TEMP))
-		fanStatus = switchFan(OFF);
-	else
-		//do nothing
+	if (mosfetTemp >= FAN_ON_TEMP)
+		switchFan(ON);
+	if (mosfetTemp <= FAN_OFF_TEMP)
+		switchFan(OFF);
 
 	sendMessageCount++;
 
@@ -962,12 +960,12 @@ void getADCreadings (uint8_t howMany)
 	{
 		sendMessageCount = 0;
 		// This data is sent to a terminal like puTTY
-		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d, %2.2f, %2.2f, %d, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, canCharge, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp), floatFlag, adsorptionFlag);
+		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, ambientTemp, mosfetTemp, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp));
 		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 	}
 
 #else
-		if (sendMessageCount >= 150)	// Output a line every 15 seconds
+		if (sendMessageCount >= 150)	// Output a data packet every 15 seconds
 		{
 			sendMessageCount = 0;
 			sendMessage();
@@ -982,11 +980,13 @@ double AdsorptionVoltage(double ambTemp)
 	if (ambTemp < TEMP_NEG30)
 		return (ATV_NEG30);
 
-	else if ( (ambTemp > TEMP_NEG30) && (ambTemp < TEMP_40) )
+//	else if ( (ambTemp > TEMP_NEG30) && (ambTemp < TEMP_40) )
+	else if ( (ambTemp > TEMP_NEG30) && (ambTemp < TEMP_80) )
 		return (ATV_NEG30 - ( (ambTemp - TEMP_NEG30) * (double)RATE1) );
 
 	else
-		return (ATV_40);
+//		return (ATV_40);
+		return (ATV_80);
 }
 
 double FloatVoltage(double ambTemp)
@@ -994,11 +994,13 @@ double FloatVoltage(double ambTemp)
 	if (ambTemp <= TEMP_NEG30)
 		return (FTV_NEG30);
 
-	else if ( (ambTemp > TEMP_NEG30) && (ambTemp < TEMP_40) )
+//	else if ( (ambTemp > TEMP_NEG30) && (ambTemp < TEMP_40) )
+	else if ( (ambTemp > TEMP_NEG30) && (ambTemp < TEMP_80) )
 		return (FTV_NEG30 - ( (ambTemp - TEMP_NEG30) * (double)RATE1) );
 
 	else
-		return (FTV_40);
+//		return (FTV_40);
+		return (FTV_80);
 }
 
 double calcVoltage(uint16_t ADvalue, uint8_t gain)
@@ -1016,10 +1018,11 @@ double calcCurrent(uint16_t ADvalue)
 
 double calcTemperature(uint16_t ADvalue)
 {
-	const double LM335voltage = 0.010;				// The LM335 outputs 10 mV / degree Kelvin
-	const double kelvin = 273.15;					// 0 C = 273.15 K
+//	const double LM335voltage = 0.010;				// The LM335 outputs 10 mV / degree Kelvin
+//	const double kelvin = 273.15;					// 0 C = 273.15 K
 
-	return ((ADvalue * adcUnit) / LM335voltage) - kelvin;
+//	return ((ADvalue * adcUnit) / LM335voltage) - kelvin;
+	return ( (ADvalue * adcUnit) / 0.010)  - 50;
 }
 
 void mpptBypass(uint8_t onOff)
@@ -1590,7 +1593,7 @@ int main(void)
 	isCharging = false;
 	mpptBypass(OFF);
 
-	fanStatus = switchFan(OFF);
+	switchFan(OFF);
 	switchCharger(OFF);
 	switchSolarArray(OFF); // Enable this only when ready to charge, disable all other times.
 	switchLoad(ON);

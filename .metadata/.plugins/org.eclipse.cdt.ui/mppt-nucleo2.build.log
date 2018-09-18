@@ -1,6 +1,6 @@
-14:25:44 **** Clean-only build of configuration Debug for project mppt-nucleo2 ****
-make clean 
-make: *** No rule to make target 'clean'.  Stop.
+11:27:13 **** Incremental Build of configuration Debug for project mppt-nucleo2 ****
+make all 
+make: Nothing to be done for 'all'.
 
-14:25:44 Build Finished (took 125ms)
+11:27:14 Build Finished (took 861ms)
 
