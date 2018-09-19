@@ -147,6 +147,7 @@ bool batteryFaultFlag;
 bool mpptBypassFlag;
 bool cycleLoadPower;
 bool enablePowerCycle;
+bool isBypass;
 
 int POB_Direction = 1;
 
@@ -1606,6 +1607,7 @@ int main(void)
 	lcdUpdate = 0;
 	canCharge = false;
 	isCharging = false;
+	isBypass = false;
 	mpptBypass(OFF);
 
 	switchFan(OFF);
@@ -1824,12 +1826,15 @@ int main(void)
 									getADCreadings(32);
 									quietAmbientTemp = ambientTemp;
 									quietMosfetTemp = mosfetTemp;
-									changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
+
+									if (!isBypass)
+										changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
 								}
 
 
 								else
 								{
+									isBypass = false;
 									getADCreadings(32);
 
 									tim1_ccer = *(__IO uint16_t *)0x40010020;
@@ -1841,6 +1846,7 @@ int main(void)
 											changePWM_TIM1(PCT80_DUTY_CYCLE, ON);
 											mpptBypassFlag = false;
 											mpptBypass(OFF);
+											isBypass = false;
 										}
 
 #ifdef INC_COND
@@ -1859,6 +1865,7 @@ int main(void)
 
 										changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 										mpptBypass(ON);
+										isBypass = true;
 									}
 								}
 
@@ -1881,6 +1888,7 @@ int main(void)
 							{
 								isCharging = false;
 								mpptBypass(OFF);
+								isBypass = false;
 							}
 
 							if (vSolarArray >= MAX_PV_VOLT)
@@ -1901,6 +1909,7 @@ int main(void)
 								canCharge = false;
 								changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 								mpptBypass(OFF);
+								isBypass = false;
 							}
 
 							if (vBat >= FloatVoltage(quietAmbientTemp) )
@@ -1921,6 +1930,7 @@ int main(void)
 									canCharge = false;
 									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 									mpptBypass(OFF);
+									isBypass = false;
 								}
 							}
 							else if (!adsorptionFlag && floatFlag && adsorptionComplete)
@@ -1932,6 +1942,7 @@ int main(void)
 									canCharge = false;
 									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 									mpptBypass(OFF);
+									isBypass = false;
 								}
 							}
 							else
@@ -1951,6 +1962,7 @@ int main(void)
 				changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
 				canCharge = false;
 				isCharging = false;
+				isBypass = false;
 				mpptBypass(OFF);
 
 				if (canPulse == pulseInterval)
@@ -1969,6 +1981,7 @@ int main(void)
 				mpptBypass(OFF);
 				canCharge = false;
 				isCharging = false;
+				isBypass = false;
 				canPulse = 0;
 			}
 		} // end if (vBattery > BAT_DROP_DEAD_VOLT)
@@ -1983,6 +1996,7 @@ int main(void)
 			mpptBypass(OFF);
 			canCharge = false;
 			isCharging = false;
+			isBypass = false;
 			canPulse = 0;
 			adsorptionComplete = false;
 			adsorptionFlag = false;
