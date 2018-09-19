@@ -1742,6 +1742,9 @@ int main(void)
 					{
 						getADC = 0;
 						getADCreadings(32);
+
+//						quietMosfetTemp = mosfetTemp;
+//						quietAmbientTemp = ambientTemp;
 					}
 
 					if (lcdUpdateFlag == 1)

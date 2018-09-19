@@ -1742,6 +1742,9 @@ int main(void)
 					{
 						getADC = 0;
 						getADCreadings(32);
+
+						quietMosfetTemp = mosfetTemp;
+						quietAmbientTemp = ambientTemp;
 					}
 
 					if (lcdUpdateFlag == 1)
@@ -1796,7 +1799,6 @@ int main(void)
 								lastPower = currentPower;
 								lastVsolar = vSolar;
 								lastIsolar = iSolar;
-								readTempCount = 0;
 							}
 							// If we don't have minimum charge current, set a flag and wait for LOW_CHARGE_CURRENT_TIMEOUT before trying again
 							else
@@ -1816,7 +1818,7 @@ int main(void)
 
 								//Our temperature sensors are affected by switching noise so we interrupt charging to read temperatures
 								// There is no sense in running the MPPT algorithm here if we're shut down...
-								if (readTempCount >= 30)
+								if (readTempCount == 30)
 								{
 									readTempCount = 0;
 									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
