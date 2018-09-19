@@ -1816,8 +1816,6 @@ int main(void)
 							{
 								getADC = 0;
 
-								//Our temperature sensors are affected by switching noise so we interrupt charging to read temperatures
-								// There is no sense in running the MPPT algorithm here if we're shut down...
 								if (readTempCount == 30)
 								{
 									readTempCount = 0;

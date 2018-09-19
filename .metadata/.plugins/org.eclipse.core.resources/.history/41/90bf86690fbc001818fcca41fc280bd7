@@ -975,7 +975,7 @@ void getADCreadings (uint8_t howMany)
 	{
 		sendMessageCount = 0;
 		// This data is sent to a terminal like puTTY
-		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, quietAmbientTemp, quietMosfetTemp, FloatVoltage(quietAmbientTemp), AdsorptionVoltage(quietAmbientTemp));
+		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, quietAmbientTemp, quietMosfetTemp, FloatVoltage(ambientTemp), AdsorptionVoltage(ambientTemp));
 		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 	}
 
@@ -1653,9 +1653,6 @@ int main(void)
 			getADCreadings(32);
 
 			tim1_ccer = *(__IO uint16_t *)0x40010020;
-
-			quietMosfetTemp = mosfetTemp;
-			quietAmbientTemp = ambientTemp;
 		}
 
 		// Update the LCD
@@ -1687,7 +1684,7 @@ int main(void)
 				}
 
 				// Batteries need bulk charging?
-				if ( (vBat < FloatVoltage(quietAmbientTemp) - (double)0.25) )
+				if ( (vBat < FloatVoltage(ambientTemp) - (double)0.25) )
 				{
 					canCharge = true;
 					adsorptionFlag = false;
@@ -1698,7 +1695,7 @@ int main(void)
 				// did we charge to the adsorption voltage (Va) but didn't hold it for ADSORPTION_TIME_FLOODED?
 				else if (adsorptionFlag && floatFlag && !adsorptionComplete)
 				{
-					if (vBat <= AdsorptionVoltage(quietAmbientTemp) - (double)0.5)
+					if (vBat <= AdsorptionVoltage(ambientTemp) - (double)0.5)
 					{
 						canCharge = true;
 					}
@@ -1712,7 +1709,7 @@ int main(void)
 				// Did we charge to Va and hold it for ADSORPTION_TIME_FLOODED?
 				else if ( (!adsorptionFlag && floatFlag && adsorptionComplete) || (!adsorptionFlag && !floatFlag && adsorptionComplete) )
 				{
-					if (vBat <= FloatVoltage(quietAmbientTemp) - (double)(0.25))
+					if (vBat <= FloatVoltage(ambientTemp) - (double)(0.25))
 					{
 						canCharge = true;
 					}
@@ -1742,9 +1739,6 @@ int main(void)
 					{
 						getADC = 0;
 						getADCreadings(32);
-
-						quietMosfetTemp = mosfetTemp;
-						quietAmbientTemp = ambientTemp;
 					}
 
 					if (lcdUpdateFlag == 1)
@@ -1760,7 +1754,7 @@ int main(void)
 					}
 
 					// May not need this here...
-					if (vBat < (FloatVoltage(quietAmbientTemp) - (double)0.25) )
+					if (vBat < (FloatVoltage(ambientTemp) - (double)0.25) )
 					{
 						adsorptionFlag = false;
 						floatFlag = false;
@@ -1769,7 +1763,7 @@ int main(void)
 
 					// Get out of this loop if we can't charge, no longer need to charge
 					// or, for whatever reason, we drop below our "drop dead" threshold voltage
-					if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBat >= AdsorptionVoltage(quietAmbientTemp) ) || (vBattery < BAT_DROP_DEAD_VOLT) )
+					if ( (vSolarArray <= (vBattery + TWO_VOLT) ) || (vBat >= AdsorptionVoltage(ambientTemp) ) || (vBattery < BAT_DROP_DEAD_VOLT) )
 					{
 						canCharge = false;
 						isCharging = false;
@@ -1816,8 +1810,6 @@ int main(void)
 							{
 								getADC = 0;
 
-								//Our temperature sensors are affected by switching noise so we interrupt charging to read temperatures
-								// There is no sense in running the MPPT algorithm here if we're shut down...
 								if (readTempCount == 30)
 								{
 									readTempCount = 0;
@@ -1890,7 +1882,7 @@ int main(void)
 								duty = PCT80_DUTY_CYCLE;
 							}
 
-							if (vBat < FloatVoltage(quietAmbientTemp))
+							if (vBat < FloatVoltage(ambientTemp))
 							{
 								adsorptionFlag = false;
 								floatFlag = false;
@@ -1905,10 +1897,10 @@ int main(void)
 								mpptBypass(OFF);
 							}
 
-							if (vBat >= FloatVoltage(quietAmbientTemp) )
+							if (vBat >= FloatVoltage(ambientTemp) )
 								floatFlag = true;
 
-							if ( !adsorptionFlag && !adsorptionComplete && floatFlag && (vBat >= AdsorptionVoltage(quietAmbientTemp) ) )
+							if ( !adsorptionFlag && !adsorptionComplete && floatFlag && (vBat >= AdsorptionVoltage(ambientTemp) ) )
 							{
 								adsorptionFlag = true;
 								floatFlag = true;
@@ -1917,7 +1909,7 @@ int main(void)
 
 							if (adsorptionFlag && floatFlag && !adsorptionComplete)
 							{
-								if (vBat >= AdsorptionVoltage(quietAmbientTemp) )
+								if (vBat >= AdsorptionVoltage(ambientTemp) )
 								{
 									isCharging = false;
 									canCharge = false;
@@ -1928,7 +1920,7 @@ int main(void)
 							else if (!adsorptionFlag && floatFlag && adsorptionComplete)
 							{
 
-								if (vBat >= FloatVoltage(quietAmbientTemp) + (double)0.25 )
+								if (vBat >= FloatVoltage(ambientTemp) + (double)0.25 )
 								{
 									isCharging = false;
 									canCharge = false;
