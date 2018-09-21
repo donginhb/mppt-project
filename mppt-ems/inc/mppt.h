@@ -76,6 +76,7 @@ void HD44780_Init(void);
 void HD44780_WriteData(uint8_t, uint8_t, char *, uint8_t);
 void HD44780_WriteCommand(uint8_t);
 void HD44780_GotoXY(uint8_t, uint8_t);
+void delay_us(uint32_t);
 
 
 char *rx;

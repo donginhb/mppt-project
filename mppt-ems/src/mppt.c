@@ -1,5 +1,5 @@
 /** mppt.c
- * Top level source file for MPPT EMS (STI assembly number 781-124-033 rev. 0)
+ * Top level source file for MPPT EMS (STI assembly number 781-124-033 rev. B)
  *
  * (c) 2018 Solar Technology Inc.
  * 7620 Cetronia Road
@@ -12,7 +12,6 @@
  *
  * HOST PROCESSOR: STM32F410RBT6
  * Developed using STM32CubeF4 HAL and API version 1.18.0
- *
  * Baseline code was generated using STM32CubeMX version 4.23.0
  *
  *
@@ -32,20 +31,20 @@
 *Uncomment #define INC_COND to utilize the MPPT Incremental Conductance (IC) algorithm.
 *DEFAULT: Leave commented to implement the Perturb and Observe (P&O) method.
 *
-*NOTE: THE IC ALGORITHM IS UNVERIFIED FOR PRODUCTION USE IN VERSION 1.0!
+*NOTE: THE INCREMENTAL CONDUCTNACE ALGORITHM IS UNVERIFIED FOR PRODUCTION USE IN VERSION 1.0!
 */
 //#define INC_COND
 
 // Used to control timer and fan functionality
-#define ON		1	// Start the timer
-#define OFF		0	// Stop the timer
-#define UPDATE	2	// Update the duty cycle
+#define ON		1	// Start the timer / fan
+#define OFF		0	// Stop the timer / fan
+#define UPDATE	2	// Update the timer duty cycle
 
 // Used to clear, or not clear, the LCD
 #define YES		1	// Clear
 #define NO		0	// Don't clear
 
-// Battery warning indicators
+// Battery Voltage Warning Indicators
 #define NORMALBATTV	0
 #define HIBATTV 	1
 #define LOBATTV		2
@@ -130,7 +129,6 @@ uint8_t sendMessageCount = 0;
 uint8_t getADC = 0;
 uint8_t adcConvComplete = 0;
 uint8_t lcdUpdate = 0;
-uint8_t lcdUpdateFlag = 0;
 uint8_t warning = 0;
 uint8_t pulseInterval = 120;		// 120 second (2 minute) intervals between pulsing the battery bank
 uint8_t aveCount;
@@ -148,6 +146,7 @@ bool mpptBypassFlag;
 bool cycleLoadPower;
 bool enablePowerCycle;
 bool isBypass;
+bool overheatFlag;
 
 int POB_Direction = 1;
 
@@ -176,6 +175,11 @@ char battLo[] = "LOW VOLTAGE!";
 char battDead[] = "BELOW 8 VOLTS!";
 char charger1[] = "PLEASE CONNECT";
 char charger2[] = "EXTERNAL CHARGER";
+char overheat1[] = "OVERHEATED!";
+char overheat2[] = "CHARGING PAUSED!";
+
+//LCD Message Index Array
+uint8_t lcdMsgQueue[] = {1, 2, 3, 4, 5, 6};
 
 // Version string sent to the controller in sendMessage()
 char ver[] = "A1.0";
@@ -199,7 +203,7 @@ double calcVoltage(uint16_t, uint8_t);
 double calcCurrent(uint16_t );
 double calcTemperature(uint16_t);
 
-bool switchFan(uint8_t);
+void switchFan(uint8_t);
 
 
 void switchSolarArray(uint8_t);
@@ -221,7 +225,7 @@ double FloatVoltage(double);
 void updateLCD(uint8_t);
 void sendMessage(void);
 void pulse(void);
-void delay_us(uint32_t);
+//void delay_us(uint32_t);
 
 void calcMPPT(void);
 void calcMPPT_TI(void);
@@ -287,7 +291,7 @@ static void MX_ADC1_Init(void)
     /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
     */
 	hadc1.Instance = ADC1;
-	hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4; // was _DIV4
+	hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2; // was _DIV4
 	hadc1.Init.Resolution = ADC_RESOLUTION_12B;
 	hadc1.Init.ScanConvMode = ENABLE;
 	hadc1.Init.ContinuousConvMode = DISABLE; //DISABLE;
@@ -632,8 +636,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		if (tim9Count == 1000) // 1 second interval
 		{
 			tim9Count = 0;
-			lcdUpdate++;
+//			lcdUpdate++;
 			canPulse++;
+
+			updateLCD(warning);
 
 			if (readTempCount == 0)
 			{
@@ -680,26 +686,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 					loadCurrentOut = loadCurrentAve / aveCount;
 					aveCount = 0;
 				}
-			}
-
-			// used in updateLCD to display different messages at these intervals. Add more intervals to add more messages
-			if ((lcdUpdate == 1) || (lcdUpdate == 5) || (lcdUpdate == 9) || (lcdUpdate == 13) )
-				lcdUpdateFlag = 1;
-
-			if (isCharging == 1) // Skip displaying the logo and version while charging
-			{
-				if (lcdUpdate > 16)
-				{
-					if ( (warning == HIBATTV) || (warning == LOBATTV) )
-						lcdUpdate = 0;
-					else
-						lcdUpdate = 4;
-				}
-			}
-			else
-			{
-				if (lcdUpdate > 16) // Display everything
-					lcdUpdate = 0;
 			}
 
 			// Time interval to wait between checking for minimum charge current. This flag get set in the canCharge loop
@@ -795,6 +781,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		adcCount++;
 
 		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_11); // Ping the WDT
+//		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, GPIO_PIN_SET);
+//		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, GPIO_PIN_RESET);
+
 	}
 }
 
@@ -952,6 +941,17 @@ void getADCreadings (uint8_t howMany)
 		switchLoad(ON);
 	}
 
+// Check for overheating
+	if (quietMosfetTemp >= MAXTEMP)
+	{
+		overheatFlag = true;
+	}
+
+	if ( overheatFlag && (quietMosfetTemp <= FAN_ON_TEMP) )
+	{
+		overheatFlag = false;
+	}
+
 // Calculate the values and send them to the host controller
 	vBat = calcVoltage(vBattery, 2);
 	vSolar = calcVoltage(vSolarArray, 2);
@@ -962,12 +962,6 @@ void getADCreadings (uint8_t howMany)
 	mosfetTemp = calcTemperature(tempMOSFETS);
 	loadCurrent = calcCurrent(iLoad);
 
-//check MOSFET temperature and switch fan on or off as needed
-//	if (mosfetTemp >= FAN_ON_TEMP)
-//		switchFan(ON);
-//	if (mosfetTemp <= FAN_OFF_TEMP)
-//		switchFan(OFF);
-
 	sendMessageCount++;
 
 #ifdef DEBUG2
@@ -976,7 +970,7 @@ void getADCreadings (uint8_t howMany)
 	{
 		sendMessageCount = 0;
 		// This data is sent to a terminal like puTTY
-		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, quietAmbientTemp, quietMosfetTemp, FloatVoltage(quietAmbientTemp), AdsorptionVoltage(quietAmbientTemp));
+		 sprintf(strBuffer, "MPPT ADC Values: %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %2.2f, %d\r\n", vBat, iBat, vSolar, iSolar, loadVoltage, loadCurrent, quietAmbientTemp, quietMosfetTemp, FloatVoltage(quietAmbientTemp), AdsorptionVoltage(quietAmbientTemp), lcdUpdate);
 		 HAL_UART_Transmit(&huart1, strBuffer, sizeof(strBuffer), 0xffff);
 	}
 
@@ -1237,22 +1231,12 @@ void calcMPPT(void)
 	changePWM_TIM1(duty, UPDATE);
 }
 
-bool switchFan(uint8_t onOff)
+void switchFan(uint8_t onOff)
 {
-	bool isFanOn;
-
 	if (onOff == ON)
-	{
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);
-		isFanOn = true;
-	}
 	else
-	{
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET);
-		isFanOn = false;
-	}
-
-	return isFanOn;
 }
 
 void switchSolarArray(uint8_t onOff)
@@ -1339,70 +1323,103 @@ void lcdLoadInfo(void)
 	HD44780_WriteData(1, 0, tmp_buffer, NO);
 }
 
-
+// Called every second from the timer callback
 void updateLCD(uint8_t warning)
 {
 
-	lcdUpdateFlag = 0;
+	static uint8_t msgQueueIndex;
 
-	switch (lcdUpdate)
+	lcdUpdate++;
+
+	if (lcdUpdate >= 1)
 	{
-		case 1:
+		lcdUpdate = 0;
 
-			if (warning == HIBATTV)
-			{
-				HD44780_WriteData(0, 0, battery, YES);
-				HD44780_WriteData(1, 0, battHi, NO);
-			}
-			else if (warning == LOBATTV)
-			{
-				HD44780_WriteData(0, 0, battery, YES);
-				HD44780_WriteData(1, 0, battLo, NO);
-			}
-			else if (warning == DEADBATT)
-			{
-				HD44780_WriteData(0, 0, battery, YES);
-				HD44780_WriteData(1, 0, battDead, NO);
-			}
+		if (msgQueueIndex >= sizeof(lcdMsgQueue) )
+			msgQueueIndex = 0;
 
-			else
+		switch (lcdMsgQueue[msgQueueIndex])
+		{
+			case 1:
 
-				if (isCharging == 1)
+				if (warning == HIBATTV)
 				{
-					lcdBatteryInfo();
+					HD44780_WriteData(0, 0, battery, YES);
+					HD44780_WriteData(1, 0, battHi, NO);
+				}
+				else if (warning == LOBATTV)
+				{
+					HD44780_WriteData(0, 0, battery, YES);
+					HD44780_WriteData(1, 0, battLo, NO);
+				}
+				else if (warning == DEADBATT)
+				{
+					HD44780_WriteData(0, 0, battery, YES);
+					HD44780_WriteData(1, 0, battDead, NO);
+				}
+
+				else
+
+					if (isCharging == 1)
+					{
+						lcdBatteryInfo();
+					}
+					else
+					{
+						HD44780_WriteData(0, 0, logo, YES);
+						HD44780_WriteData(1, 0, version, NO);
+					}
+
+				break;
+
+			case 2:
+
+				if (warning == DEADBATT)
+				{
+					HD44780_WriteData(0, 0, charger1, YES);
+					HD44780_WriteData(1, 0, charger2, NO);
 				}
 				else
 				{
-					HD44780_WriteData(0, 0, logo, YES);
-					HD44780_WriteData(1, 0, version, NO);
+					lcdSolarInfo();
 				}
 
-			break;
+				break;
 
-		case 5:
+			case 3:
+				//lcdBatteryInfo();
+				lcdLoadInfo();
+				break;
 
-			if (warning == DEADBATT)
-			{
-				HD44780_WriteData(0, 0, charger1, YES);
-				HD44780_WriteData(1, 0, charger2, NO);
-			}
-			else
-			{
+			case 4:
+				//lcdLoadInfo();
+				lcdBatteryInfo();
+				break;
+
+			case 5:
 				lcdSolarInfo();
-			}
 
-			break;
+				break;
 
-		case 9:
-			lcdBatteryInfo();
-			break;
+			case 6:
+				if (overheatFlag)
+				{
+					HD44780_WriteData(0, 0, overheat1, YES);
+					HD44780_WriteData(1, 0, overheat2, NO);
+				}
+				else
+				{
+					lcdLoadInfo();
+				}
 
-		case 13:
-			lcdLoadInfo();
-			break;
+				break;
 
-		default:
-			break;
+
+			default:
+				break;
+		}
+
+		msgQueueIndex++;
 	}
 }
 
@@ -1428,7 +1445,10 @@ void delay_us(uint32_t usDelay)
 	uint32_t initTime;
 
 	initTime = __HAL_TIM_GET_COUNTER(&htim11);
+
+	__disable_irq();
 	while ( (__HAL_TIM_GET_COUNTER(&htim11) - initTime < usDelay));
+	__enable_irq();
 }
 
 
@@ -1660,20 +1680,13 @@ int main(void)
 			quietAmbientTemp = ambientTemp;
 		}
 
-		// Update the LCD
-		if (lcdUpdateFlag == 1)
-		{
-			lcdUpdateFlag = 0;
-			updateLCD(warning);
-		}
-
-		if ((!enablePowerCycle) && (warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 5.0))
+		if ((!enablePowerCycle) && (warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 8.0))
 		{
 			cycleLoadPower = true;
 			switchLoad(OFF);
 		}
 
-		if (vBattery >= BAT_DROP_DEAD_VOLT) // We charge only if the battery isn't too dead
+		if ( (vBattery >= BAT_DROP_DEAD_VOLT) && !overheatFlag ) // We charge only if the battery isn't too dead
 		{
 
 			// We have enough solar energy to charge the batteries
@@ -1746,13 +1759,7 @@ int main(void)
 						getADCreadings(32);
 					}
 
-					if (lcdUpdateFlag == 1)
-					{
-						lcdUpdateFlag = 0;
-						updateLCD(warning);
-					}
-
-					if ((!enablePowerCycle) && (warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 5.0))
+					if ((!enablePowerCycle) && (warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 8.0))
 					{
 						cycleLoadPower = true;
 						switchLoad(OFF);
@@ -1822,7 +1829,7 @@ int main(void)
 								{
 									readTempCount = 0;
 									changePWM_TIM1(PCT80_DUTY_CYCLE, OFF);
-									HAL_Delay(50);
+									//HAL_Delay(5); //50
 									getADCreadings(32);
 									quietAmbientTemp = ambientTemp;
 									quietMosfetTemp = mosfetTemp;
@@ -1871,13 +1878,7 @@ int main(void)
 
 							} //end if (getADC == 1)
 
-							if (lcdUpdateFlag == 1)
-							{
-								lcdUpdateFlag = 0;
-								updateLCD(warning);
-							}
-
-							if ((!enablePowerCycle) && (warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 5.0))
+							if ((!enablePowerCycle) && (warning == NORMALBATTV) && (loadVoltage > 0.1) && (loadVoltage < 8.0))
 							{
 								cycleLoadPower = true;
 								switchLoad(OFF);
@@ -1986,7 +1987,7 @@ int main(void)
 			}
 		} // end if (vBattery > BAT_DROP_DEAD_VOLT)
 
-		// If batteries are below BAT_DROP_DEAD_VOLT, just keep these all off while
+		// If batteries are below BAT_DROP_DEAD_VOLT or if we are overheated, just keep these all off while
 		// we warn the user through the LCD
 		else
 		{
