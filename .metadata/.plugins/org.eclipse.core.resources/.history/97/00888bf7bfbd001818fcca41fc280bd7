@@ -1331,7 +1331,7 @@ void updateLCD(uint8_t warning)
 
 	lcdUpdate++;
 
-	if (lcdUpdate >= 3)
+	if (lcdUpdate >= 1)
 	{
 		lcdUpdate = 0;
 

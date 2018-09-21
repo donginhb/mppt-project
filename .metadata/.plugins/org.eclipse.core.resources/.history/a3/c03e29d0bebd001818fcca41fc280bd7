@@ -131,7 +131,7 @@ void HD44780_WriteData(uint8_t row, uint8_t col, char *data, uint8_t clearDispla
 	}
 
 	HD44780_GotoXY(row, col);
-	delay_us(10000);
+	delay_us(5000);
 
 	HD44780_DataMode;
 	delay_us(50);
