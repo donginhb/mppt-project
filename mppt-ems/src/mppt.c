@@ -147,6 +147,7 @@ bool cycleLoadPower;
 bool enablePowerCycle;
 bool isBypass;
 bool overheatFlag;
+bool updateLCDflag;
 
 int POB_Direction = 1;
 
@@ -639,7 +640,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 //			lcdUpdate++;
 			canPulse++;
 
-			updateLCD(warning);
+//			updateLCD(warning);
+			updateLCDflag = true;
 
 			if (readTempCount == 0)
 			{
@@ -655,6 +657,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			if (canPulse > pulseInterval)
 				canPulse = 0;
 
+/** Average the voltage and current readings over a 5 second interval/
+ * This smoothes out some of the variation and makes these vaues easier to understand
+ */
 			if (aveCount <= 5)
 			{
 				if (aveCount == 0)
@@ -688,7 +693,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 				}
 			}
 
-			// Time interval to wait between checking for minimum charge current. This flag get set in the canCharge loop
+/**Time interval to wait between checking for minimum charge current. This flag get set in the canCharge loop
+ *
+ */
 			if (lowChargeCurrentFlag)
 			{
 				lowChargeCurrentTimeout++;
@@ -827,8 +834,9 @@ void changePWM_TIM1(uint16_t pulse, uint8_t onOffUpdate)
 		  HAL_TIMEx_PWMN_Stop(&htim1, TIM_CHANNEL_2);
 
 		  // Explicitly write the bits CC1E / CC1NE and CC2E / CC2NE to zero after stopping Timer 1.
-		  // This provides added insurance that these timer output channels (that drive the switching MOSFET gates) are disabled and in a LOW state
-		  // so we may avoid leaving one or more of those MOSFETS turned on
+		  // Even though this step appears to be handled properly by the HAL Stop functions...
+		  // ...this provides added insurance that these timer output channels (that drive the switching MOSFET gates) are disabled and in a LOW state
+		  // so we may avoid leaving one or more MOSFETS turned on
 		  tim1_ccer = *(__IO uint16_t *)0x40010020;
 		  TIM1->CCER = tim1_ccer & 0x3faa;
 
@@ -982,6 +990,12 @@ void getADCreadings (uint8_t howMany)
 		}
 
 #endif
+
+	if (updateLCDflag)
+	{
+		updateLCDflag = false;
+		updateLCD(warning);
+	}
 
 }
 
@@ -1331,7 +1345,7 @@ void updateLCD(uint8_t warning)
 
 	lcdUpdate++;
 
-	if (lcdUpdate >= 3)
+	if (lcdUpdate >= 4)
 	{
 		lcdUpdate = 0;
 
@@ -1625,6 +1639,7 @@ int main(void)
 	HD44780_WriteData(0, 0, "INITIALIZING!", YES);
 
 	lcdUpdate = 0;
+	updateLCDflag = false;
 	canCharge = false;
 	isCharging = false;
 	isBypass = false;

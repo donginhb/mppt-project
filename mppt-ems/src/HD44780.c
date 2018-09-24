@@ -33,7 +33,7 @@ void HD44780_WriteCommand(uint8_t data) {
 	HD44780_CommandMode;
 	HD44780_ClearRW;
 
-	delay_us(50); //50
+	delay_us(150); //50
 
 	if ( (data==0x03) || (data== 0x02) )  { // Used only for initialization
 
@@ -57,9 +57,9 @@ void HD44780_WriteCommand(uint8_t data) {
 		else
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3, GPIO_PIN_RESET);
 
-		delay_us(50);
+		delay_us(150);
 		HD44780_SetEnable;
-		delay_us(50);
+		delay_us(150);
 		HD44780_ClearEnable;
 	}
 
@@ -85,9 +85,9 @@ void HD44780_WriteCommand(uint8_t data) {
 		else
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3, GPIO_PIN_RESET);
 
-		delay_us(50);
+		delay_us(150);
 		HD44780_SetEnable;
-		delay_us(50);
+		delay_us(150);
 		HD44780_ClearEnable;
 
 		if ( (data&0x08) == 0x08 )
@@ -110,9 +110,9 @@ void HD44780_WriteCommand(uint8_t data) {
 		else
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3, GPIO_PIN_RESET);
 
-		delay_us(50);
+		delay_us(150);
 		HD44780_SetEnable;
-		delay_us(50);
+		delay_us(150);
 		HD44780_ClearEnable;
 	}
 }
@@ -131,10 +131,10 @@ void HD44780_WriteData(uint8_t row, uint8_t col, char *data, uint8_t clearDispla
 	}
 
 	HD44780_GotoXY(row, col);
-	delay_us(10000);
+	delay_us(15000);
 
 	HD44780_DataMode;
-	delay_us(50);
+	delay_us(150);
 
 	length = strlen(data);
 
@@ -160,9 +160,9 @@ void HD44780_WriteData(uint8_t row, uint8_t col, char *data, uint8_t clearDispla
 		else
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3, GPIO_PIN_RESET);
 
-		delay_us(50);
+		delay_us(150);
 		HD44780_SetEnable;
-		delay_us(50);
+		delay_us(150);
 		HD44780_ClearEnable;
 
 		if ( (*data & 0x08) == 0x08 )
@@ -185,9 +185,9 @@ void HD44780_WriteData(uint8_t row, uint8_t col, char *data, uint8_t clearDispla
 		else
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3, GPIO_PIN_RESET);
 
-		delay_us(50);
+		delay_us(150);
 		HD44780_SetEnable;
-		delay_us(50);
+		delay_us(150);
 		HD44780_ClearEnable;
 
 		data++;
@@ -228,6 +228,14 @@ void HD44780_Init() {
 
 }
 
+void HD44780_ReadBusy()
+{
+	uint8_t data;
 
+	HD44780_CommandMode;
+	HD44780_SetRW;
+
+
+}
 
 

@@ -1,6 +1,6 @@
-12:33:59 **** Incremental Build of configuration Debug for project mppt-nucleo2 ****
+09:20:09 **** Incremental Build of configuration Debug for project mppt-nucleo2 ****
 make all 
 make: Nothing to be done for 'all'.
 
-12:34:00 Build Finished (took 1s.175ms)
+09:20:11 Build Finished (took 2s.66ms)
 
